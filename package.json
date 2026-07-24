@@ -15,7 +15,8 @@
     "e2e:fork": "bash scripts/e2e.sh fork",
     "demo": "bash scripts/demo.sh local",
     "demo:fork": "bash scripts/demo.sh fork",
-    "demo:beats": "bash scripts/demo-beats.sh"
+    "demo:beats": "bash scripts/demo-beats.sh",
+    "test:vercel-runtime": "vercel build --yes && node --test test/vercel-runtime.test.mjs"
   },
   "dependencies": {
     "hono": "^4.12.31"

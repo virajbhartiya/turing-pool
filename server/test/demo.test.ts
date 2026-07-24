@@ -61,6 +61,8 @@ test('repository includes a guarded single-service deployment definition', async
   assert.match(blueprint, /sync:\s*false/);
   assert.match(vercelConfig, /"framework":\s*"hono"/);
   assert.match(vercelEntry, /export default app/);
+  assert.match(vercelEntry, /vercel-app\.js/);
+  assert.doesNotMatch(vercelEntry, /vercel-app\.ts/);
 });
 
 test('hosted preview snapshot stays truthful and preserves all three pricing lanes', () => {
