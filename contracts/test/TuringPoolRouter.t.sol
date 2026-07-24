@@ -1,0 +1,186 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+
+import { AquaSwapVMTest } from "swap-vm-test/base/AquaSwapVMTest.sol";
+import { Program, ProgramBuilder } from "swap-vm-test/utils/ProgramBuilder.sol";
+
+import { SwapVM } from "swap-vm/SwapVM.sol";
+import { ISwapVM } from "swap-vm/interfaces/ISwapVM.sol";
+import { XYCSwap } from "swap-vm/instructions/XYCSwap.sol";
+import { Controls } from "swap-vm/instructions/Controls.sol";
+import { BPS } from "swap-vm/instructions/Fee.sol";
+import { Context } from "swap-vm/libs/VM.sol";
+
+import { TuringPoolRouter } from "../src/swapvm/TuringPoolRouter.sol";
+import { HumanGate, HumanGateArgsBuilder } from "../src/swapvm/HumanGate.sol";
+import { HumanQuota } from "../src/HumanQuota.sol";
+import { MockAgentBook } from "../src/mocks/MockAgentBook.sol";
+
+contract TuringPoolRouterTest is AquaSwapVMTest, HumanGate {
+    using ProgramBuilder for Program;
+
+    uint32 internal constant WIDE_FEE_E9 = 3_000_000; // 30 bps on the 1e9 scale
+    uint32 internal constant TIGHT_FEE_E9 = 800_000; // 8 bps
+    uint256 internal constant HUMAN_ID = 0xbeef;
+    uint256 internal constant DAILY_CAP = 500e18;
+    uint256 internal constant BAL_A = 10_000e18;
+    uint256 internal constant BAL_B = 10_000e18;
+
+    HumanQuota internal quota;
+    MockAgentBook internal agentBook;
+
+    function setUp() public override {
+        super.setUp();
+        quota = new HumanQuota();
+        agentBook = new MockAgentBook();
+        quota.setAppAuthorization(address(swapVM), true);
+        quota.setDailyCap(address(tokenA), DAILY_CAP);
+        quota.setDailyCap(address(tokenB), DAILY_CAP);
+
+        // `taker` is the human-backed agent, `taker2` stays anonymous (the bot).
+        agentBook.register(address(taker), HUMAN_ID);
+    }
+
+    function _deployRouter() internal override returns (SwapVM) {
+        return new TuringPoolRouter(address(aqua), address(0), address(this), "TuringPool", "1");
+    }
+
+    /// @dev Opcode table mirroring TuringPoolRouter._instructions(): debug-injected base + _humanGate.
+    function _turingOpcodes() internal pure returns (function(Context memory, bytes calldata) internal[] memory result) {
+        function(Context memory, bytes calldata) internal[] memory base = _opcodes();
+        result = new function(Context memory, bytes calldata) internal[](base.length + 1);
+        for (uint256 i; i < base.length; ++i) {
+            result[i] = base[i];
+        }
+        result[base.length] = _humanGate;
+    }
+
+    function _turingProgram(uint64 salt) internal view returns (bytes memory) {
+        Program memory p = ProgramBuilder.init(_turingOpcodes());
+        return bytes.concat(
+            p.build(HumanGate._humanGate, HumanGateArgsBuilder.build(address(agentBook), address(quota), WIDE_FEE_E9, TIGHT_FEE_E9)),
+            p.build(XYCSwap._xycSwapXD),
+            p.build(Controls._salt, abi.encodePacked(salt))
+        );
+    }
+
+    function _shipTuringStrategy(uint64 salt) internal returns (ISwapVM.Order memory order, bytes32 strategyHash) {
+        order = createStrategy(_turingProgram(salt));
+        tokenA.mint(maker, BAL_A);
+        tokenB.mint(maker, BAL_B);
+        strategyHash = shipStrategy(order, tokenA, tokenB, BAL_A, BAL_B);
+    }
+
+    function _expectedOut(uint256 balIn, uint256 balOut, uint256 amountIn, uint256 feeE9) internal pure returns (uint256) {
+        uint256 amountInWithFee = amountIn - Math.ceilDiv(amountIn * feeE9, BPS);
+        return (amountInWithFee * balOut) / (balIn + amountInWithFee);
+    }
+
+    function _quoteAs(address takerAddr, ISwapVM.Order memory order, uint256 amount, bool isExactIn)
+        internal
+        returns (uint256 amountIn, uint256 amountOut)
+    {
+        ISwapVM viewRouter = ISwapVM(address(swapVM));
+        bytes memory data = takerData(takerAddr, isExactIn);
+        vm.prank(takerAddr);
+        (amountIn, amountOut,) = viewRouter.quote(order, address(tokenA), address(tokenB), amount, data);
+    }
+
+    function test_SwapVM_BotPaysWideFee() public {
+        (ISwapVM.Order memory order,) = _shipTuringStrategy(1);
+        uint256 amountIn = 100e18;
+        SwapProgram memory sp = SwapProgram(amountIn, taker2, tokenA, tokenB, true, true);
+        mintTokenInToTaker(sp);
+
+        (, uint256 amountOut) = swap(sp, order);
+        assertEq(amountOut, _expectedOut(BAL_A, BAL_B, amountIn, WIDE_FEE_E9), "bot pays 30bps");
+    }
+
+    function test_SwapVM_HumanPaysTightFee() public {
+        (ISwapVM.Order memory order,) = _shipTuringStrategy(2);
+        uint256 amountIn = 100e18;
+        SwapProgram memory sp = SwapProgram(amountIn, taker, tokenA, tokenB, true, true);
+        mintTokenInToTaker(sp);
+
+        (, uint256 amountOut) = swap(sp, order);
+        assertEq(amountOut, _expectedOut(BAL_A, BAL_B, amountIn, TIGHT_FEE_E9), "human pays 8bps");
+        assertGt(amountOut, _expectedOut(BAL_A, BAL_B, amountIn, WIDE_FEE_E9), "tight beats wide");
+        assertEq(quota.remaining(HUMAN_ID, address(tokenA)), DAILY_CAP - amountIn, "quota consumed");
+    }
+
+    function test_SwapVM_QuoteMatchesSwap_BothTiers() public {
+        (ISwapVM.Order memory order,) = _shipTuringStrategy(3);
+        uint256 amountIn = 100e18;
+
+        (, uint256 botQuoted) = _quoteAs(address(taker2), order, amountIn, true);
+        SwapProgram memory spBot = SwapProgram(amountIn, taker2, tokenA, tokenB, true, true);
+        mintTokenInToTaker(spBot);
+        (, uint256 botSwapped) = swap(spBot, order);
+        assertEq(botQuoted, botSwapped, "bot quote == swap");
+
+        (, uint256 humanQuoted) = _quoteAs(address(taker), order, amountIn, true);
+        SwapProgram memory spHuman = SwapProgram(amountIn, taker, tokenA, tokenB, true, true);
+        mintTokenInToTaker(spHuman);
+        (, uint256 humanSwapped) = swap(spHuman, order);
+        assertEq(humanQuoted, humanSwapped, "human quote == swap");
+        assertGt(humanQuoted, 0);
+    }
+
+    function test_SwapVM_QuoteIsStaticAndConsumesNoQuota() public {
+        (ISwapVM.Order memory order,) = _shipTuringStrategy(4);
+        _quoteAs(address(taker), order, 100e18, true);
+        assertEq(quota.remaining(HUMAN_ID, address(tokenA)), DAILY_CAP, "quotes must not consume quota");
+    }
+
+    function test_SwapVM_SybilWalletSharesCap() public {
+        (ISwapVM.Order memory order,) = _shipTuringStrategy(5);
+
+        // Human's first wallet consumes the entire cap at the tight tier.
+        SwapProgram memory sp = SwapProgram(DAILY_CAP, taker, tokenA, tokenB, true, true);
+        mintTokenInToTaker(sp);
+        swap(sp, order);
+        assertEq(quota.remaining(HUMAN_ID, address(tokenA)), 0);
+
+        // Second wallet, same human: registered but over-cap => wide tier.
+        agentBook.register(address(taker2), HUMAN_ID);
+        uint256 amountIn = 50e18;
+        (uint256 balA, uint256 balB) = getAquaBalances(swapVM.hash(order));
+        SwapProgram memory sp2 = SwapProgram(amountIn, taker2, tokenA, tokenB, true, true);
+        mintTokenInToTaker(sp2);
+        (, uint256 amountOut) = swap(sp2, order);
+        assertEq(amountOut, _expectedOut(balA, balB, amountIn, WIDE_FEE_E9), "sybil wallet gets wide tier");
+    }
+
+    function test_SwapVM_ExactOutQuotaOnTokenOut() public {
+        (ISwapVM.Order memory order,) = _shipTuringStrategy(6);
+        uint256 amountOut = 100e18;
+
+        SwapProgram memory sp = SwapProgram(amountOut, taker, tokenA, tokenB, true, false);
+        mintTokenInToTaker(sp, 200e18);
+        (uint256 amountIn,) = swap(sp, order);
+
+        assertGt(amountIn, 0);
+        assertEq(quota.remaining(HUMAN_ID, address(tokenB)), DAILY_CAP - amountOut, "exactOut quota on tokenOut");
+        // Tight exactOut must need less input than wide would.
+        uint256 wideAmountInNoFee = Math.ceilDiv(amountOut * BAL_A, BAL_B - amountOut);
+        uint256 wideAmountIn = wideAmountInNoFee + Math.ceilDiv(wideAmountInNoFee * WIDE_FEE_E9, BPS - WIDE_FEE_E9);
+        assertLt(amountIn, wideAmountIn, "tight exactOut cheaper than wide");
+    }
+
+    function test_SwapVM_HumanGatedEventEmitted() public {
+        (ISwapVM.Order memory order, bytes32 strategyHash) = _shipTuringStrategy(7);
+        uint256 amountIn = 100e18;
+        SwapProgram memory sp = SwapProgram(amountIn, taker, tokenA, tokenB, true, true);
+        mintTokenInToTaker(sp);
+
+        vm.expectEmit(true, true, true, true, address(swapVM));
+        emit HumanGate.HumanGated(strategyHash, address(taker), HUMAN_ID, true, TIGHT_FEE_E9);
+        swap(sp, order);
+    }
+
+    function test_SwapVM_OpcodeIndexIsStable() public view {
+        assertEq(TuringPoolRouter(payable(address(swapVM))).humanGateOpcode(), 34, "humanGate opcode index");
+    }
+}

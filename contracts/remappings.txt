@@ -4,3 +4,5 @@ forge-std/=lib/forge-std/src/
 aqua/=lib/aqua/src/
 aqua-examples/=lib/aqua/examples/
 swap-vm/=lib/swap-vm/src/
+swap-vm-test/=lib/swap-vm/test/
+@1inch/aqua/=lib/aqua/
