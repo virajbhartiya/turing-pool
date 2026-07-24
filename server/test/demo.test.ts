@@ -54,7 +54,9 @@ test('static dashboard exposes judge-facing provenance and errors', async () => 
   assert.match(html, /connection-status/);
   assert.match(html, /bounds? (?:the )?LP|bounded risk/i);
   assert.match(html, /location\.origin/);
-  assert.match(html, /One pool\. Two prices\./);
+  assert.match(html, /Turing Pool <span>tETH \/ tUSD<\/span>/);
+  assert.match(html, /id="kpi-notional"/);
+  assert.match(html, /id="market-price"/);
   assert.match(html, /Activity-priced fee controller/);
   assert.match(html, /pnpm demo:sepolia/);
   assert.match(html, /Aqua test deployment/);

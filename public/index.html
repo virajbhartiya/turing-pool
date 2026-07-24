@@ -7,23 +7,23 @@
 <style>
   :root {
     color-scheme: dark;
-    --surface-0: #020b0a;
-    --surface-1: #061311;
-    --surface-2: rgba(8, 27, 24, .94);
-    --surface-3: #0c2521;
-    --surface-4: #10312b;
-    --border: rgba(134, 221, 199, .13);
-    --border-strong: rgba(134, 221, 199, .25);
-    --text-primary: #f1fff9;
-    --text-secondary: #b6d2c9;
-    --text-muted: #78978e;
-    --human: #52efbd;
-    --human-deep: #16ad79;
-    --bot: #ff8c7d;
-    --good: #52efbd;
-    --warn: #f2c770;
-    --cyan: #62dce7;
-    --shadow: 0 22px 70px rgba(0, 0, 0, .28);
+    --surface-0: #06090a;
+    --surface-1: #090e10;
+    --surface-2: rgba(13, 19, 21, .97);
+    --surface-3: #11191b;
+    --surface-4: #172225;
+    --border: rgba(157, 183, 177, .13);
+    --border-strong: rgba(157, 183, 177, .24);
+    --text-primary: #edf4f1;
+    --text-secondary: #b5c2be;
+    --text-muted: #74827e;
+    --human: #4bea9f;
+    --human-deep: #18a96d;
+    --bot: #ff7d78;
+    --good: #4bea9f;
+    --warn: #e9bb63;
+    --cyan: #58c8f4;
+    --shadow: 0 18px 50px rgba(0, 0, 0, .2);
     --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   }
 
@@ -33,9 +33,8 @@
     min-height: 100vh;
     overflow-x: hidden;
     background:
-      radial-gradient(circle at 76% -10%, rgba(54, 230, 184, .13), transparent 34rem),
-      radial-gradient(circle at 2% 30%, rgba(40, 145, 155, .09), transparent 30rem),
-      linear-gradient(180deg, #061412 0%, var(--surface-0) 24rem);
+      radial-gradient(circle at 82% -18%, rgba(75, 234, 159, .08), transparent 32rem),
+      linear-gradient(180deg, #090f10 0%, var(--surface-0) 27rem);
     color: var(--text-primary);
   }
   body::before {
@@ -44,18 +43,18 @@
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    opacity: .42;
+    opacity: .24;
     background-image:
       linear-gradient(rgba(82, 239, 189, .025) 1px, transparent 1px),
       linear-gradient(90deg, rgba(82, 239, 189, .025) 1px, transparent 1px);
-    background-size: 48px 48px;
+    background-size: 40px 40px;
     mask-image: linear-gradient(to bottom, #000, transparent 75%);
   }
   ::selection { color: #001a12; background: var(--human); }
   :focus-visible { outline: 2px solid var(--human); outline-offset: 3px; }
 
   .viz-root {
-    width: min(100%, 1440px);
+    width: min(100%, 1500px);
     min-height: 100vh;
     margin: 0 auto;
     padding: 0 clamp(16px, 3.4vw, 48px) 48px;
@@ -63,7 +62,7 @@
     font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
   header {
-    min-height: 68px;
+    min-height: 64px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -75,18 +74,18 @@
     align-items: center;
     gap: 11px;
     color: var(--text-primary);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 760;
     letter-spacing: -.02em;
     text-transform: uppercase;
   }
   .brand-mark {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     display: grid;
     place-items: center;
     border: 1px solid rgba(82, 239, 189, .32);
-    border-radius: 11px;
+    border-radius: 8px;
     background:
       linear-gradient(145deg, rgba(82, 239, 189, .16), rgba(98, 220, 231, .05)),
       var(--surface-2);
@@ -94,6 +93,26 @@
     font: 800 14px var(--mono);
     box-shadow: 0 0 28px rgba(82, 239, 189, .10), inset 0 1px rgba(255, 255, 255, .06);
   }
+  .header-left, .header-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .primary-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .primary-nav a {
+    border-radius: 7px;
+    padding: 7px 10px;
+    color: var(--text-muted);
+    font: 650 10px var(--mono);
+    letter-spacing: .04em;
+    text-decoration: none;
+  }
+  .primary-nav a:hover { color: var(--text-primary); background: rgba(255, 255, 255, .035); }
+  .primary-nav a.active { color: var(--text-primary); background: rgba(75, 234, 159, .07); }
   .header-meta {
     display: inline-flex;
     align-items: center;
@@ -117,48 +136,157 @@
     animation: pulse 2.2s ease-in-out infinite;
   }
 
-  .hero-intro {
+  .market-intro {
     display: grid;
-    grid-template-columns: minmax(0, 1.45fr) minmax(290px, .7fr);
-    align-items: end;
-    gap: clamp(32px, 7vw, 100px);
-    padding: clamp(42px, 6vw, 76px) 0 clamp(30px, 4vw, 48px);
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 32px;
+    padding: 30px 0 22px;
   }
-  .eyebrow {
-    width: fit-content;
+  .market-breadcrumb {
     margin-bottom: 14px;
-    border: 1px solid rgba(82, 239, 189, .18);
-    border-radius: 999px;
-    padding: 5px 9px;
-    background: rgba(82, 239, 189, .055);
-    color: var(--human);
-    font: 700 10px var(--mono);
-    letter-spacing: .14em;
+    color: var(--text-muted);
+    font: 700 9px var(--mono);
+    letter-spacing: .12em;
     text-transform: uppercase;
   }
-  h1 {
-    max-width: 790px;
-    color: var(--text-primary);
-    font-size: clamp(44px, 6.2vw, 78px);
-    font-weight: 620;
-    letter-spacing: -.062em;
-    line-height: .98;
-    text-wrap: balance;
+  .market-breadcrumb span { color: var(--text-secondary); }
+  .market-name {
+    display: flex;
+    align-items: center;
+    gap: 14px;
   }
-  h1 em {
-    color: var(--human);
+  .pair-icon { position: relative; width: 52px; height: 38px; flex: 0 0 auto; }
+  .pair-icon i {
+    position: absolute;
+    top: 0;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border: 2px solid var(--surface-1);
+    border-radius: 50%;
+    color: #06100c;
+    font: 800 11px var(--mono);
     font-style: normal;
-    text-shadow: 0 0 34px rgba(82, 239, 189, .12);
   }
-  .tagline {
-    max-width: 440px;
-    padding-left: 17px;
-    border-left: 2px solid rgba(82, 239, 189, .44);
+  .pair-icon i:first-child { left: 0; z-index: 1; background: var(--human); }
+  .pair-icon i:last-child { right: 0; background: var(--cyan); }
+  h1 {
+    color: var(--text-primary);
+    font-size: clamp(26px, 3vw, 38px);
+    font-weight: 650;
+    letter-spacing: -.045em;
+    line-height: 1.05;
+  }
+  h1 span {
+    margin-left: 8px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .market-subtitle {
+    margin-top: 6px;
+    color: var(--text-muted);
+    font: 10px var(--mono);
+  }
+  .market-quote { text-align: right; }
+  .market-quote > span {
+    display: block;
+    color: var(--text-muted);
+    font: 700 9px var(--mono);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+  .market-quote strong {
+    display: inline-block;
+    margin-top: 5px;
+    color: var(--text-primary);
+    font-size: clamp(25px, 3vw, 36px);
+    font-weight: 630;
+    letter-spacing: -.04em;
+    font-variant-numeric: tabular-nums;
+  }
+  .market-quote small {
+    margin-left: 5px;
+    color: var(--text-muted);
+    font: 10px var(--mono);
+  }
+  .market-edge {
+    margin-top: 3px;
+    color: var(--human);
+    font: 700 10px var(--mono);
+  }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: 1.25fr repeat(4, 1fr);
+    overflow: hidden;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--border);
+    gap: 1px;
+  }
+  .kpi {
+    min-width: 0;
+    padding: 14px 15px 13px;
+    background: var(--surface-2);
+  }
+  .kpi span {
+    display: block;
+    margin-bottom: 7px;
+    color: var(--text-muted);
+    font: 700 9px var(--mono);
+    letter-spacing: .095em;
+    text-transform: uppercase;
+  }
+  .kpi strong {
+    display: block;
+    color: var(--text-primary);
+    font-size: 20px;
+    font-weight: 630;
+    letter-spacing: -.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  .kpi strong.positive { color: var(--human); }
+  .kpi small {
+    display: block;
+    overflow: hidden;
+    margin-top: 5px;
+    color: var(--text-muted);
+    font: 9px var(--mono);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .contract-details {
+    margin-bottom: 10px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: rgba(9, 14, 16, .72);
+  }
+  .contract-details summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 34px;
+    padding: 0 11px;
     color: var(--text-secondary);
-    font-size: clamp(14px, 1.35vw, 17px);
-    line-height: 1.65;
+    cursor: pointer;
+    font: 700 9px var(--mono);
+    letter-spacing: .08em;
+    list-style: none;
+    text-transform: uppercase;
   }
-  .tagline strong { color: var(--text-primary); font-weight: 650; }
+  .contract-details summary::-webkit-details-marker { display: none; }
+  .contract-details summary::after { content: "Show contracts +"; color: var(--text-muted); }
+  .contract-details[open] summary::after { content: "Hide contracts −"; }
+  .contract-details .chips { margin: 0; padding: 0 10px 10px; }
+  .market-description {
+    max-width: 620px;
+    margin-top: 10px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.55;
+  }
 
   .story-flow {
     counter-reset: story;
@@ -749,8 +877,8 @@
   @media (max-width: 980px) {
     .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     #quote-race .quote-card:last-child, .telemetry-grid .card:last-child { grid-column: 1 / -1; }
-    .hero-intro { grid-template-columns: 1fr; gap: 22px; }
-    .tagline { max-width: 680px; }
+    .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+    .kpi:first-child { grid-column: span 2; }
     .demo-command { grid-template-columns: 1fr auto; }
     .demo-command-copy { grid-column: 1 / -1; }
     .economics-card { grid-template-columns: 1fr; }
@@ -758,9 +886,12 @@
   @media (max-width: 720px) {
     .viz-root { padding-inline: 14px; }
     header { min-height: 62px; }
+    .primary-nav { display: none; }
     .header-meta { max-width: 180px; text-align: right; }
-    .hero-intro { padding: 38px 0 30px; }
-    h1 { font-size: clamp(40px, 12vw, 58px); }
+    .market-intro { grid-template-columns: 1fr; gap: 18px; padding: 24px 0 18px; }
+    .market-quote { border-top: 1px solid var(--border); padding-top: 16px; text-align: left; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .kpi:first-child { grid-column: 1 / -1; }
     .story-flow, .demo-rail { grid-template-columns: 1fr; }
     .story-beat { min-height: 78px; }
     .story-beat:not(:last-child)::after { content: "↓"; top: auto; right: 24px; bottom: -9px; }
@@ -780,6 +911,11 @@
   @media (max-width: 520px) {
     .brand { font-size: 12px; }
     .header-meta { padding: 6px 8px; font-size: 9px; }
+    .market-name { align-items: flex-start; }
+    h1 span { display: block; margin: 3px 0 0; }
+    .market-description { font-size: 11px; }
+    .kpi { padding: 12px; }
+    .kpi strong { font-size: 18px; }
     .grid { grid-template-columns: 1fr; }
     #quote-race .quote-card:last-child, .telemetry-grid .card:last-child { grid-column: auto; }
     .demo-step { min-height: 58px; }
@@ -802,20 +938,68 @@
 <body>
 <div class="viz-root">
   <header>
-    <div class="brand"><span class="brand-mark">T</span> Turing Pool</div>
-    <span class="header-meta" id="network-label">Base Sepolia · live testnet</span>
-  </header>
-  <section class="hero-intro">
-    <div>
-      <div class="eyebrow">75-second judge demo</div>
-      <h1>One pool. Two prices.<br><em>Risk stays capped.</em></h1>
+    <div class="header-left">
+      <div class="brand"><span class="brand-mark">T</span> Turing Pool</div>
+      <nav class="primary-nav" aria-label="Primary">
+        <a class="active" href="#market">Market</a>
+        <a href="#activity">Activity</a>
+        <a href="#risk">Risk</a>
+      </nav>
     </div>
-    <p class="tagline">
-      Compare the same 1 tETH trade. AgentKit proves human backing, AgentBook resolves
-      one shared identity, and a <strong>10 tETH daily cap follows that human across wallets</strong>.
-      Lower bounded risk earns the tighter quote.
-    </p>
+    <div class="header-right">
+      <span class="header-meta" id="network-label">Base Sepolia · live testnet</span>
+    </div>
+  </header>
+
+  <section class="market-intro" id="market">
+    <div class="market-identity">
+      <div class="market-breadcrumb">Protocol / Markets / <span>tETH–tUSD</span></div>
+      <div class="market-name">
+        <span class="pair-icon" aria-hidden="true"><i>Ξ</i><i>$</i></span>
+        <div>
+          <h1>Turing Pool <span>tETH / tUSD</span></h1>
+          <p class="market-subtitle">Identity-priced liquidity · adaptive fee market · 75-second proof mode</p>
+        </div>
+      </div>
+      <p class="market-description">
+        The same maker inventory quotes two risk-adjusted prices. Human-backed flow earns a retail rate
+        while anonymous flow funds the discount and preserves LP fee revenue.
+      </p>
+    </div>
+    <div class="market-quote">
+      <span>Verified agent quote</span>
+      <strong id="market-price">—</strong><small>tUSD / tETH</small>
+      <div class="market-edge" id="market-edge">Waiting for live quote…</div>
+    </div>
   </section>
+
+  <div class="kpi-grid" aria-label="Market overview">
+    <div class="kpi">
+      <span>Pool notional</span>
+      <strong id="kpi-notional">—</strong>
+      <small id="kpi-inventory">maker-owned virtual inventory</small>
+    </div>
+    <div class="kpi">
+      <span>LP fee target</span>
+      <strong class="positive" id="kpi-target">—</strong>
+      <small>blended across all order flow</small>
+    </div>
+    <div class="kpi">
+      <span>Human flow share</span>
+      <strong id="kpi-human-share">—</strong>
+      <small id="kpi-flow-count">waiting for activity</small>
+    </div>
+    <div class="kpi">
+      <span>Quota utilized</span>
+      <strong id="kpi-quota">—</strong>
+      <small>shared across linked wallets</small>
+    </div>
+    <div class="kpi">
+      <span>Settled fills</span>
+      <strong id="kpi-fills">—</strong>
+      <small>public Base Sepolia receipts</small>
+    </div>
+  </div>
 
   <div class="story-flow" aria-label="How Turing Pool works">
     <div class="story-beat">
@@ -832,12 +1016,15 @@
     </div>
   </div>
 
-  <div class="chips" id="chips"></div>
   <div class="status" id="connection-status" role="status" aria-live="polite">
     <span class="dot"></span><span>Connecting to the quote API…</span>
   </div>
+  <details class="contract-details">
+    <summary>Protocol deployment</summary>
+    <div class="chips" id="chips"></div>
+  </details>
 
-  <div class="section-title">
+  <div class="section-title" id="activity">
     <h2>1 · Compare the exact same trade</h2>
     <p id="quote-source-label">1 tETH in · same strategy · same block · only the risk proof changes</p>
   </div>
@@ -1081,6 +1268,15 @@ async function tick() {
       `Under the shared cap: ${quotes.human.feeBps} bps. ` +
       `Anonymous or over cap: ${quotes.bot.feeBps} bps.`;
     const outputDelta = BigInt(quotes.human.amountOut) - BigInt(quotes.bot.amountOut);
+    const quoteInputUnits = Number(BigInt(quotes.human.amountIn)) / 1e18;
+    const humanOutputUnits = Number(BigInt(quotes.human.amountOut)) / 1e18;
+    const botOutputUnits = Number(BigInt(quotes.bot.amountOut)) / 1e18;
+    const humanUnitPrice = humanOutputUnits / quoteInputUnits;
+    const executionEdge = (humanOutputUnits - botOutputUnits) / quoteInputUnits;
+    document.getElementById('market-price').textContent =
+      humanUnitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    document.getElementById('market-edge').textContent =
+      `▲ ${executionEdge.toFixed(2)} tUSD better than anonymous flow`;
     document.getElementById('improvement').textContent =
       'Receives ' + fmt(outputDelta.toString()) + ' more tUSD on the identical trade';
     document.getElementById('comparison-delta').textContent =
@@ -1095,6 +1291,10 @@ async function tick() {
       document.getElementById('controller-tight').textContent = controller.tightFeeBps + ' bps';
       document.getElementById('controller-wide').textContent = controller.wideFeeBps + ' bps';
       document.getElementById('controller-target').textContent = controller.targetFeeBps + ' bps';
+      document.getElementById('kpi-target').textContent = controller.targetFeeBps + ' bps';
+      document.getElementById('kpi-human-share').textContent = humanShare.toFixed(1) + '%';
+      document.getElementById('kpi-flow-count').textContent =
+        `${controller.tightSwaps} verified / ${controller.wideSwaps} anonymous fills`;
       document.getElementById('controller-math').textContent =
         `${humanShare.toFixed(1)}% × ${controller.tightFeeBps} + ` +
         `${botShare.toFixed(1)}% × ${controller.wideFeeBps} = ` +
@@ -1129,6 +1329,15 @@ async function tick() {
     });
 
     const p = state.pool;
+    const poolToken0 = Number(BigInt(p.balance0)) / 1e18;
+    const poolToken1 = Number(BigInt(p.balance1)) / 1e18;
+    const poolNotional = poolToken1 + poolToken0 * humanUnitPrice;
+    document.getElementById('kpi-notional').textContent =
+      '$' + Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 }).format(poolNotional);
+    document.getElementById('kpi-inventory').textContent =
+      `${poolToken0.toLocaleString('en-US', { maximumFractionDigits: 1 })} tETH + ` +
+      `${Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 2 }).format(poolToken1)} tUSD`;
+    document.getElementById('kpi-fills').textContent = String(state.stats.totalSwaps);
     document.getElementById('fees').textContent = p.tightFeeBps + ' / ' + p.wideFeeBps + ' bps';
     document.getElementById('strategy-hash').textContent = 'strategy ' + short(p.strategyHash);
     document.getElementById('pool-bal').textContent = fmt(p.balance0, 18, 1) + ' tETH · ' + fmt(p.balance1, 18, 0) + ' tUSD';
@@ -1141,6 +1350,7 @@ async function tick() {
     const capGuess = configuredCap > 0n ? configuredCap : 1n;
     const used = capGuess > rem ? capGuess - rem : 0n;
     const pct = Math.max(0, Math.min(100, Number((used * 100n) / capGuess)));
+    document.getElementById('kpi-quota').textContent = pct + '%';
     document.getElementById('quota-fill').style.width = pct + '%';
     const quotaTrack = document.querySelector('.meter-track');
     quotaTrack.setAttribute('aria-valuenow', String(pct));
