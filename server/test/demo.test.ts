@@ -17,6 +17,11 @@ test('runtime labels distinguish local mocks, truthful Base forks, and live chai
     label: 'Local Anvil · mock AgentBook',
     agentBook: 'mock',
   });
+  assert.deepEqual(classifyRuntime(84532, true, 'https://sepolia.base.org'), {
+    mode: 'chain',
+    label: 'Base Sepolia · test AgentBook',
+    agentBook: 'mock',
+  });
   assert.deepEqual(classifyRuntime(31337, false), {
     mode: 'base-fork',
     label: 'Base fork · real AgentBook bytecode',

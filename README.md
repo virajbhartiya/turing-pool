@@ -83,6 +83,13 @@ local chain 31337 and labels itself as non-judged.
 
 ## Deployment readiness
 
+The full stack is deployed on **Base Sepolia** and can be served locally with
+live RPC reads using `contracts/deployments/base-sepolia.json`. The deployment
+uses public-testnet Aqua and AgentBook test contracts, while preserving the same
+app, router, quota, pricing, and strategy lifecycle exercised by the fork demo.
+Addresses and the server command are in
+[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
+
 The private repository is linked to Vercel. Its judge-facing preview serves the
 dashboard from `public/` and a real Hono Function at `/health`, `/state`,
 `/demo/quotes`, and `/quote`. Because the Turing Pool contracts are not deployed

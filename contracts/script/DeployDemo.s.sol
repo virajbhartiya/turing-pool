@@ -180,7 +180,8 @@ contract DeployDemo is Script {
         vm.serializeUint(json, "deployBlock", block.number);
         vm.serializeBytes(json, "orderData", order.data);
         string memory out = vm.serializeUint(json, "orderTraits", MakerTraits.unwrap(order.traits));
-        vm.writeJson(out, "./deployments/demo.json");
+        string memory deploymentsFile = vm.envOr("DEPLOYMENTS_FILE", string("./deployments/demo.json"));
+        vm.writeJson(out, deploymentsFile);
 
         console.log("TuringPoolApp:", address(app));
         console.log("TuringPoolRouter:", address(router));

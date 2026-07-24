@@ -1,5 +1,28 @@
 # Deployment
 
+## Base Sepolia
+
+The protocol is deployed on the public Base Sepolia testnet (chain `84532`).
+This uses test deployments of Aqua and AgentBook so the complete stack and demo
+identities can execute without mainnet funds.
+
+| Contract | Address |
+|---|---|
+| Aqua | `0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec` |
+| AgentBook test registry | `0x265f638eb93314AD0e0471E3cC2c97565e75D6E6` |
+| TuringPoolApp | `0x623DbF6A5b0714164707E8036a77C56bc300BF97` |
+| TuringPoolRouter | `0x26fdc2De197F43F693F47962669E180D6A539fb7` |
+| HumanQuota | `0xA4CECe31cA7A7fb79f4A0ffCfd219d1BF92fD46b` |
+
+Run the server against the public testnet:
+
+```bash
+RPC_URL=https://sepolia.base.org \
+CHAIN_ID=84532 \
+DEPLOYMENTS_PATH="$PWD/contracts/deployments/base-sepolia.json" \
+pnpm --filter @turing-pool/server start
+```
+
 ## Vercel judge preview
 
 The repository includes a zero-secret Vercel preview suitable for judging:

@@ -32,6 +32,15 @@ export function classifyRuntime(
   const localRpc = /^https?:\/\/(?:127\.0\.0\.1|localhost)(?::|\/|$)/i.test(rpcUrl);
 
   if (mockAgentBook) {
+    if (!localRpc) {
+      const network =
+        chainId === 84532 ? 'Base Sepolia' : chainId === 8453 ? 'Base mainnet' : `Chain ${chainId}`;
+      return {
+        mode: 'chain',
+        label: `${network} · test AgentBook`,
+        agentBook: 'mock',
+      };
+    }
     return {
       mode: 'local',
       label: 'Local Anvil · mock AgentBook',
