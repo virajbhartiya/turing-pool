@@ -145,6 +145,107 @@ contract TuringPoolRouterTest is AquaSwapVMTest, HumanGate {
         assertEq(quota.remaining(HUMAN_ID, address(tokenA)), DAILY_CAP, "quotes must not consume quota");
     }
 
+    function test_SwapVM_FeesAdaptToExecutedTierVolume() public {
+        quota.configureFeeController(
+            address(tokenA),
+            19, // blended LP target
+            5, // desired tight fee
+            100, // maximum wide fee
+            5, // initial tight fee
+            33, // initial wide fee
+            0,
+            0
+        );
+        (ISwapVM.Order memory order,) = _shipTuringStrategy(40);
+        uint256 amountIn = 100e18;
+
+        // The configured activity schedule overrides the immutable fallback
+        // bytes in the order program.
+        SwapProgram memory botSwap = SwapProgram({
+            amount: amountIn, taker: taker2, tokenA: tokenA, tokenB: tokenB, zeroForOne: true, isExactIn: true
+        });
+        mintTokenInToTaker(botSwap);
+        (, uint256 botOut) = swap(botSwap, order);
+        assertEq(botOut, _expectedOut(BAL_A, BAL_B, amountIn, 3_300_000), "bot starts at 33bps");
+
+        (uint256 balanceA, uint256 balanceB) = getAquaBalances(swapVM.hash(order));
+        SwapProgram memory humanSwap = SwapProgram({
+            amount: amountIn, taker: taker, tokenA: tokenA, tokenB: tokenB, zeroForOne: true, isExactIn: true
+        });
+        mintTokenInToTaker(humanSwap);
+        (, uint256 humanOut) = swap(humanSwap, order);
+        assertEq(humanOut, _expectedOut(balanceA, balanceB, amountIn, 500_000), "human starts at 5bps");
+
+        (uint256 tightFee, uint256 wideFee,, uint256 humanShare, uint256 tightVolume, uint256 wideVolume) =
+            quota.feeSchedule(address(tokenA));
+        assertEq(tightFee, 5);
+        assertEq(wideFee, 33);
+        assertEq(humanShare, 5_000);
+        assertEq(tightVolume, amountIn);
+        assertEq(wideVolume, amountIn);
+        assertEq((tightVolume * tightFee + wideVolume * wideFee) / (tightVolume + wideVolume), 19);
+
+        // One more large human fill shifts the volume ratio to 2:1. The next
+        // anonymous trade is automatically priced at 47bps:
+        // (2 × 5 + 1 × 47) / 3 = 19.
+        mintTokenInToTaker(humanSwap);
+        swap(humanSwap, order);
+        (tightFee, wideFee,, humanShare, tightVolume, wideVolume) = quota.feeSchedule(address(tokenA));
+        assertEq(tightFee, 5);
+        assertEq(wideFee, 47);
+        assertEq(humanShare, 6_666);
+        assertEq(tightVolume, amountIn * 2);
+        assertEq(wideVolume, amountIn);
+
+        (balanceA, balanceB) = getAquaBalances(swapVM.hash(order));
+        (, uint256 repricedBotQuote) = _quoteAs(address(taker2), order, amountIn, true);
+        assertEq(
+            repricedBotQuote,
+            _expectedOut(balanceA, balanceB, amountIn, 4_700_000),
+            "next bot quote uses volume-priced fee"
+        );
+    }
+
+    function test_SwapVM_QuotesDoNotChangeActivityVolumes() public {
+        quota.configureFeeController(address(tokenA), 19, 5, 100, 5, 33, 10e18, 20e18);
+        (ISwapVM.Order memory order,) = _shipTuringStrategy(41);
+
+        _quoteAs(address(taker), order, 100e18, true);
+        _quoteAs(address(taker2), order, 1_000e18, true);
+
+        (,,,, uint256 tightVolume, uint256 wideVolume) = quota.feeSchedule(address(tokenA));
+        assertEq(tightVolume, 10e18, "static human quote must not alter volume");
+        assertEq(wideVolume, 20e18, "static bot quote must not alter volume");
+    }
+
+    function test_SwapVM_UsesNotionalVolumeRatherThanSwapCount() public {
+        quota.configureFeeController(address(tokenA), 19, 5, 100, 5, 33, 0, 0);
+        (ISwapVM.Order memory order,) = _shipTuringStrategy(42);
+
+        // Exactly one fill per lane, but the human fill is twice the size.
+        // A count-based controller would see 50/50 and stay at 5/33. The
+        // executed notional is 2:1, so revenue neutrality requires 5/47.
+        SwapProgram memory botSwap = SwapProgram({
+            amount: 100e18, taker: taker2, tokenA: tokenA, tokenB: tokenB, zeroForOne: true, isExactIn: true
+        });
+        mintTokenInToTaker(botSwap);
+        swap(botSwap, order);
+
+        SwapProgram memory humanSwap = SwapProgram({
+            amount: 200e18, taker: taker, tokenA: tokenA, tokenB: tokenB, zeroForOne: true, isExactIn: true
+        });
+        mintTokenInToTaker(humanSwap);
+        swap(humanSwap, order);
+
+        (uint256 tightFee, uint256 wideFee,, uint256 humanShare, uint256 tightVolume, uint256 wideVolume) =
+            quota.feeSchedule(address(tokenA));
+        assertEq(tightFee, 5);
+        assertEq(wideFee, 47);
+        assertEq(humanShare, 6_666);
+        assertEq(tightVolume, 200e18);
+        assertEq(wideVolume, 100e18);
+    }
+
     function test_SwapVM_SybilWalletSharesCap() public {
         (ISwapVM.Order memory order,) = _shipTuringStrategy(5);
 

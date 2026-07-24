@@ -14,14 +14,13 @@ import {TuringPoolRouter} from "../src/swapvm/TuringPoolRouter.sol";
 import {HumanGateArgsBuilder} from "../src/swapvm/HumanGate.sol";
 import {HumanQuota} from "../src/HumanQuota.sol";
 import {MockAgentBook} from "../src/mocks/MockAgentBook.sol";
-import {DemoToken} from "../src/mocks/DemoToken.sol";
+import {TuringPoolAsset} from "../src/TuringPoolAsset.sol";
 import {IAgentBook} from "../src/interfaces/IAgentBook.sol";
 
 /// @notice Deploys the full Turing Pool demo stack and ships both strategies.
-///         - If AQUA has code (Base fork), the REAL 1inch Aqua deployment is used.
-///         - If AGENT_BOOK has code (Base fork), the REAL World AgentBook is used
-///           (register demo agents via anvil_setStorageAt, see scripts/e2e.sh);
-///           otherwise a MockAgentBook is deployed and demo agents are registered.
+///         - If AQUA has code, that deployment is reused; otherwise Aqua is deployed.
+///         - If AGENT_BOOK has code, the existing World AgentBook is used.
+///           Otherwise a MockAgentBook is deployed for local-only development.
 contract DeployDemo is Script {
     // Opcode indices in TuringPoolRouter (asserted by test_SwapVM_OpcodeIndexIsStable).
     uint8 internal constant OP_XYC_SWAP = 17;
@@ -32,8 +31,11 @@ contract DeployDemo is Script {
     uint256 internal constant POOL_USD = 4_000_000e18; // demo price: 1 tETH = 4000 tUSD
     uint256 internal constant DAILY_CAP_ETH = 10e18;
     uint256 internal constant DAILY_CAP_USD = 40_000e18;
-    uint256 internal constant WIDE_BPS = 30;
-    uint256 internal constant TIGHT_BPS = 8;
+    uint32 internal constant TARGET_FEE_BPS = 19;
+    uint32 internal constant DESIRED_TIGHT_FEE_BPS = 5;
+    uint32 internal constant MAX_WIDE_FEE_BPS = 100;
+    uint32 internal constant WIDE_BPS = 33;
+    uint32 internal constant TIGHT_BPS = 5;
 
     function run() external {
         uint256 deployerPk = vm.envOr(
@@ -45,13 +47,14 @@ contract DeployDemo is Script {
         address humanAgent = vm.envOr("HUMAN_AGENT", address(0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC)); // anvil #2
         address sybilAgent = vm.envOr("SYBIL_AGENT", address(0x90F79bf6EB2c4f870365E785982E1f101E93b906)); // anvil #3
         uint256 demoHumanId = vm.envOr("HUMAN_ID", uint256(uint160(humanAgent)) | (1 << 200));
+        bool requireRealAgentBook = vm.envOr("REQUIRE_REAL_AGENT_BOOK", false);
 
         vm.startBroadcast(deployerPk);
 
         address aquaAddr = vm.envOr("AQUA", address(0));
         if (aquaAddr.code.length == 0) {
             aquaAddr = address(new Aqua());
-            console.log("Deployed local Aqua:", aquaAddr);
+            console.log("Deployed Aqua:", aquaAddr);
         } else {
             console.log("Using existing Aqua:", aquaAddr);
         }
@@ -67,13 +70,25 @@ contract DeployDemo is Script {
         } else {
             console.log("Using existing AgentBook:", agentBookAddr);
         }
+        if (requireRealAgentBook) {
+            require(!mockBook, "real AgentBook required");
+            require(IAgentBook(agentBookAddr).lookupHuman(humanAgent) == demoHumanId, "human wallet not registered");
+            require(IAgentBook(agentBookAddr).lookupHuman(sybilAgent) == demoHumanId, "sybil wallet not registered");
+            require(IAgentBook(agentBookAddr).lookupHuman(bot) == 0, "bot unexpectedly human-backed");
+        }
 
-        DemoToken tETH = new DemoToken("Turing Ether", "tETH");
-        DemoToken tUSD = new DemoToken("Turing USD", "tUSD");
+        TuringPoolAsset tETH = new TuringPoolAsset("Turing Ether", "tETH", maker, 13_000e18);
+        TuringPoolAsset tUSD = new TuringPoolAsset("Turing USD", "tUSD", maker, 40_000_000e18);
 
         HumanQuota quota = new HumanQuota();
         quota.setDailyCap(address(tETH), DAILY_CAP_ETH);
         quota.setDailyCap(address(tUSD), DAILY_CAP_USD);
+        quota.configureFeeController(
+            address(tETH), TARGET_FEE_BPS, DESIRED_TIGHT_FEE_BPS, MAX_WIDE_FEE_BPS, TIGHT_BPS, WIDE_BPS, 0, 0
+        );
+        quota.configureFeeController(
+            address(tUSD), TARGET_FEE_BPS, DESIRED_TIGHT_FEE_BPS, MAX_WIDE_FEE_BPS, TIGHT_BPS, WIDE_BPS, 0, 0
+        );
 
         TuringPoolApp app = new TuringPoolApp(IAqua(aquaAddr), IAgentBook(agentBookAddr), quota);
         TuringPoolRouter router = new TuringPoolRouter(aquaAddr, address(0), maker, "TuringPool", "1");
@@ -81,11 +96,9 @@ contract DeployDemo is Script {
         quota.setAppAuthorization(address(router), true);
 
         // Fund everyone.
-        tETH.mint(maker, 10 * POOL_ETH);
-        tUSD.mint(maker, 10 * POOL_USD);
-        tETH.mint(bot, 1_000e18);
-        tETH.mint(humanAgent, 1_000e18);
-        tETH.mint(sybilAgent, 1_000e18);
+        require(tETH.transfer(bot, 1_000e18), "bot funding failed");
+        require(tETH.transfer(humanAgent, 1_000e18), "human funding failed");
+        require(tETH.transfer(sybilAgent, 1_000e18), "sybil funding failed");
         tETH.approve(aquaAddr, type(uint256).max);
         tUSD.approve(aquaAddr, type(uint256).max);
 
@@ -174,6 +187,7 @@ contract DeployDemo is Script {
         vm.serializeUint(json, "humanId", demoHumanId);
         vm.serializeUint(json, "wideFeeBps", WIDE_BPS);
         vm.serializeUint(json, "tightFeeBps", TIGHT_BPS);
+        vm.serializeUint(json, "targetFeeBps", TARGET_FEE_BPS);
         vm.serializeBytes32(json, "strategyHash", strategyHash);
         vm.serializeBytes32(json, "orderHash", orderHash);
         vm.serializeUint(json, "strategySalt", 1);

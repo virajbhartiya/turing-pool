@@ -48,24 +48,26 @@ abstract contract HumanGate {
 
         IAgentBook agentBook = IAgentBook(address(bytes20(args[0:20])));
         HumanQuota quota = HumanQuota(address(bytes20(args[20:40])));
-        uint256 feeE9 = uint32(bytes4(args[40:44])); // wide by default
+        uint256 fallbackWideFeeE9 = uint32(bytes4(args[40:44]));
+        uint256 fallbackTightFeeE9 = uint32(bytes4(args[44:48]));
+
+        // Quota is denominated in the token whose amount the taker fixed.
+        (address quotaToken, uint256 quotaAmount) =
+            ctx.query.isExactIn ? (ctx.query.tokenIn, ctx.swap.amountIn) : (ctx.query.tokenOut, ctx.swap.amountOut);
+        (uint256 tightFeeBps, uint256 wideFeeBps,,,,) = quota.feeSchedule(quotaToken);
+        uint256 feeE9 = wideFeeBps == 0 ? fallbackWideFeeE9 : wideFeeBps * 1e5;
 
         uint256 humanId = agentBook.lookupHuman(ctx.query.taker);
         bool tight;
         if (humanId != 0) {
-            // Quota is denominated in the token whose amount the taker fixed.
-            (address quotaToken, uint256 quotaAmount) =
-                ctx.query.isExactIn ? (ctx.query.tokenIn, ctx.swap.amountIn) : (ctx.query.tokenOut, ctx.swap.amountOut);
             if (quota.remaining(humanId, quotaToken) >= quotaAmount) {
                 tight = true;
-                feeE9 = uint32(bytes4(args[44:48]));
-                if (!ctx.vm.isStaticContext) {
-                    quota.recordUsage(humanId, quotaToken, quotaAmount);
-                }
+                feeE9 = tightFeeBps == 0 ? fallbackTightFeeE9 : tightFeeBps * 1e5;
             }
         }
 
         if (!ctx.vm.isStaticContext) {
+            quota.recordTrade(humanId, quotaToken, quotaAmount, tight);
             emit HumanGated(ctx.query.orderHash, ctx.query.taker, humanId, tight, feeE9);
         }
 
