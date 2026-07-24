@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { Test } from "forge-std/Test.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Test} from "forge-std/Test.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { IAqua } from "aqua/interfaces/IAqua.sol";
+import {IAqua} from "aqua/interfaces/IAqua.sol";
 
-import { TuringPoolApp } from "../src/TuringPoolApp.sol";
-import { HumanQuota } from "../src/HumanQuota.sol";
-import { IAgentBook } from "../src/interfaces/IAgentBook.sol";
+import {TuringPoolApp} from "../src/TuringPoolApp.sol";
+import {HumanQuota} from "../src/HumanQuota.sol";
+import {IAgentBook} from "../src/interfaces/IAgentBook.sol";
 
 /// @notice Integration test against the REAL deployed contracts on Base mainnet:
 ///         - 1inch Aqua (AquaRouter)  0x499943e74fb0ce105688beee8ef2abec5d936d31
@@ -58,12 +58,7 @@ contract TuringPoolForkTest is Test {
         IERC20(WETH).approve(AQUA, type(uint256).max);
         IERC20(USDC).approve(AQUA, type(uint256).max);
         strategy = TuringPoolApp.Strategy({
-            maker: maker,
-            token0: WETH,
-            token1: USDC,
-            wideFeeBps: 30,
-            tightFeeBps: 8,
-            salt: bytes32(uint256(42))
+            maker: maker, token0: WETH, token1: USDC, wideFeeBps: 30, tightFeeBps: 8, salt: bytes32(uint256(42))
         });
         address[] memory tokens = new address[](2);
         tokens[0] = WETH;
@@ -92,8 +87,7 @@ contract TuringPoolForkTest is Test {
         uint256 amountIn = 0.5 ether;
 
         (uint256 botQuote, bool botTight,,) = app.quoteExactIn(strategy, true, amountIn, bot);
-        (uint256 humanQuote, bool humanTight,, uint256 humanId) =
-            app.quoteExactIn(strategy, true, amountIn, humanAgent);
+        (uint256 humanQuote, bool humanTight,, uint256 humanId) = app.quoteExactIn(strategy, true, amountIn, humanAgent);
 
         assertFalse(botTight);
         assertTrue(humanTight);

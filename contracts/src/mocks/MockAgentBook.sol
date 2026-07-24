@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { IAgentBook } from "../interfaces/IAgentBook.sol";
+import {IAgentBook} from "../interfaces/IAgentBook.sol";
 
 /// @title MockAgentBook - test/demo stand-in for World's AgentBook
 /// @notice Same read ABI as the real registry. Lets unit tests and the live stage demo

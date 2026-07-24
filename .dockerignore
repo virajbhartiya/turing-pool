@@ -1,0 +1,11 @@
+.git
+.github
+.env
+**/node_modules
+contracts/lib
+contracts/cache
+contracts/out
+contracts/broadcast
+subgraph/build
+subgraph/generated
+*.log

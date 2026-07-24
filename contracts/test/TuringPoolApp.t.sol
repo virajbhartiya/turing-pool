@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { Test } from "forge-std/Test.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {Test} from "forge-std/Test.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-import { Aqua } from "aqua/Aqua.sol";
-import { IAqua } from "aqua/interfaces/IAqua.sol";
+import {Aqua} from "aqua/Aqua.sol";
+import {IAqua} from "aqua/interfaces/IAqua.sol";
 
-import { TuringPoolApp } from "../src/TuringPoolApp.sol";
-import { HumanQuota } from "../src/HumanQuota.sol";
-import { MockAgentBook } from "../src/mocks/MockAgentBook.sol";
-import { IAgentBook } from "../src/interfaces/IAgentBook.sol";
+import {TuringPoolApp} from "../src/TuringPoolApp.sol";
+import {HumanQuota} from "../src/HumanQuota.sol";
+import {MockAgentBook} from "../src/mocks/MockAgentBook.sol";
+import {IAgentBook} from "../src/interfaces/IAgentBook.sol";
 
 contract TestToken is ERC20 {
-    constructor(string memory name_) ERC20(name_, name_) { }
+    constructor(string memory name_) ERC20(name_, name_) {}
 
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
@@ -209,8 +209,7 @@ contract TuringPoolAppTest is Test {
 
         vm.expectEmit(true, true, true, true, address(app));
         emit TuringPoolApp.Swapped(
-            strategyHash, humanWallet1, HUMAN_ID, true,
-            address(tokenA), address(tokenB), amountIn, expected, TIGHT_FEE
+            strategyHash, humanWallet1, HUMAN_ID, true, address(tokenA), address(tokenB), amountIn, expected, TIGHT_FEE
         );
         vm.prank(humanWallet1);
         app.swapExactIn(strategy, true, amountIn, 0, humanWallet1);
@@ -221,9 +220,7 @@ contract TuringPoolAppTest is Test {
         uint256 expected = _expectedOut(POOL_LIQ, POOL_LIQ, amountIn, WIDE_FEE);
 
         vm.prank(bot);
-        vm.expectRevert(
-            abi.encodeWithSelector(TuringPoolApp.InsufficientOutputAmount.selector, expected, expected + 1)
-        );
+        vm.expectRevert(abi.encodeWithSelector(TuringPoolApp.InsufficientOutputAmount.selector, expected, expected + 1));
         app.swapExactIn(strategy, true, amountIn, expected + 1, bot);
     }
 

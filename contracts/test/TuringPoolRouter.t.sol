@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import { AquaSwapVMTest } from "swap-vm-test/base/AquaSwapVMTest.sol";
-import { Program, ProgramBuilder } from "swap-vm-test/utils/ProgramBuilder.sol";
+import {AquaSwapVMTest} from "swap-vm-test/base/AquaSwapVMTest.sol";
+import {Program, ProgramBuilder} from "swap-vm-test/utils/ProgramBuilder.sol";
 
-import { SwapVM } from "swap-vm/SwapVM.sol";
-import { ISwapVM } from "swap-vm/interfaces/ISwapVM.sol";
-import { XYCSwap } from "swap-vm/instructions/XYCSwap.sol";
-import { Controls } from "swap-vm/instructions/Controls.sol";
-import { BPS } from "swap-vm/instructions/Fee.sol";
-import { Context } from "swap-vm/libs/VM.sol";
+import {SwapVM} from "swap-vm/SwapVM.sol";
+import {ISwapVM} from "swap-vm/interfaces/ISwapVM.sol";
+import {XYCSwap} from "swap-vm/instructions/XYCSwap.sol";
+import {Controls} from "swap-vm/instructions/Controls.sol";
+import {BPS} from "swap-vm/instructions/Fee.sol";
+import {Context} from "swap-vm/libs/VM.sol";
 
-import { TuringPoolRouter } from "../src/swapvm/TuringPoolRouter.sol";
-import { HumanGate, HumanGateArgsBuilder } from "../src/swapvm/HumanGate.sol";
-import { HumanQuota } from "../src/HumanQuota.sol";
-import { MockAgentBook } from "../src/mocks/MockAgentBook.sol";
+import {TuringPoolRouter} from "../src/swapvm/TuringPoolRouter.sol";
+import {HumanGate, HumanGateArgsBuilder} from "../src/swapvm/HumanGate.sol";
+import {HumanQuota} from "../src/HumanQuota.sol";
+import {MockAgentBook} from "../src/mocks/MockAgentBook.sol";
 
 contract TuringPoolRouterTest is AquaSwapVMTest, HumanGate {
     using ProgramBuilder for Program;
@@ -48,7 +48,11 @@ contract TuringPoolRouterTest is AquaSwapVMTest, HumanGate {
     }
 
     /// @dev Opcode table mirroring TuringPoolRouter._instructions(): debug-injected base + _humanGate.
-    function _turingOpcodes() internal pure returns (function(Context memory, bytes calldata) internal[] memory result) {
+    function _turingOpcodes()
+        internal
+        pure
+        returns (function(Context memory, bytes calldata) internal[] memory result)
+    {
         function(Context memory, bytes calldata) internal[] memory base = _opcodes();
         result = new function(Context memory, bytes calldata) internal[](base.length + 1);
         for (uint256 i; i < base.length; ++i) {
@@ -60,7 +64,10 @@ contract TuringPoolRouterTest is AquaSwapVMTest, HumanGate {
     function _turingProgram(uint64 salt) internal view returns (bytes memory) {
         Program memory p = ProgramBuilder.init(_turingOpcodes());
         return bytes.concat(
-            p.build(HumanGate._humanGate, HumanGateArgsBuilder.build(address(agentBook), address(quota), WIDE_FEE_E9, TIGHT_FEE_E9)),
+            p.build(
+                HumanGate._humanGate,
+                HumanGateArgsBuilder.build(address(agentBook), address(quota), WIDE_FEE_E9, TIGHT_FEE_E9)
+            ),
             p.build(XYCSwap._xycSwapXD),
             p.build(Controls._salt, abi.encodePacked(salt))
         );
@@ -73,7 +80,11 @@ contract TuringPoolRouterTest is AquaSwapVMTest, HumanGate {
         strategyHash = shipStrategy(order, tokenA, tokenB, BAL_A, BAL_B);
     }
 
-    function _expectedOut(uint256 balIn, uint256 balOut, uint256 amountIn, uint256 feeE9) internal pure returns (uint256) {
+    function _expectedOut(uint256 balIn, uint256 balOut, uint256 amountIn, uint256 feeE9)
+        internal
+        pure
+        returns (uint256)
+    {
         uint256 amountInWithFee = amountIn - Math.ceilDiv(amountIn * feeE9, BPS);
         return (amountInWithFee * balOut) / (balIn + amountInWithFee);
     }

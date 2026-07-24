@@ -2,8 +2,18 @@
   "name": "turing-pool",
   "private": true,
   "version": "0.1.0",
-  "description": "The first AMM that quotes tighter spreads for verified-human order flow. ETHGlobal Lisbon 2026.",
+  "packageManager": "pnpm@11.2.2",
+  "description": "An Aqua AMM that prices bounded, sybil-resistant human-backed order flow. ETHGlobal Lisbon 2026.",
   "scripts": {
-    "e2e": "bash scripts/e2e.sh"
+    "build": "pnpm --filter @turing-pool/server build",
+    "test": "pnpm --filter @turing-pool/server test && pnpm --filter @turing-pool/agent test && pnpm --filter @turing-pool/subgraph build && (cd contracts && forge test)",
+    "typecheck": "pnpm --filter @turing-pool/server typecheck && pnpm --filter @turing-pool/agent typecheck",
+    "format:check": "cd contracts && forge fmt --check",
+    "check": "pnpm typecheck && pnpm test && pnpm format:check",
+    "e2e": "bash scripts/e2e.sh",
+    "e2e:fork": "bash scripts/e2e.sh fork",
+    "demo": "bash scripts/demo.sh local",
+    "demo:fork": "bash scripts/demo.sh fork",
+    "demo:beats": "bash scripts/demo-beats.sh"
   }
 }

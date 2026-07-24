@@ -1,6 +1,6 @@
 # 🧠 Turing Pool
 
-**The first AMM that quotes tighter spreads for order flow provably backed by a unique human.**
+**An AMM that prices bounded order-flow risk using proof of unique human backing.**
 
 On-chain market makers can't tell retail flow from toxic arb-bot flow, so every taker pays the worst-case spread. TradFi solved this decades ago — brokers segment retail flow and it gets price improvement. Turing Pool brings that to DeFi with cryptography instead of brokers: World's **AgentBook** registry maps agent wallets to a persistent, sybil-resistant `humanId` (a World ID nullifier), and our pool reads it **on-chain, at quote time** to price personhood.
 
@@ -8,20 +8,20 @@ On-chain market makers can't tell retail flow from toxic arb-bot flow, so every 
 - **Anonymous bots**: wide spread (e.g. 30bps)
 - **Sybil wallets**: same human ⇒ same `humanId` ⇒ same shared quota. A fresh wallet buys you nothing.
 
-The per-human cap is what makes this economically sound, not just a gimmick: bounded per-human volume ⇒ bounded adverse selection per human ⇒ LPs can rationally quote the tight tier. One human can't launder an arb desk's flow through the cheap lane.
+The per-human cap is what makes this economically sound rather than a generic identity discount: bounded per-human volume ⇒ bounded adverse selection per human ⇒ LPs can rationally quote the tight tier. One human cannot reset that risk limit by creating another wallet.
 
 Built at **ETHGlobal Lisbon 2026** for the World AgentKit, 1inch Aqua, and The Graph tracks.
 
 ## What's real
 
-Verified by `./scripts/e2e.sh fork` (8/8 assertions) on an **anvil fork of Base mainnet**:
+Verified by `pnpm e2e:fork` on an **Anvil fork of Base mainnet**:
 
 | Piece | Address |
 |---|---|
 | 1inch Aqua (real deployment) | `0x499943E74FB0cE105688beeE8Ef2ABec5D936d31` |
 | World AgentBook (real deployment) | `0xE1D1D3526A6FAa37eb36bD10B933C1b77f4561a4` |
 
-The demo registers agents into the **real AgentBook's storage** (`lookupHuman` mapping @ slot 4, layout validated against the deployed bytecode in `TuringPoolFork.t.sol`) and ships strategies on the **real Aqua**. Off-chain, the quote API runs the **official `@worldcoin/agentkit` SDK** end to end: 402 challenge → CAIP-122/SIWE signature → `parseAgentkitHeader`/`validateAgentkitMessage`/`verifyAgentkitSignature` → on-chain `lookupHuman`.
+The fork demo runs against the deployed Aqua and AgentBook bytecode. It injects demo registrations into the forked AgentBook storage (`lookupHuman` mapping at slot 4, validated against deployed bytecode in `TuringPoolFork.t.sol`); it does **not** claim those registrations exist in production state. Off-chain, the quote API runs the official `@worldcoin/agentkit` SDK end to end: 402 challenge → CAIP-122/SIWE signature → `parseAgentkitHeader`/`validateAgentkitMessage`/`verifyAgentkitSignature` → on-chain `lookupHuman`.
 
 ## Architecture
 
@@ -62,36 +62,52 @@ Two independent on-chain implementations:
 # prerequisites: foundry, node 22+, pnpm
 pnpm install && cd contracts && forge build && cd ..
 
-# unit + integration tests (24 tests: tiering, sybil caps, quote/swap parity, settlement)
-cd contracts && forge test
+# full local verification: typecheck, agent tests, subgraph build, Foundry, formatting
+pnpm check
 
 # fork tests vs REAL Base mainnet deployments (3 tests)
-RUN_FORK_TESTS=1 forge test --match-contract Fork -vv
+cd contracts && RUN_FORK_TESTS=1 forge test --match-contract Fork -vv && cd ..
 
-# full end-to-end demo (anvil + deploy + API + bot + human agent + sybil + strategist)
-./scripts/e2e.sh          # local mode
-./scripts/e2e.sh fork     # against real Aqua + real AgentBook on a Base fork
+# asserted end-to-end demo
+pnpm e2e               # local Aqua + mock AgentBook
+pnpm e2e:fork          # deployed Aqua + AgentBook bytecode on a Base fork
 
-# live demo (each in its own terminal)
-anvil --port 8545                                          # or --fork-url base
-cd contracts && forge script script/DeployDemo.s.sol --rpc-url http://127.0.0.1:8545 --broadcast
-cd server && pnpm start                                    # quote API :4021
-cd web && pnpm start                                       # dashboard :4030
-cd agent && pnpm bot && pnpm human && pnpm strategist      # the demo script
+# persistent judge demo
+pnpm demo:fork         # terminal 1: chain + deploy + API + dashboard
+SUBGRAPH_URL=https://… pnpm demo:beats  # terminal 2: narrated four-beat flow
 ```
+
+Copy `.env.example` for runtime configuration. `SUBGRAPH_URL` is mandatory for
+the judged strategist flow; the chain-log fallback is deliberately limited to
+local chain 31337 and labels itself as non-judged.
+
+## Deployment readiness
+
+The production shape is a single container: the Hono API serves the dashboard
+at `/`, exposes `/health` for the host, and uses same-origin dashboard requests.
+The checked-in [Render Blueprint](./render.yaml) waits for CI before automatic
+deploys, and the [Dockerfile](./Dockerfile) runs the compiled server as an
+unprivileged user.
+
+Production deliberately refuses to start without `DEPLOYMENTS_JSON`, preventing
+the local or Base-fork demo addresses from being published accidentally. Deploy
+the contracts on Base, deploy the subgraph, then provide `RPC_URL`,
+`SUBGRAPH_URL`, and the resulting deployment JSON through the host's secret
+store. See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for the release order and
+container command.
 
 ## Track integration map
 
-**World — AgentKit New Use Cases.** Human-backing changes *economic terms* in an adversarial market: access (tight tier), rate limits (per-human daily quota), pricing (spread). Uses AgentKit both off-chain (official SDK, full 402→SIWE→verify loop in `server/src/index.ts`) and on-chain (`AgentBook.lookupHuman` read inside the AMM at `contracts/src/TuringPoolApp.sol:126` and `contracts/src/swapvm/HumanGate.sol`). Sybil resistance via the shared nullifier is the core trust model, not a login. Integration feedback in [FEEDBACK.md](./FEEDBACK.md).
+**World — AgentKit New Use Cases.** Human backing changes risk limits and execution terms in an adversarial market. The lower spread is justified by a sybil-resistant, per-human exposure cap; it is not an arbitrary identity benefit. AgentKit runs off-chain through the full 402→SIWE→verify loop and on-chain through `AgentBook.lookupHuman`. Integration feedback is in [FEEDBACK.md](./FEEDBACK.md).
 
-**1inch — Build an Aqua App.** A custom Aqua app implementing a sophisticated position (dual-tier identity-priced AMM) *plus* a modified SwapVM router with a new instruction (`_humanGate`, opcode 34) — redeployment explicitly allowed by the track. On-chain transfers demoed on a fork (allowed). Settlement uses `ship/dock/pull/push` with LP funds never leaving the maker wallet; the strategist demonstrates dock+re-ship as live re-pricing. Proper commit history throughout.
+**1inch — Build an Aqua App.** A custom dual-tier Aqua app plus a modified SwapVM router with `_humanGate` at opcode 34. The E2E executes the custom router, verifies its `HumanGated` event, and executes token transfers on the fork. Settlement uses `ship/dock/pull/push`; the strategist demonstrates dock+re-ship as live re-pricing.
 
-**The Graph — Best AI Use Case.** The Strategist agent's input data is per-tier flow analytics (`subgraph/` — `Strategy`, `Swap`, `TierStat`, `Human` entities; `graph build` green). It *reasons* over markout/toxicity stats and *acts* on-chain (dock + ship). `SUBGRAPH_URL` switches it from the API fallback to a deployed subgraph endpoint; deploy with `pnpm configure <app> <aqua> <block> base && graph deploy` from `subgraph/`.
+**The Graph — Best AI Use Case.** The strategist consumes live per-tier swaps and Aqua balances from the custom subgraph, reasons over execution edge, and acts on-chain by docking and shipping a re-priced strategy. Graph errors, missing strategies, and invalid balances fail loudly. Configure and deploy from `subgraph/` with `pnpm configure <app> <aqua> <block> base && pnpm deploy`; the judged demo requires the resulting `SUBGRAPH_URL`.
 
 ## Repo layout
 
 ```
-contracts/   Foundry: TuringPoolApp, HumanQuota, _humanGate + TuringPoolRouter, 27 tests
+contracts/   Foundry: TuringPoolApp, HumanQuota, _humanGate + TuringPoolRouter
 server/      AgentKit-gated quote API (official @worldcoin/agentkit SDK)
 agent/       bot.ts, human-agent.ts (SIWE loop + sybil demo), strategist.ts
 subgraph/    The Graph subgraph (schema, mappings, configure script)
@@ -102,7 +118,9 @@ docs/        design doc
 
 ## The demo beats (≈3 min)
 
-1. Bot asks for a quote → **402: prove you're human-backed** → falls back to anonymous lane → 30bps.
-2. Human agent's AgentKit client auto-signs SIWE → verified on-chain → **8bps, +22bps price improvement**, same pool, same second.
-3. Human's *second wallet* tries to reuse the cheap lane past the cap → same `humanId` → **demoted to wide. Sybil defeated.**
-4. Strategist agent reads the subgraph, sees human flow is benign → **docks + re-ships at 5bps** → next human quote is better. The pool learns to trust humans, autonomously.
+1. Bot asks for a quote → **402: prove human backing** → anonymous lane at 30bps.
+2. `_humanGate` executes inside SwapVM as opcode 34 and emits `HumanGated`.
+3. AgentKit auto-signs SIWE → verified on-chain → tight lane at 8bps. A second wallet attempts `remaining quota + 1` and is demoted to wide because it shares the same `humanId`.
+4. The strategist reads live Graph data, explains its decision, then **docks + re-ships at 5bps**. The next human quote improves.
+
+The exact stage narration and preflight checklist are in [docs/DEMO.md](./docs/DEMO.md).

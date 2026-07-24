@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import { Context, ContextLib } from "swap-vm/libs/VM.sol";
-import { BPS } from "swap-vm/instructions/Fee.sol";
+import {Context, ContextLib} from "swap-vm/libs/VM.sol";
+import {BPS} from "swap-vm/instructions/Fee.sol";
 
-import { IAgentBook } from "../interfaces/IAgentBook.sol";
-import { HumanQuota } from "../HumanQuota.sol";
+import {IAgentBook} from "../interfaces/IAgentBook.sol";
+import {HumanQuota} from "../HumanQuota.sol";
 
 /// @dev Builds the 48-byte immutable args for the _humanGate instruction:
 ///      agentBook(20) | quota(20) | wideFeeE9(4) | tightFeeE9(4).
@@ -37,21 +37,14 @@ abstract contract HumanGate {
 
     /// @notice Emitted during swaps (not quotes); the subgraph reads tiers from this.
     event HumanGated(
-        bytes32 indexed orderHash,
-        address indexed taker,
-        uint256 indexed humanId,
-        bool tight,
-        uint256 feeE9
+        bytes32 indexed orderHash, address indexed taker, uint256 indexed humanId, bool tight, uint256 feeE9
     );
 
     uint256 private constant ARGS_LENGTH = 48;
 
     function _humanGate(Context memory ctx, bytes calldata args) internal {
         require(args.length == ARGS_LENGTH, HumanGateInvalidArgs(args.length));
-        require(
-            ctx.swap.amountIn == 0 || ctx.swap.amountOut == 0,
-            HumanGateMustRunBeforeSwapComputation()
-        );
+        require(ctx.swap.amountIn == 0 || ctx.swap.amountOut == 0, HumanGateMustRunBeforeSwapComputation());
 
         IAgentBook agentBook = IAgentBook(address(bytes20(args[0:20])));
         HumanQuota quota = HumanQuota(address(bytes20(args[20:40])));
@@ -61,9 +54,8 @@ abstract contract HumanGate {
         bool tight;
         if (humanId != 0) {
             // Quota is denominated in the token whose amount the taker fixed.
-            (address quotaToken, uint256 quotaAmount) = ctx.query.isExactIn
-                ? (ctx.query.tokenIn, ctx.swap.amountIn)
-                : (ctx.query.tokenOut, ctx.swap.amountOut);
+            (address quotaToken, uint256 quotaAmount) =
+                ctx.query.isExactIn ? (ctx.query.tokenIn, ctx.swap.amountIn) : (ctx.query.tokenOut, ctx.swap.amountOut);
             if (quota.remaining(humanId, quotaToken) >= quotaAmount) {
                 tight = true;
                 feeE9 = uint32(bytes4(args[44:48]));

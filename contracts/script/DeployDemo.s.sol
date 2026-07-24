@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { Script } from "forge-std/Script.sol";
-import { console } from "forge-std/console.sol";
+import {Script} from "forge-std/Script.sol";
+import {console} from "forge-std/console.sol";
 
-import { Aqua } from "aqua/Aqua.sol";
-import { IAqua } from "aqua/interfaces/IAqua.sol";
-import { ISwapVM } from "swap-vm/interfaces/ISwapVM.sol";
-import { MakerTraits, MakerTraitsLib } from "swap-vm/libs/MakerTraits.sol";
+import {Aqua} from "aqua/Aqua.sol";
+import {IAqua} from "aqua/interfaces/IAqua.sol";
+import {ISwapVM} from "swap-vm/interfaces/ISwapVM.sol";
+import {MakerTraits, MakerTraitsLib} from "swap-vm/libs/MakerTraits.sol";
 
-import { TuringPoolApp } from "../src/TuringPoolApp.sol";
-import { TuringPoolRouter } from "../src/swapvm/TuringPoolRouter.sol";
-import { HumanGateArgsBuilder } from "../src/swapvm/HumanGate.sol";
-import { HumanQuota } from "../src/HumanQuota.sol";
-import { MockAgentBook } from "../src/mocks/MockAgentBook.sol";
-import { IAgentBook } from "../src/interfaces/IAgentBook.sol";
-import { TestToken } from "../test/TuringPoolApp.t.sol";
+import {TuringPoolApp} from "../src/TuringPoolApp.sol";
+import {TuringPoolRouter} from "../src/swapvm/TuringPoolRouter.sol";
+import {HumanGateArgsBuilder} from "../src/swapvm/HumanGate.sol";
+import {HumanQuota} from "../src/HumanQuota.sol";
+import {MockAgentBook} from "../src/mocks/MockAgentBook.sol";
+import {DemoToken} from "../src/mocks/DemoToken.sol";
+import {IAgentBook} from "../src/interfaces/IAgentBook.sol";
 
 /// @notice Deploys the full Turing Pool demo stack and ships both strategies.
 ///         - If AQUA has code (Base fork), the REAL 1inch Aqua deployment is used.
@@ -68,8 +68,8 @@ contract DeployDemo is Script {
             console.log("Using existing AgentBook:", agentBookAddr);
         }
 
-        TestToken tETH = new TestToken("tETH");
-        TestToken tUSD = new TestToken("tUSD");
+        DemoToken tETH = new DemoToken("Turing Ether", "tETH");
+        DemoToken tUSD = new DemoToken("Turing USD", "tUSD");
 
         HumanQuota quota = new HumanQuota();
         quota.setDailyCap(address(tETH), DAILY_CAP_ETH);
@@ -115,35 +115,34 @@ contract DeployDemo is Script {
                 OP_HUMAN_GATE,
                 uint8(48),
                 HumanGateArgsBuilder.build(
-                    agentBookAddr,
-                    address(quota),
-                    uint32(WIDE_BPS * 1e5),
-                    uint32(TIGHT_BPS * 1e5)
+                    agentBookAddr, address(quota), uint32(WIDE_BPS * 1e5), uint32(TIGHT_BPS * 1e5)
                 )
             ),
             abi.encodePacked(OP_XYC_SWAP, uint8(0)),
             abi.encodePacked(OP_SALT, uint8(8), uint64(1))
         );
-        ISwapVM.Order memory order = MakerTraitsLib.build(MakerTraitsLib.Args({
-            maker: maker,
-            shouldUnwrapWeth: false,
-            useAquaInsteadOfSignature: true,
-            allowZeroAmountIn: false,
-            receiver: address(0),
-            hasPreTransferInHook: false,
-            hasPostTransferInHook: false,
-            hasPreTransferOutHook: false,
-            hasPostTransferOutHook: false,
-            preTransferInTarget: address(0),
-            preTransferInData: "",
-            postTransferInTarget: address(0),
-            postTransferInData: "",
-            preTransferOutTarget: address(0),
-            preTransferOutData: "",
-            postTransferOutTarget: address(0),
-            postTransferOutData: "",
-            program: program
-        }));
+        ISwapVM.Order memory order = MakerTraitsLib.build(
+            MakerTraitsLib.Args({
+                maker: maker,
+                shouldUnwrapWeth: false,
+                useAquaInsteadOfSignature: true,
+                allowZeroAmountIn: false,
+                receiver: address(0),
+                hasPreTransferInHook: false,
+                hasPostTransferInHook: false,
+                hasPreTransferOutHook: false,
+                hasPostTransferOutHook: false,
+                preTransferInTarget: address(0),
+                preTransferInData: "",
+                postTransferInTarget: address(0),
+                postTransferInData: "",
+                preTransferOutTarget: address(0),
+                preTransferOutData: "",
+                postTransferOutTarget: address(0),
+                postTransferOutData: "",
+                program: program
+            })
+        );
         bytes32 orderHash;
         {
             address[] memory tokens = new address[](2);

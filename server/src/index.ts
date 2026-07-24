@@ -1,7 +1,9 @@
 import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { randomBytes } from 'node:crypto';
+import { resolve } from 'node:path';
 import {
   parseAgentkitHeader,
   validateAgentkitMessage,
@@ -10,8 +12,9 @@ import {
   InMemoryAgentKitStorage,
 } from '@worldcoin/agentkit';
 
-import { BASE_URL, CHAIN_ID, PORT, SERVER_DOMAIN } from './config.js';
+import { BASE_URL, CHAIN_ID, PORT, RPC_URL, SERVER_DOMAIN } from './config.js';
 import {
+  client,
   dailyCap,
   deployments,
   lookupHuman,
@@ -19,15 +22,84 @@ import {
   quotaRemaining,
   quoteFor,
   recentSwaps,
+  strategyHistory,
 } from './chain.js';
+import { amountForOverQuotaQuote, classifyRuntime, parseQuoteAmount } from './demo.js';
 
 const app = new Hono();
 app.use('*', cors());
+const WEB_ROOT = process.env.WEB_ROOT ?? resolve(import.meta.dirname, '../../web');
 
 const storage = new InMemoryAgentKitStorage();
 const CHAIN = `eip155:${CHAIN_ID}`;
 const STATEMENT =
-  'Prove you are an agent backed by a unique human to receive tight-spread pricing on Turing Pool.';
+  'Prove you are an agent backed by a unique human so a shared quota can bound LP risk and safely unlock tight-spread pricing.';
+
+const SUBGRAPH_URL = process.env.SUBGRAPH_URL;
+let graphStatusCache:
+  | {
+      checkedAt: number;
+      value: {
+        configured: boolean;
+        endpoint: string | null;
+        status: 'connected' | 'error' | 'not-configured';
+        indexedBlock: string | null;
+        hasIndexingErrors: boolean | null;
+        error?: string;
+      };
+    }
+  | undefined;
+
+async function graphStatus() {
+  if (!SUBGRAPH_URL) {
+    return {
+      configured: false,
+      endpoint: null,
+      status: 'not-configured' as const,
+      indexedBlock: null,
+      hasIndexingErrors: null,
+    };
+  }
+  if (graphStatusCache && Date.now() - graphStatusCache.checkedAt < 10_000) {
+    return graphStatusCache.value;
+  }
+  try {
+    const response = await fetch(SUBGRAPH_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query: '{ _meta { block { number } hasIndexingErrors } }' }),
+      signal: AbortSignal.timeout(3_000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const body = (await response.json()) as {
+      data?: { _meta?: { block?: { number?: number }; hasIndexingErrors?: boolean } };
+      errors?: Array<{ message?: string }>;
+    };
+    if (body.errors?.length) {
+      throw new Error(body.errors.map((error) => error.message ?? 'GraphQL error').join('; '));
+    }
+    const value = {
+      configured: true,
+      endpoint: SUBGRAPH_URL,
+      status: 'connected' as const,
+      indexedBlock: body.data?._meta?.block?.number?.toString() ?? null,
+      hasIndexingErrors: body.data?._meta?.hasIndexingErrors ?? null,
+    };
+    graphStatusCache = { checkedAt: Date.now(), value };
+    return value;
+  } catch (error) {
+    const value = {
+      configured: true,
+      endpoint: SUBGRAPH_URL,
+      status: 'error' as const,
+      indexedBlock: null,
+      hasIndexingErrors: null,
+      error: error instanceof Error ? error.message : String(error),
+    };
+    graphStatusCache = { checkedAt: Date.now(), value };
+    return value;
+  }
+}
 
 /// x402-style 402 response carrying the AgentKit extension. The
 /// @worldcoin/agentkit client detects this shape and auto-signs a SIWE proof.
@@ -88,7 +160,12 @@ async function verifyAgent(header: string, resourceUri: string): Promise<Verifie
 }
 
 app.get('/quote', async (c) => {
-  const amountIn = BigInt(c.req.query('amountIn') ?? '1000000000000000000');
+  let amountIn: bigint;
+  try {
+    amountIn = parseQuoteAmount(c.req.query('amountIn'));
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : 'invalid amountIn' }, 400);
+  }
   const zeroForOne = (c.req.query('zeroForOne') ?? 'true') === 'true';
   const anonymous = c.req.query('anonymous') === '1';
   const resourceUri = `${BASE_URL}/quote`;
@@ -154,15 +231,29 @@ app.get('/quote', async (c) => {
 /// Dashboard helper: live quotes for the three demo takers (on-chain eth_calls;
 /// the tier shown is exactly what each taker would receive on-chain right now).
 app.get('/demo/quotes', async (c) => {
-  const amountIn = BigInt(c.req.query('amountIn') ?? '1000000000000000000');
-  const [human, bot, sybil] = await Promise.all([
+  let amountIn: bigint;
+  try {
+    amountIn = parseQuoteAmount(c.req.query('amountIn'));
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : 'invalid amountIn' }, 400);
+  }
+  const [human, bot] = await Promise.all([
     quoteFor(deployments.humanAgent, amountIn, true),
     quoteFor(deployments.bot, amountIn, true),
-    quoteFor(deployments.sybilAgent, amountIn, true),
   ]);
-  const row = (label: string, q: Awaited<ReturnType<typeof quoteFor>>, address: string) => ({
+  const sharedHumanId = human.humanId || BigInt(deployments.humanId);
+  const remaining = await quotaRemaining(sharedHumanId, human.strategy.token0);
+  const sybilAmountIn = amountForOverQuotaQuote(remaining);
+  const sybil = await quoteFor(deployments.sybilAgent, sybilAmountIn, true);
+  const row = (
+    label: string,
+    q: Awaited<ReturnType<typeof quoteFor>>,
+    address: string,
+    quotedAmountIn: bigint,
+  ) => ({
     label,
     address,
+    amountIn: quotedAmountIn.toString(),
     tier: q.tight ? 'tight' : 'wide',
     feeBps: q.feeBps.toString(),
     amountOut: q.amountOut.toString(),
@@ -172,15 +263,29 @@ app.get('/demo/quotes', async (c) => {
     bot.amountOut > 0n ? Number(((human.amountOut - bot.amountOut) * 10_000n) / bot.amountOut) : 0;
   return c.json({
     amountIn: amountIn.toString(),
-    human: row('Human-backed agent', human, deployments.humanAgent),
-    bot: row('Anonymous bot', bot, deployments.bot),
-    sybil: row('Sybil twin (same human)', sybil, deployments.sybilAgent),
+    comparisonAmountIn: amountIn.toString(),
+    human: row('Human-backed agent', human, deployments.humanAgent, amountIn),
+    bot: row('Anonymous bot', bot, deployments.bot, amountIn),
+    sybil: {
+      ...row('Sybil twin (same human)', sybil, deployments.sybilAgent, sybilAmountIn),
+      sharedQuotaRemaining: remaining.toString(),
+      proof: 'quoted amount is exactly one wei above the quota wallet #1 left for this humanId',
+    },
     improvementBps,
+    rationale:
+      'Sybil-resistant per-human quotas bound the LP’s maximum adverse-selection exposure; the tighter quote prices that lower risk.',
   });
 });
 
 app.get('/state', async (c) => {
-  const [state, swaps] = await Promise.all([poolState(), recentSwaps()]);
+  const [state, swaps, strategies, latestBlock, rpcChainId, graph] = await Promise.all([
+    poolState(),
+    recentSwaps(),
+    strategyHistory(),
+    client.getBlockNumber({ cacheTime: 0 }),
+    client.getChainId(),
+    graphStatus(),
+  ]);
   const humanId = BigInt(deployments.humanId);
   const [remEth, remUsd, cap0, cap1] = await Promise.all([
     quotaRemaining(humanId, state.strategy.token0),
@@ -198,6 +303,28 @@ app.get('/state', async (c) => {
       router: deployments.router,
       quota: deployments.quota,
       mockAgentBook: deployments.mockAgentBook,
+    },
+    runtime: {
+      ...classifyRuntime(rpcChainId, deployments.mockAgentBook, RPC_URL),
+      chainId: rpcChainId,
+      latestBlock: latestBlock.toString(),
+      rpcStatus: 'connected',
+    },
+    dataSources: {
+      quotes: {
+        name: 'On-chain RPC eth_call',
+        status: 'connected',
+        block: latestBlock.toString(),
+      },
+      strategy: {
+        name: 'Aqua Shipped/Docked events',
+        status: 'connected',
+        historyEntries: strategies.length,
+      },
+      strategist: {
+        name: graph.configured ? 'The Graph' : 'Chain-event fallback',
+        ...graph,
+      },
     },
     pool: {
       strategyHash: state.strategyHash,
@@ -220,18 +347,41 @@ app.get('/state', async (c) => {
       tightSwaps: tightSwaps.length,
       wideSwaps: wideSwaps.length,
     },
+    strategyHistory: strategies,
     swaps,
   });
 });
 
-app.get('/', (c) =>
+app.get('/health', (c) =>
+  c.json({
+    status: 'ok',
+    service: 'turing-pool',
+  }),
+);
+
+app.get('/api', (c) =>
   c.json({
     name: 'Turing Pool quote API',
     hint: 'GET /quote?amountIn=1000000000000000000&zeroForOne=true (AgentKit header for tight tier, ?anonymous=1 for wide)',
   }),
 );
 
-serve({ fetch: app.fetch, port: PORT }, (info) => {
+app.get('/', serveStatic({ path: resolve(WEB_ROOT, 'index.html') }));
+
+const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
   console.log(`[turing-pool] quote API on http://localhost:${info.port}`);
   console.log(`[turing-pool] app=${deployments.app} agentBook=${deployments.agentBook}`);
 });
+
+function shutdown(signal: string) {
+  console.log(`[turing-pool] ${signal} received; closing server`);
+  server.close((error) => {
+    if (error) {
+      console.error(error);
+      process.exitCode = 1;
+    }
+  });
+}
+
+process.once('SIGINT', () => shutdown('SIGINT'));
+process.once('SIGTERM', () => shutdown('SIGTERM'));

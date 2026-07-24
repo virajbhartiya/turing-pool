@@ -2,11 +2,14 @@ type Strategy @entity(immutable: false) {
   id: Bytes! # strategyHash
   maker: Bytes!
   app: Bytes!
+  aqua: Bytes!
   active: Boolean!
   wideFeeBps: BigInt!
   tightFeeBps: BigInt!
   token0: Bytes!
   token1: Bytes!
+  balance0: BigInt!
+  balance1: BigInt!
   shippedAtBlock: BigInt!
   shippedAtTimestamp: BigInt!
   swaps: [Swap!]! @derivedFrom(field: "strategy")

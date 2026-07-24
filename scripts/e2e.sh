@@ -24,6 +24,8 @@ HUMAN_ID_HEX=0x00000000000000000000000000000000000000000000000000000000beefbeef
 HUMAN_ID_DEC=$((16#beefbeef))
 
 pass=0; fail=0
+ANVIL_PID=""
+API_PID=""
 check() { # check <name> <actual> <expected>
   if [ "$2" = "$3" ]; then echo "  ✓ $1"; pass=$((pass+1));
   else echo "  ✗ $1 (got '$2', want '$3')"; fail=$((fail+1)); fi
@@ -35,22 +37,32 @@ check_gt() { # check_gt <name> <a> <b>  (asserts a > b, big-int safe)
 }
 
 cleanup() {
-  kill "$(lsof -ti :4021)" 2>/dev/null || true
-  pkill -f 'anvil --port 8545' 2>/dev/null || true
+  for pid in "$API_PID" "$ANVIL_PID"; do
+    if [ -n "$pid" ]; then
+      kill "$pid" 2>/dev/null || true
+    fi
+  done
 }
 trap cleanup EXIT
-cleanup; sleep 1
 
-echo "==> [1/7] starting anvil ($MODE mode)"
+for port in 8545 4021; do
+  if lsof -tiTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "Port $port is already in use. Stop that process before running E2E." >&2
+    exit 1
+  fi
+done
+
+echo "==> [1/8] starting anvil ($MODE mode)"
 if [ "$MODE" = "fork" ]; then
   anvil --port 8545 --fork-url "$BASE_RPC" --silent &
 else
   anvil --port 8545 --silent &
 fi
+ANVIL_PID=$!
 for i in $(seq 1 30); do cast chain-id --rpc-url $RPC >/dev/null 2>&1 && break; sleep 1; done
 cast chain-id --rpc-url $RPC >/dev/null
 
-echo "==> [2/7] deploying Turing Pool stack"
+echo "==> [2/8] deploying Turing Pool stack"
 cd contracts
 if [ "$MODE" = "fork" ]; then
   # Register our demo agents in the REAL AgentBook's storage on the fork
@@ -69,27 +81,42 @@ fi
 cd ..
 echo "    deployed: $(python3 -c "import json;d=json.load(open('contracts/deployments/demo.json'));print('app',d['app'],'| aqua',d['aqua'],'| agentBook',d['agentBook'],'(mock)' if d['mockAgentBook'] else '(REAL)')")"
 
-echo "==> [3/7] starting quote API"
-(cd server && nohup pnpm start > /tmp/turing-e2e-server.log 2>&1 &)
+echo "==> [3/8] starting quote API"
+(cd server && exec pnpm start) > /tmp/turing-e2e-server.log 2>&1 &
+API_PID=$!
 for i in $(seq 1 30); do curl -sf $API/ >/dev/null 2>&1 && break; sleep 1; done
 curl -sf $API/ >/dev/null
 
 challenge=$(curl -s -o /dev/null -w '%{http_code}' "$API/quote?amountIn=1000000000000000000")
 check "unauthenticated /quote returns 402 AgentKit challenge" "$challenge" "402"
 
-echo "==> [4/7] BOT swaps (anonymous lane)"
+echo "==> [4/8] BOT swaps (anonymous lane)"
 bot_json=$(cd agent && pnpm --silent bot 2>&1 | tail -1)
 check "bot tier" "$(echo "$bot_json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["tier"])')" "wide"
-bot_out=$(echo "$bot_json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["amountOut"])')
 
-echo "==> [5/7] HUMAN-BACKED AGENT swaps (AgentKit 402->SIWE->verify loop) + sybil test"
+echo "==> [5/8] CUSTOM SWAPVM ROUTER executes _humanGate opcode"
+set +e
+router_json=$(cd agent && pnpm --silent router 2>&1 | tail -1)
+router_status=$?
+set -e
+if [ "$router_status" -eq 0 ]; then
+  check "router humanGate opcode" "$(echo "$router_json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["opcode"])')" "34"
+  check "router emits HumanGated" "$(echo "$router_json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["event"])')" "HumanGated"
+else
+  echo "  ✗ router demo command failed"; fail=$((fail+1))
+fi
+
+echo "==> [6/8] HUMAN-BACKED AGENT swaps (AgentKit 402->SIWE->verify loop) + sybil test"
 human_json=$(cd agent && pnpm --silent human 2>&1 | tail -1)
 check "human tier" "$(echo "$human_json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["tier"])')" "tight"
 check "sybil over-cap tier" "$(echo "$human_json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["sybilTier"])')" "wide"
 human_out=$(echo "$human_json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["amountOut"])')
-check_gt "human receives more than bot for the same input" "$human_out" "$bot_out"
+same_state_wide_out=$(echo "$human_json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["wideAmountOut"])')
+check_gt "human quote beats wide tier at the same pool state" "$human_out" "$same_state_wide_out"
+dashboard_sybil=$(curl -s "$API/demo/quotes" | python3 -c 'import json,sys;print(json.load(sys.stdin)["sybil"]["tier"])')
+check "dashboard reproduces over-cap sybil tier" "$dashboard_sybil" "wide"
 
-echo "==> [6/7] STRATEGIST re-prices from live flow data (dock + ship on Aqua)"
+echo "==> [7/8] STRATEGIST re-prices from live flow data (dock + ship on Aqua)"
 fees_before=$(curl -s $API/state | python3 -c 'import json,sys;p=json.load(sys.stdin)["pool"];print(p["tightFeeBps"],p["wideFeeBps"])')
 (cd agent && ANTHROPIC_API_KEY= pnpm --silent strategist > /tmp/turing-e2e-strategist.log 2>&1)
 fees_after=$(curl -s $API/state | python3 -c 'import json,sys;p=json.load(sys.stdin)["pool"];print(p["tightFeeBps"],p["wideFeeBps"])')
@@ -99,7 +126,7 @@ else
   echo "  ✗ strategist did not re-price (still $fees_after)"; fail=$((fail+1))
 fi
 
-echo "==> [7/7] post-repricing quotes"
+echo "==> [8/8] post-repricing quotes"
 improv=$(curl -s "$API/demo/quotes" | python3 -c 'import json,sys;print(json.load(sys.stdin)["improvementBps"])')
 check_gt "human price improvement after re-pricing (bps)" "$improv" "0"
 tier_now=$(curl -s "$API/demo/quotes" | python3 -c 'import json,sys;print(json.load(sys.stdin)["human"]["tier"])')

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import { IAqua } from "aqua/interfaces/IAqua.sol";
-import { AquaApp } from "aqua/AquaApp.sol";
+import {IAqua} from "aqua/interfaces/IAqua.sol";
+import {AquaApp} from "aqua/AquaApp.sol";
 
-import { IAgentBook } from "./interfaces/IAgentBook.sol";
-import { HumanQuota } from "./HumanQuota.sol";
+import {IAgentBook} from "./interfaces/IAgentBook.sol";
+import {HumanQuota} from "./HumanQuota.sol";
 
 /// @title TuringPoolApp - a constant-product Aqua app that prices personhood
 /// @notice One pool, one liquidity balance, two spreads. Takers whose wallet is
@@ -65,12 +65,11 @@ contract TuringPoolApp is AquaApp {
     }
 
     /// @notice Quote for a specific taker. Returns which tier the taker would get right now.
-    function quoteExactIn(
-        Strategy calldata strategy,
-        bool zeroForOne,
-        uint256 amountIn,
-        address taker
-    ) external view returns (uint256 amountOut, bool tight, uint256 feeBps, uint256 humanId) {
+    function quoteExactIn(Strategy calldata strategy, bool zeroForOne, uint256 amountIn, address taker)
+        external
+        view
+        returns (uint256 amountOut, bool tight, uint256 feeBps, uint256 humanId)
+    {
         bytes32 strategyHash = keccak256(abi.encode(strategy));
         (,, uint256 balanceIn, uint256 balanceOut) = _getInAndOut(strategy, strategyHash, zeroForOne);
         address tokenIn = zeroForOne ? strategy.token0 : strategy.token1;
@@ -86,13 +85,11 @@ contract TuringPoolApp is AquaApp {
         uint256 amountIn,
         uint256 amountOutMin,
         address to
-    )
-        external
-        nonReentrantStrategy(strategy.maker, keccak256(abi.encode(strategy)))
-        returns (uint256 amountOut)
-    {
-        require(strategy.tightFeeBps <= strategy.wideFeeBps && strategy.wideFeeBps < BPS_BASE,
-            InvalidFees(strategy.wideFeeBps, strategy.tightFeeBps));
+    ) external nonReentrantStrategy(strategy.maker, keccak256(abi.encode(strategy))) returns (uint256 amountOut) {
+        require(
+            strategy.tightFeeBps <= strategy.wideFeeBps && strategy.wideFeeBps < BPS_BASE,
+            InvalidFees(strategy.wideFeeBps, strategy.tightFeeBps)
+        );
 
         bytes32 strategyHash = keccak256(abi.encode(strategy));
         (address tokenIn, address tokenOut, uint256 balanceIn, uint256 balanceOut) =
@@ -115,12 +112,11 @@ contract TuringPoolApp is AquaApp {
     }
 
     /// @dev Tier resolution - identical logic for quote and swap so quotes are always honest.
-    function _resolveTier(
-        Strategy calldata strategy,
-        address taker,
-        address tokenIn,
-        uint256 amountIn
-    ) internal view returns (uint256 feeBps, uint256 humanId, bool tight) {
+    function _resolveTier(Strategy calldata strategy, address taker, address tokenIn, uint256 amountIn)
+        internal
+        view
+        returns (uint256 feeBps, uint256 humanId, bool tight)
+    {
         humanId = AGENT_BOOK.lookupHuman(taker);
         if (humanId != 0 && QUOTA.remaining(humanId, tokenIn) >= amountIn) {
             return (strategy.tightFeeBps, humanId, true);
@@ -129,21 +125,20 @@ contract TuringPoolApp is AquaApp {
     }
 
     /// @dev Constant product with fee, same math as 1inch's reference XYCSwap.
-    function _quoteExactIn(
-        uint256 balanceIn,
-        uint256 balanceOut,
-        uint256 amountIn,
-        uint256 feeBps
-    ) internal pure returns (uint256 amountOut) {
+    function _quoteExactIn(uint256 balanceIn, uint256 balanceOut, uint256 amountIn, uint256 feeBps)
+        internal
+        pure
+        returns (uint256 amountOut)
+    {
         uint256 amountInWithFee = amountIn * (BPS_BASE - feeBps) / BPS_BASE;
         amountOut = (amountInWithFee * balanceOut) / (balanceIn + amountInWithFee);
     }
 
-    function _getInAndOut(
-        Strategy calldata strategy,
-        bytes32 strategyHash,
-        bool zeroForOne
-    ) private view returns (address tokenIn, address tokenOut, uint256 balanceIn, uint256 balanceOut) {
+    function _getInAndOut(Strategy calldata strategy, bytes32 strategyHash, bool zeroForOne)
+        private
+        view
+        returns (address tokenIn, address tokenOut, uint256 balanceIn, uint256 balanceOut)
+    {
         tokenIn = zeroForOne ? strategy.token0 : strategy.token1;
         tokenOut = zeroForOne ? strategy.token1 : strategy.token0;
         (balanceIn, balanceOut) = AQUA.safeBalances(strategy.maker, address(this), strategyHash, tokenIn, tokenOut);

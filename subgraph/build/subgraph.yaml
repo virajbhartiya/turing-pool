@@ -21,6 +21,8 @@ dataSources:
       abis:
         - name: TuringPoolApp
           file: TuringPoolApp/TuringPoolApp.json
+        - name: Aqua
+          file: TuringPoolApp/Aqua.json
       eventHandlers:
         - event: Swapped(indexed bytes32,indexed address,indexed
             uint256,bool,address,address,uint256,uint256,uint256)
@@ -33,6 +35,10 @@ dataSources:
       address: "0x499943E74FB0cE105688beeE8Ef2ABec5D936d31"
       abi: Aqua
       startBlock: 0
+    context:
+      appAddress:
+        type: Bytes
+        data: "0x0000000000000000000000000000000000000000"
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -47,4 +53,8 @@ dataSources:
           handler: handleShipped
         - event: Docked(address,address,bytes32)
           handler: handleDocked
+        - event: Pushed(address,address,bytes32,address,uint256)
+          handler: handlePushed
+        - event: Pulled(address,address,bytes32,address,uint256)
+          handler: handlePulled
       file: TuringPoolApp/TuringPoolApp.wasm

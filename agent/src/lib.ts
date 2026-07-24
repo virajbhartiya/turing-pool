@@ -99,7 +99,17 @@ export interface QuoteResponse {
   wideAmountOut: string;
   improvementBps: number;
   quotaRemainingTokenIn: string;
-  execute: { to: `0x${string}`; strategy: Record<string, string> };
+  execute: {
+    to: `0x${string}`;
+    strategy: {
+      maker: `0x${string}`;
+      token0: `0x${string}`;
+      token1: `0x${string}`;
+      wideFeeBps: string;
+      tightFeeBps: string;
+      salt: `0x${string}`;
+    };
+  };
 }
 
 export async function executeSwap(
@@ -110,34 +120,41 @@ export async function executeSwap(
 ): Promise<{ amountOut: bigint; txHash: `0x${string}` }> {
   const s = quote.execute.strategy;
   const strategy = {
-    maker: s.maker as `0x${string}`,
-    token0: s.token0 as `0x${string}`,
-    token1: s.token1 as `0x${string}`,
+    maker: s.maker,
+    token0: s.token0,
+    token1: s.token1,
     wideFeeBps: BigInt(s.wideFeeBps),
     tightFeeBps: BigInt(s.tightFeeBps),
-    salt: s.salt as `0x${string}`,
+    salt: s.salt,
   };
 
-  await wallet.writeContract({
+  const approvalHash = await wallet.writeContract({
     address: tokenIn,
     abi: erc20Abi,
     functionName: 'approve',
     args: [quote.execute.to, amountIn],
     chain: null,
   });
+  await wallet.waitForTransactionReceipt({ hash: approvalHash });
+
+  const slippageBps = BigInt(process.env.SLIPPAGE_BPS ?? '50');
+  if (slippageBps < 0n || slippageBps >= 10_000n) {
+    throw new Error(`SLIPPAGE_BPS must be between 0 and 9999, got ${slippageBps}`);
+  }
+  const amountOutMin = (BigInt(quote.amountOut) * (10_000n - slippageBps)) / 10_000n;
 
   const { result } = await wallet.simulateContract({
     address: quote.execute.to,
     abi: appAbi,
     functionName: 'swapExactIn',
-    args: [strategy, true, amountIn, 0n, wallet.account.address],
+    args: [strategy, true, amountIn, amountOutMin, wallet.account.address],
     account: wallet.account,
   });
   const txHash = await wallet.writeContract({
     address: quote.execute.to,
     abi: appAbi,
     functionName: 'swapExactIn',
-    args: [strategy, true, amountIn, 0n, wallet.account.address],
+    args: [strategy, true, amountIn, amountOutMin, wallet.account.address],
     chain: null,
   });
   await wallet.waitForTransactionReceipt({ hash: txHash });

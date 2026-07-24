@@ -32,7 +32,14 @@ export const DEPLOYMENTS_PATH =
   process.env.DEPLOYMENTS_PATH ?? resolve(here, '../../contracts/deployments/demo.json');
 
 export function loadDeployments(): Deployments {
-  return JSON.parse(readFileSync(DEPLOYMENTS_PATH, 'utf8'));
+  const inline = process.env.DEPLOYMENTS_JSON;
+  if (process.env.NODE_ENV === 'production' && !inline) {
+    throw new Error(
+      'DEPLOYMENTS_JSON is required in production so local or fork-only contract addresses cannot be published accidentally',
+    );
+  }
+  const raw = inline ?? readFileSync(DEPLOYMENTS_PATH, 'utf8');
+  return JSON.parse(raw) as Deployments;
 }
 
 export const RPC_URL = process.env.RPC_URL ?? 'http://127.0.0.1:8545';
@@ -41,5 +48,8 @@ export const CHAIN_ID = Number(process.env.CHAIN_ID ?? 31337);
 // NOTE: @worldcoin/agentkit's validateAgentkitMessage derives the expected SIWE
 // domain from `new URL(resourceUri).hostname` - hostname WITHOUT port - so the
 // challenge domain must be the bare hostname. (Documented in FEEDBACK.md.)
-export const SERVER_DOMAIN = process.env.SERVER_DOMAIN ?? 'localhost';
-export const BASE_URL = process.env.BASE_URL ?? `http://${SERVER_DOMAIN}:${PORT}`;
+const hostedDomain = process.env.RENDER_EXTERNAL_HOSTNAME;
+export const SERVER_DOMAIN = process.env.SERVER_DOMAIN ?? hostedDomain ?? 'localhost';
+export const BASE_URL =
+  process.env.BASE_URL ??
+  (hostedDomain ? `https://${hostedDomain}` : `http://${SERVER_DOMAIN}:${PORT}`);

@@ -1,66 +1,39 @@
-## Foundry
+# Turing Pool contracts
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+This package contains the on-chain half of Turing Pool:
 
-Foundry consists of:
+- `TuringPoolApp.sol` — an Aqua constant-product app with tight and wide fee tiers.
+- `HumanQuota.sol` — daily token-denominated quotas keyed by World AgentBook `humanId`.
+- `swapvm/HumanGate.sol` — the custom SwapVM instruction that resolves identity, checks quota, applies the fee tier, and records tight-tier usage.
+- `swapvm/TuringPoolRouter.sol` — the standard Aqua opcode table plus `_humanGate` at opcode 34.
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+## Verify
 
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+```bash
+forge build
+forge test
+RUN_FORK_TESTS=1 forge test --match-contract Fork -vv
+forge fmt --check
 ```
 
-### Test
+Fork tests use the deployed Base contracts:
 
-```shell
-$ forge test
+- 1inch Aqua: `0x499943E74FB0cE105688beeE8Ef2ABec5D936d31`
+- World AgentBook: `0xE1D1D3526A6FAa37eb36bD10B933C1b77f4561a4`
+
+## Deploy the demo
+
+From the repository root, prefer `pnpm demo` for a local stack or
+`pnpm demo:fork` for real Aqua and AgentBook bytecode on a Base fork.
+
+To deploy only the contracts:
+
+```bash
+anvil --port 8545
+forge script script/DeployDemo.s.sol \
+  --rpc-url http://127.0.0.1:8545 \
+  --broadcast
 ```
 
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+The script writes the active addresses and strategy data to
+`deployments/demo.json` for the API, agents, and dashboard.

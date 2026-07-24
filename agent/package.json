@@ -4,8 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "test": "tsx --test src/*.test.ts",
+    "typecheck": "tsc --noEmit",
     "bot": "tsx src/bot.ts",
     "human": "tsx src/human-agent.ts",
+    "router": "tsx src/router-agent.ts",
     "strategist": "tsx src/strategist.ts"
   },
   "dependencies": {
@@ -13,6 +16,8 @@
     "viem": "^2.21.54"
   },
   "devDependencies": {
+    "@types/node": "^24.0.0",
+    "graphql": "^16.11.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }

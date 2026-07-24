@@ -51,6 +51,7 @@ console.log(
     feeBps: quote.feeBps,
     amountIn: amountIn.toString(),
     amountOut: amountOut.toString(),
+    wideAmountOut: quote.wideAmountOut,
     improvementBps: quote.improvementBps,
     sybilTier: sybilQuote.tier,
   }),

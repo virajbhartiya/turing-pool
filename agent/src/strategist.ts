@@ -5,18 +5,25 @@
 /// deterministic heuristic otherwise), then DOCKS the running Aqua strategy and
 /// SHIPS a re-parameterized one. Aqua strategies are immutable - repricing IS
 /// dock+ship, which is exactly what this demonstrates.
-import { API_URL, KEYS, fmt, loadDeployments, makeWallet } from './lib.js';
+import {
+  API_URL,
+  CHAIN_ID,
+  KEYS,
+  RPC_URL,
+  fmt,
+  loadDeployments,
+  makeWallet,
+} from './lib.js';
+import {
+  requireStrategistGraphData,
+  STRATEGIST_QUERY,
+  type StrategistSwap,
+} from './strategist-query.js';
 
 const d = loadDeployments();
 const wallet = makeWallet(KEYS.maker); // strategist acts for the maker
 
-interface SwapRow {
-  tight: boolean;
-  tokenIn: string;
-  amountIn: string;
-  amountOut: string;
-  feeBps: string;
-}
+type SwapRow = StrategistSwap;
 
 interface TierStats {
   count: number;
@@ -26,31 +33,49 @@ interface TierStats {
   avgLpEdgeBps: number;
 }
 
-async function fetchSwaps(): Promise<{ swaps: SwapRow[]; mid: number; pool: any }> {
+interface StrategistInput {
+  swaps: SwapRow[];
+  mid: number;
+  pool: any;
+  dataSource: string;
+}
+
+async function fetchSwaps(): Promise<StrategistInput> {
   const subgraphUrl = process.env.SUBGRAPH_URL;
   if (subgraphUrl) {
     const res = await fetch(subgraphUrl, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        query: `{ swaps(first: 500, orderBy: blockNumber, orderDirection: desc) {
-          tight tokenIn amountIn amountOut feeBps
-        } strategies(where: {active: true}) { balance0 balance1 } }`,
+        query: STRATEGIST_QUERY,
+        variables: { app: d.app.toLowerCase() },
       }),
     });
-    const { data } = await res.json();
+    if (!res.ok) {
+      throw new Error(`The Graph request failed with HTTP ${res.status}: ${await res.text()}`);
+    }
+    const data = requireStrategistGraphData(await res.json());
     const s = data.strategies[0];
     return {
       swaps: data.swaps,
       mid: Number(s.balance1) / Number(s.balance0),
       pool: s,
+      dataSource: `The Graph (${subgraphUrl})`,
     };
+  }
+
+  const usesLocalRpc = /^https?:\/\/(?:127\.0\.0\.1|localhost)(?::|\/|$)/.test(RPC_URL);
+  if (CHAIN_ID !== 31337 || !usesLocalRpc) {
+    throw new Error(
+      'SUBGRAPH_URL is required outside a local chain-31337 RPC; API fallback is for non-judged local development only',
+    );
   }
   const state = await (await fetch(`${API_URL}/state`)).json();
   return {
     swaps: state.swaps,
     mid: Number(state.pool.balance1) / Number(state.pool.balance0),
     pool: state.pool,
+    dataSource: 'LOCAL FALLBACK: API /state chain logs (not for judged runs)',
   };
 }
 
@@ -160,11 +185,11 @@ const aquaAbi = [
 async function main() {
   console.log('=== STRATEGIST AGENT ===');
   const state = await (await fetch(`${API_URL}/state`)).json();
-  const { swaps, mid } = await fetchSwaps();
+  const { swaps, mid, dataSource } = await fetchSwaps();
   const pool = state.pool;
   const cur = { tight: Number(pool.tightFeeBps), wide: Number(pool.wideFeeBps) };
 
-  console.log(`data source: ${process.env.SUBGRAPH_URL ? 'subgraph' : 'API /state (chain logs)'}`);
+  console.log(`data source: ${dataSource}`);
   console.log(`observed fills: ${swaps.length} | mid price: ${mid.toFixed(2)} tUSD/tETH`);
 
   const tightS = tierStats(swaps, true, mid, pool.token0);
