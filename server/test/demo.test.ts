@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { amountForOverQuotaQuote, classifyRuntime, parseQuoteAmount } from '../src/demo.js';
+import { hostedDemoQuotes, hostedState } from '../src/hosted-snapshot.js';
+import vercelApp from '../src/vercel-app.js';
 
 test('sybil demo quote is explicitly one wei over the shared remaining quota', () => {
   assert.equal(amountForOverQuotaQuote(9n * 10n ** 18n), 9n * 10n ** 18n + 1n);
@@ -36,7 +38,7 @@ test('quote amounts reject malformed, zero, negative, and unreasonably large inp
 });
 
 test('static dashboard exposes judge-facing provenance and errors', async () => {
-  const html = await readFile(new URL('../../web/index.html', import.meta.url), 'utf8');
+  const html = await readFile(new URL('../../public/index.html', import.meta.url), 'utf8');
   assert.match(html, /SwapVM Router/);
   assert.match(html, /Data source/);
   assert.match(html, /connection-status/);
@@ -46,13 +48,48 @@ test('static dashboard exposes judge-facing provenance and errors', async () => 
 });
 
 test('repository includes a guarded single-service deployment definition', async () => {
-  const [dockerfile, blueprint] = await Promise.all([
+  const [dockerfile, blueprint, vercelConfig, vercelEntry] = await Promise.all([
     readFile(new URL('../../Dockerfile', import.meta.url), 'utf8'),
     readFile(new URL('../../render.yaml', import.meta.url), 'utf8'),
+    readFile(new URL('../../vercel.json', import.meta.url), 'utf8'),
+    readFile(new URL('../../index.ts', import.meta.url), 'utf8'),
   ]);
   assert.match(dockerfile, /HEALTHCHECK/);
   assert.match(dockerfile, /start:prod/);
   assert.match(blueprint, /healthCheckPath:\s*\/health/);
   assert.match(blueprint, /DEPLOYMENTS_JSON/);
   assert.match(blueprint, /sync:\s*false/);
+  assert.match(vercelConfig, /"framework":\s*"hono"/);
+  assert.match(vercelEntry, /export default app/);
+});
+
+test('hosted preview snapshot stays truthful and preserves all three pricing lanes', () => {
+  const quotes = hostedDemoQuotes(10n ** 18n);
+  const state = hostedState();
+
+  assert.equal(quotes.human.tier, 'tight');
+  assert.equal(quotes.bot.tier, 'wide');
+  assert.equal(quotes.sybil.tier, 'wide');
+  assert.ok(BigInt(quotes.human.amountOut) > BigInt(quotes.bot.amountOut));
+  assert.equal(state.runtime.mode, 'hosted-preview');
+  assert.match(state.runtime.label, /snapshot/i);
+  assert.equal(state.runtime.rpcStatus, 'not-used');
+});
+
+test('Vercel backend serves health, state, quotes, and an explicit non-executable quote', async () => {
+  const [dashboard, health, state, quotes, anonymousQuote] = await Promise.all([
+    vercelApp.request('/'),
+    vercelApp.request('/health'),
+    vercelApp.request('/state'),
+    vercelApp.request('/demo/quotes'),
+    vercelApp.request('/quote?anonymous=1'),
+  ]);
+
+  assert.equal(dashboard.status, 302);
+  assert.equal(dashboard.headers.get('location'), '/index.html');
+  assert.equal(health.status, 200);
+  assert.equal(state.status, 200);
+  assert.equal(quotes.status, 200);
+  assert.equal(anonymousQuote.status, 200);
+  assert.equal((await anonymousQuote.json()).execute.available, false);
 });

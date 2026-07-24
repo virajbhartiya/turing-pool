@@ -2,6 +2,7 @@
   "name": "turing-pool",
   "private": true,
   "version": "0.1.0",
+  "type": "module",
   "packageManager": "pnpm@11.2.2",
   "description": "An Aqua AMM that prices bounded, sybil-resistant human-backed order flow. ETHGlobal Lisbon 2026.",
   "scripts": {
@@ -15,5 +16,12 @@
     "demo": "bash scripts/demo.sh local",
     "demo:fork": "bash scripts/demo.sh fork",
     "demo:beats": "bash scripts/demo-beats.sh"
+  },
+  "dependencies": {
+    "hono": "^4.12.31"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.7.2"
   }
 }

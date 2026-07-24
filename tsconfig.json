@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "index.ts",
+    "server/src/vercel-app.ts",
+    "server/src/hosted-snapshot.ts",
+    "server/src/demo.ts"
+  ]
+}

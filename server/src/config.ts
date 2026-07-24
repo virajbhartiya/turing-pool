@@ -48,7 +48,10 @@ export const CHAIN_ID = Number(process.env.CHAIN_ID ?? 31337);
 // NOTE: @worldcoin/agentkit's validateAgentkitMessage derives the expected SIWE
 // domain from `new URL(resourceUri).hostname` - hostname WITHOUT port - so the
 // challenge domain must be the bare hostname. (Documented in FEEDBACK.md.)
-const hostedDomain = process.env.RENDER_EXTERNAL_HOSTNAME;
+const hostedDomain =
+  process.env.RENDER_EXTERNAL_HOSTNAME ??
+  process.env.VERCEL_PROJECT_PRODUCTION_URL ??
+  process.env.VERCEL_URL;
 export const SERVER_DOMAIN = process.env.SERVER_DOMAIN ?? hostedDomain ?? 'localhost';
 export const BASE_URL =
   process.env.BASE_URL ??

@@ -83,11 +83,17 @@ local chain 31337 and labels itself as non-judged.
 
 ## Deployment readiness
 
-The production shape is a single container: the Hono API serves the dashboard
-at `/`, exposes `/health` for the host, and uses same-origin dashboard requests.
-The checked-in [Render Blueprint](./render.yaml) waits for CI before automatic
-deploys, and the [Dockerfile](./Dockerfile) runs the compiled server as an
-unprivileged user.
+The private repository is linked to Vercel. Its judge-facing preview serves the
+dashboard from `public/` and a real Hono Function at `/health`, `/state`,
+`/demo/quotes`, and `/quote`. Because the Turing Pool contracts are not deployed
+on Base, this hosted mode is deliberately labeled as a deterministic,
+non-executable snapshot; it never presents fork-only addresses as live state.
+
+The live-chain production shape remains a single container: the Hono API serves
+the dashboard at `/`, exposes `/health` for the host, and uses same-origin
+dashboard requests. The checked-in [Render Blueprint](./render.yaml) waits for
+CI before automatic deploys, and the [Dockerfile](./Dockerfile) runs the
+compiled server as an unprivileged user.
 
 Production deliberately refuses to start without `DEPLOYMENTS_JSON`, preventing
 the local or Base-fork demo addresses from being published accidentally. Deploy
@@ -108,12 +114,12 @@ container command.
 
 ```
 contracts/   Foundry: TuringPoolApp, HumanQuota, _humanGate + TuringPoolRouter
-server/      AgentKit-gated quote API (official @worldcoin/agentkit SDK)
+server/      AgentKit quote API plus the Vercel hosted-preview Function
 agent/       bot.ts, human-agent.ts (SIWE loop + sybil demo), strategist.ts
 subgraph/    The Graph subgraph (schema, mappings, configure script)
-web/         live dashboard (quote race, quota meter, tier flow, strategist log)
+public/      live dashboard (quote race, quota meter, tier flow, strategist log)
 scripts/     e2e.sh — the whole demo, asserted, local or Base-fork mode
-docs/        design doc
+docs/        design and deployment runbooks
 ```
 
 ## The demo beats (≈3 min)

@@ -6,7 +6,18 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    dependencies:
+      hono:
+        specifier: ^4.12.31
+        version: 4.12.31
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.3
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
   agent:
     dependencies:
@@ -2517,7 +2528,7 @@ snapshots:
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 22.7.5
+      '@types/node': 24.13.3
 
   '@types/node@12.20.55': {}
 
@@ -2533,7 +2544,7 @@ snapshots:
 
   '@types/ws@7.4.7':
     dependencies:
-      '@types/node': 22.7.5
+      '@types/node': 24.13.3
 
   '@whatwg-node/disposablestack@0.0.6':
     dependencies:

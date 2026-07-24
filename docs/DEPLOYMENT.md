@@ -1,8 +1,30 @@
 # Deployment
 
-Turing Pool deploys as one container: the Hono API serves the dashboard at
-`/`, JSON endpoints under their existing paths, and a process-only health
-check at `/health`.
+## Vercel judge preview
+
+The repository includes a zero-secret Vercel preview suitable for judging:
+
+- `public/index.html` is the dashboard.
+- `index.ts` is the Hono Function entrypoint.
+- `/health`, `/state`, `/demo/quotes`, and `/quote?anonymous=1` are live
+  backend routes.
+- Runtime and data-source labels explicitly identify deterministic snapshot
+  data, and snapshot quotes cannot be executed.
+
+```bash
+vercel link --project turing-pool
+vercel deploy . -y
+```
+
+This preview exists because the checked-in Base deployment is a fork fixture:
+the app, quota, router, and demo tokens do not exist on Base. Hosting those
+addresses as if they were live would produce a broken and misleading backend.
+
+## Live-chain production
+
+After the protocol contracts and subgraph are deployed, Turing Pool runs as one
+container: the Hono API serves the dashboard at `/`, JSON endpoints under their
+existing paths, and a process-only health check at `/health`.
 
 ## Required production inputs
 

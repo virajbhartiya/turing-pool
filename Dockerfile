@@ -14,7 +14,7 @@ COPY subgraph/package.json subgraph/package.json
 RUN pnpm install --frozen-lockfile --filter @turing-pool/server...
 
 COPY server server
-COPY web web
+COPY public public
 RUN pnpm --filter @turing-pool/server build
 
 FROM node:22-alpine AS runner
@@ -30,7 +30,7 @@ COPY --from=builder --chown=turing:turing /app/node_modules ./node_modules
 COPY --from=builder --chown=turing:turing /app/server/node_modules ./server/node_modules
 COPY --from=builder --chown=turing:turing /app/server/dist ./server/dist
 COPY --from=builder --chown=turing:turing /app/server/package.json ./server/package.json
-COPY --from=builder --chown=turing:turing /app/web ./web
+COPY --from=builder --chown=turing:turing /app/public ./public
 
 USER turing
 EXPOSE 4021

@@ -204,7 +204,7 @@
 <div class="viz-root">
   <header>
     <div class="brand"><span class="brand-mark">T</span> Turing Pool</div>
-    <span class="header-meta">ETHGlobal Lisbon · Live protocol console</span>
+    <span class="header-meta">ETHGlobal Lisbon · Protocol console</span>
   </header>
   <section class="hero-intro">
     <div>
@@ -421,6 +421,8 @@ async function tick() {
       ? `connected · indexed block ${graph.indexedBlock || '—'}`
       : graph.status === 'error'
         ? `error · ${graph.error}`
+        : graph.status === 'snapshot'
+          ? 'deterministic hosted preview'
         : 'not configured · chain-event fallback';
     document.getElementById('data-sources').innerHTML = `
       <div class="source-row"><span>Quotes</span><span>${state.dataSources.quotes.name} · ${state.dataSources.quotes.status}</span></div>
