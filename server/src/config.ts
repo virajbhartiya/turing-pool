@@ -25,6 +25,7 @@ export interface Deployments {
   orderTraits: string;
   orderData: `0x${string}`;
   strategySalt: string | number;
+  deployBlock?: string | number;
 }
 
 export const DEPLOYMENTS_PATH =

@@ -15,6 +15,10 @@ export const deployments: Deployments = loadDeployments();
 
 export const client: PublicClient = createPublicClient({ transport: http(RPC_URL) });
 
+// Scan logs only from the demo deployment onward - a Base mainnet fork's upstream
+// RPC rejects wide eth_getLogs ranges, and everything we index is post-deploy.
+const FROM_BLOCK = BigInt(deployments.deployBlock ?? 0);
+
 /// The maker can dock + re-ship (that's how the strategist reprices), so the
 /// currently active strategy is discovered from Aqua's own Shipped/Docked events.
 export async function getActiveStrategy(): Promise<{ strategy: Strategy; strategyHash: `0x${string}` }> {
@@ -22,12 +26,12 @@ export async function getActiveStrategy(): Promise<{ strategy: Strategy; strateg
     client.getLogs({
       address: deployments.aqua,
       event: aquaAbi.find((e) => e.type === 'event' && e.name === 'Shipped') as any,
-      fromBlock: 0n,
+      fromBlock: FROM_BLOCK,
     }),
     client.getLogs({
       address: deployments.aqua,
       event: aquaAbi.find((e) => e.type === 'event' && e.name === 'Docked') as any,
-      fromBlock: 0n,
+      fromBlock: FROM_BLOCK,
     }),
   ]);
 
@@ -112,7 +116,7 @@ export async function recentSwaps(limit = 50) {
   const logs = await client.getLogs({
     address: deployments.app,
     event: appAbi.find((e) => e.type === 'event' && e.name === 'Swapped') as any,
-    fromBlock: 0n,
+    fromBlock: FROM_BLOCK,
   });
   const swaps = await Promise.all(
     logs.slice(-limit).map(async (l: any) => {

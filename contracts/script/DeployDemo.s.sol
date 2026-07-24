@@ -178,6 +178,7 @@ contract DeployDemo is Script {
         vm.serializeBytes32(json, "strategyHash", strategyHash);
         vm.serializeBytes32(json, "orderHash", orderHash);
         vm.serializeUint(json, "strategySalt", 1);
+        vm.serializeUint(json, "deployBlock", block.number);
         vm.serializeBytes(json, "orderData", order.data);
         string memory out = vm.serializeUint(json, "orderTraits", MakerTraits.unwrap(order.traits));
         vm.writeJson(out, "./deployments/demo.json");
