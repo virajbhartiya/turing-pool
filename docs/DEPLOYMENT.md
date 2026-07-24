@@ -17,11 +17,14 @@ identities can execute without mainnet funds.
 Run the server against the public testnet:
 
 ```bash
-RPC_URL=https://sepolia.base.org \
+RPC_URL=https://base-sepolia.drpc.org \
 CHAIN_ID=84532 \
 DEPLOYMENTS_PATH="$PWD/contracts/deployments/base-sepolia.json" \
 pnpm --filter @turing-pool/server start
 ```
+
+Use an archive-capable RPC: the dashboard reconstructs its feed from contract
+events beginning at the checked-in deployment block.
 
 ## Vercel judge preview
 
@@ -39,9 +42,10 @@ vercel link --project turing-pool
 vercel deploy . -y
 ```
 
-This preview exists because the checked-in Base deployment is a fork fixture:
-the app, quota, router, and demo tokens do not exist on Base. Hosting those
-addresses as if they were live would produce a broken and misleading backend.
+This preview deliberately remains a deterministic, non-executable snapshot so
+it requires no hosted RPC credentials and cannot spend demo funds. The
+checked-in Base Sepolia deployment is real and executable; use the local
+live-chain command above plus `pnpm demo:sepolia` for the transaction proof.
 
 ## Live-chain production
 

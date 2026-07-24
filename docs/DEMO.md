@@ -1,5 +1,49 @@
 # Turing Pool — three-minute judge demo
 
+## 75-second public-testnet proof
+
+This is the fastest way to prove the product is executing rather than showing
+mocked UI. It runs real transactions on Base Sepolia against the checked-in
+deployment. The actors are encrypted Foundry keystores; no private key is in the
+repository or printed to the terminal.
+
+Terminal one:
+
+```bash
+RPC_URL=https://base-sepolia.drpc.org \
+CHAIN_ID=84532 \
+DEPLOYMENTS_PATH="$PWD/contracts/deployments/base-sepolia.json" \
+PORT=4021 \
+pnpm --filter @turing-pool/server start
+```
+
+The dashboard scans contract events from the deployment block, so its RPC must
+support historical log reads. The executable agents use their own public
+Base Sepolia RPC by default.
+
+Open [http://localhost:4021](http://localhost:4021), then run in terminal two:
+
+```bash
+pnpm demo:sepolia
+```
+
+The command asserts all four claims and prints BaseScan transaction links:
+
+1. An unauthenticated agent receives the AgentKit 402 challenge, selects the
+   30 bps wide lane, and settles on-chain.
+2. The human-backed agent signs the SIWE proof, resolves through the test
+   AgentBook, selects the 8 bps tight lane, and settles from the same pool.
+3. A second wallet with the same `humanId` asks for shared remaining quota plus
+   one wei and is placed in the wide lane.
+4. The custom SwapVM router executes `_humanGate` at opcode 34 and the receipt
+   contains `HumanGated`.
+
+Narrate it in one sentence per terminal beat, then return to the dashboard and
+point at the quote difference, quota meter, tier counts, and decoded swap feed.
+The truthful label is “public Base Sepolia with test Aqua and test AgentBook
+contracts”; do not describe these test contracts as the canonical mainnet
+deployments.
+
 ## Preflight
 
 - `pnpm check`
