@@ -35,7 +35,7 @@ export function EvidenceLedger({ state }: EvidenceLedgerProps) {
     <section className="evidence-section">
       <div className="section-head">
         <div><span>Audit trail</span><h2>On-chain receipts</h2></div>
-        <p>{isSnapshot ? 'Recorded lifecycle · run locally for live links' : 'Every card opens an independent BaseScan receipt'}</p>
+        <p>{isSnapshot ? 'Recorded lifecycle · run locally for live links' : 'Every card opens an independent block-explorer receipt'}</p>
       </div>
 
       <div className="proof-grid">
@@ -64,7 +64,7 @@ export function EvidenceLedger({ state }: EvidenceLedgerProps) {
         <div className="table-scroll">
           <table>
             <thead>
-              <tr><th>Block / receipt</th><th>Taker</th><th>Tier</th><th>Amount in</th><th>Amount out</th><th>Fee</th><th>humanId</th></tr>
+              <tr><th>Block / receipt</th><th>Path</th><th>Taker</th><th>Tier</th><th>Amount in</th><th>Amount out</th><th>Fee</th><th>humanId</th></tr>
             </thead>
             <tbody>
               {state.swaps.slice().reverse().slice(0, 12).map((swap) => {
@@ -74,6 +74,7 @@ export function EvidenceLedger({ state }: EvidenceLedgerProps) {
                 return (
                   <tr key={`${swap.blockNumber}-${swap.transactionHash ?? swap.taker}`}>
                     <td>{href ? <a href={href} rel="noreferrer" target="_blank">{swap.blockNumber} ↗</a> : swap.blockNumber}</td>
+                    <td className="mono">{swap.source === 'swapvm' ? 'OP #34' : 'APP'}</td>
                     <td className="mono">{shortAddress(swap.taker)}</td>
                     <td><span className={`tier ${swap.tight ? 'human' : 'bot'}`}><i />{swap.tight ? 'tight' : 'wide'}</span></td>
                     <td>{formatUnits(swap.amountIn)} {tokenIn}</td>

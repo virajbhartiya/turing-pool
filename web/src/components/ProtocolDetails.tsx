@@ -12,7 +12,7 @@ export function ProtocolDetails({ state }: { state: ProtocolState }) {
     <section className="protocol-section">
       <div className="section-head">
         <div><span>Protocol state</span><h2>Liquidity and risk controls</h2></div>
-        <p>Live Aqua events, quota accounting, and immutable strategy parameters</p>
+        <p>Live Aqua inventory, per-human quota, and executed-volume fee state</p>
       </div>
       <div className="protocol-grid">
         <article>
@@ -34,18 +34,16 @@ export function ProtocolDetails({ state }: { state: ProtocolState }) {
           <p>{formatUnits(used)} used / {formatUnits(cap)} daily cap</p>
         </article>
         <article className="history-card">
-          <span>Strategist history</span>
+          <span>On-chain volume controller</span>
           <div className="strategy-log">
-            {state.strategyHistory.slice().reverse().map((entry) => (
-              <div key={`${entry.blockNumber}-${entry.strategyHash}`}>
-                <time>block {entry.blockNumber}</time>
-                <p>
-                  {entry.kind === 'initial-ship'
-                    ? `initial strategy ${entry.to.tightFeeBps}/${entry.to.wideFeeBps} bps`
-                    : `re-priced ${entry.from?.tightFeeBps}/${entry.from?.wideFeeBps} → ${entry.to.tightFeeBps}/${entry.to.wideFeeBps} bps`}
-                </p>
-              </div>
-            ))}
+            <div>
+              <time>{formatUnits(state.feeController.tightVolume)} tETH verified</time>
+              <p>{formatUnits(state.feeController.wideVolume)} tETH anonymous · input notional</p>
+            </div>
+            <div>
+              <time>{state.feeController.targetFeeBps} bps LP target</time>
+              <p>next schedule {state.feeController.tightFeeBps}/{state.feeController.wideFeeBps} bps</p>
+            </div>
           </div>
         </article>
         <article className="source-card">
@@ -53,7 +51,8 @@ export function ProtocolDetails({ state }: { state: ProtocolState }) {
           <dl>
             <div><dt>Quotes</dt><dd>{state.dataSources.quotes.name}</dd></div>
             <div><dt>Strategy</dt><dd>{state.dataSources.strategy.name}</dd></div>
-            <div><dt>Controller</dt><dd>{graph.name} · {graph.status}</dd></div>
+            <div><dt>Controller</dt><dd>HumanQuota · on-chain volume</dd></div>
+            <div><dt>Indexer</dt><dd>{graph.name} · {graph.status}</dd></div>
             <div><dt>Router</dt><dd>{shortAddress(state.contracts.router)}</dd></div>
           </dl>
         </article>

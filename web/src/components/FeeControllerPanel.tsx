@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 
+import { formatUnits } from '../lib/format';
 import type { FeeController } from '../types';
 
 interface FeeControllerPanelProps {
@@ -19,10 +20,10 @@ export function FeeControllerPanel({ controller, copied, onReplay }: FeeControll
           <span>Activity-priced fee controller</span>
           <h2>Retail discount funded by bot flow.</h2>
           <p>
-            Every observed fill updates the mix. The controller lowers bounded human flow,
-            raises unbounded bot flow, and holds the LP’s blended fee revenue at target.
+            Every mined fill adds its executed input notional on-chain. A 1.0 tETH fill
+            moves the schedule 10× as much as a 0.1 tETH fill; swap count is display-only.
           </p>
-          <div className="controller-status"><i />{controller.status.replaceAll('-', ' ')}</div>
+          <div className="controller-status"><i />on-chain · reprices after each fill</div>
         </div>
         <div className="mix-visual">
           <div
@@ -34,8 +35,9 @@ export function FeeControllerPanel({ controller, copied, onReplay }: FeeControll
             <span>human flow</span>
           </div>
           <div className="mix-legend">
-            <span><i className="human" />{humanShare.toFixed(1)}% verified</span>
-            <span><i className="bot" />{botShare.toFixed(1)}% anonymous</span>
+            <span><i className="human" />{formatUnits(controller.tightVolume)} tETH verified</span>
+            <span><i className="bot" />{formatUnits(controller.wideVolume)} tETH anonymous</span>
+            <small>{controller.tightSwaps + controller.wideSwaps} fills · counts do not price fees</small>
           </div>
         </div>
         <div className="fee-equation">
@@ -50,12 +52,12 @@ export function FeeControllerPanel({ controller, copied, onReplay }: FeeControll
       </div>
 
       <div className="proof-rail" aria-label="Demo proof sequence">
-        <div><span>01</span><strong>Compare</strong><small>One trade, two risk prices</small><b>✓</b></div>
-        <div><span>02</span><strong>Settle</strong><small>Both lanes land on-chain</small><b>✓</b></div>
-        <div><span>03</span><strong>Attack cap</strong><small>Second wallet stays WIDE</small><b>✓</b></div>
+        <div><span>01</span><strong>Pick size</strong><small>0.1 / 0.5 / 1.0 tETH</small><b>✓</b></div>
+        <div><span>02</span><strong>Mine fill</strong><small>Aqua + SwapVM receipt</small><b>✓</b></div>
+        <div><span>03</span><strong>Watch next fee</strong><small>Notional mix reprices on-chain</small><b>↻</b></div>
         <button onClick={onReplay} type="button">
           <span>{copied ? 'Copied' : 'Replay proof'}</span>
-          <code>pnpm demo:sepolia</code>
+          <code>pnpm demo:world</code>
         </button>
       </div>
     </section>

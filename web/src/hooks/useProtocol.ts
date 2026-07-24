@@ -7,12 +7,14 @@ interface ProtocolSnapshot {
   quotes: DemoQuotes;
 }
 
-function apiBase(): string {
+export const demoTradeAmountIn = '100000000000000000';
+
+export function apiBase(): string {
   const override = window.location.hash.slice(1);
   return (override || window.location.origin).replace(/\/$/, '');
 }
 
-export function useProtocol(pollInterval = 2_500) {
+export function useProtocol(amountIn = demoTradeAmountIn, pollInterval = 2_500) {
   const [snapshot, setSnapshot] = useState<ProtocolSnapshot>();
   const [error, setError] = useState<string>();
   const [refreshing, setRefreshing] = useState(false);
@@ -23,7 +25,7 @@ export function useProtocol(pollInterval = 2_500) {
       const base = apiBase();
       const [stateResponse, quotesResponse] = await Promise.all([
         fetch(`${base}/state`, { signal }),
-        fetch(`${base}/demo/quotes`, { signal }),
+        fetch(`${base}/demo/quotes?amountIn=${amountIn}`, { signal }),
       ]);
 
       if (!stateResponse.ok || !quotesResponse.ok) {
@@ -43,7 +45,7 @@ export function useProtocol(pollInterval = 2_500) {
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [amountIn]);
 
   useEffect(() => {
     const controller = new AbortController();

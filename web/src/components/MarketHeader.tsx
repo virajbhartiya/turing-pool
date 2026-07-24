@@ -43,7 +43,7 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
     ? '1inch Aqua (recorded)'
     : state.contracts.aqua.toLowerCase() === canonicalAqua
       ? '1inch Aqua (canonical)'
-      : 'Aqua test deployment';
+      : 'Aqua protocol deployment';
   const contracts = [
     [aquaLabel, state.contracts.aqua],
     [`World AgentBook (${state.runtime.agentBook})`, state.contracts.agentBook],
@@ -79,7 +79,7 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
             <span className="pair-icon" aria-hidden="true"><i>Ξ</i><i>$</i></span>
             <div>
               <h1>Turing Pool <span>tETH / tUSD</span></h1>
-              <p>Identity-priced liquidity · adaptive fee market · Base Sepolia</p>
+              <p>Identity-priced liquidity · adaptive fee market · {state.runtime.label}</p>
             </div>
           </div>
         </div>
@@ -104,9 +104,9 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
           positive
         />
         <Metric
-          label="Human flow"
+          label="Human notional"
           value={`${humanShare.toFixed(1)}%`}
-          detail={`${state.stats.tightSwaps} verified / ${state.stats.wideSwaps} anonymous`}
+          detail={`${formatUnits(state.feeController.tightVolume)} verified / ${formatUnits(state.feeController.wideVolume)} anonymous tETH`}
         />
         <Metric
           label="Quota utilized"
@@ -122,7 +122,7 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
 
       <div className={`connection-bar ${isSnapshot ? 'snapshot' : 'connected'}`} role="status">
         <span><i />{isSnapshot ? 'Deterministic preview · no executable funds' : `RPC connected · chain ${state.runtime.chainId} · every quote is an on-chain eth_call`}</span>
-        <strong>{state.feeController.status.replaceAll('-', ' ')}</strong>
+        <strong>on-chain volume controller</strong>
       </div>
 
       <details className="deployment-details">

@@ -25,5 +25,6 @@ export function transactionExplorer(chainId: number, transactionHash?: string): 
   if (!transactionHash) return undefined;
   if (chainId === 84532) return `https://sepolia.basescan.org/tx/${transactionHash}`;
   if (chainId === 8453) return `https://basescan.org/tx/${transactionHash}`;
+  if (chainId === 480) return `https://worldscan.org/tx/${transactionHash}`;
   return undefined;
 }

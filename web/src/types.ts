@@ -42,6 +42,7 @@ export interface FeeController {
   tightSwaps: number;
   wideSwaps: number;
   normalization: string;
+  source: 'event-derived-recommendation' | 'on-chain-volume-controller';
 }
 
 export interface Swap {
@@ -55,6 +56,22 @@ export interface Swap {
   amountIn: string;
   amountOut: string;
   feeBps: string;
+  source?: 'aqua-app' | 'swapvm';
+}
+
+export interface Execution {
+  enabled: boolean;
+  venue: 'SwapVM';
+  opcode: number;
+  instruction: '_humanGate';
+  event: 'HumanGated';
+  router: string;
+  humanWallet: string;
+  botWallet: string;
+  tightFeeBps: number;
+  wideFeeBps: number;
+  feeSource?: string;
+  repricesAfter?: string;
 }
 
 export interface StrategyHistoryEntry {
@@ -76,6 +93,7 @@ export interface DataSource {
 export interface ProtocolState {
   runtime: Runtime;
   contracts: Contracts;
+  execution?: Execution;
   pool: Pool;
   feeController: FeeController;
   stats: {
@@ -102,6 +120,27 @@ export interface ProtocolState {
       error?: string;
     };
   };
+}
+
+export type DemoTradeLane = 'human' | 'bot';
+
+export interface DemoTradeResult {
+  lane: DemoTradeLane;
+  wallet: string;
+  transactionHash: string;
+  approvalTransactionHash?: string;
+  blockNumber: string;
+  amountIn: string;
+  amountOut: string;
+  orderHash: string;
+  opcode: number;
+  event: 'HumanGated';
+  humanId: string;
+  humanBacked: boolean;
+  tight: boolean;
+  tier: 'tight' | 'wide';
+  feeBps: number;
+  explorerUrl: string;
 }
 
 export interface DemoQuote {
