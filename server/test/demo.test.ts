@@ -44,6 +44,11 @@ test('quote amounts reject malformed, zero, negative, and unreasonably large inp
 
 test('static dashboard exposes judge-facing provenance and errors', async () => {
   const html = await readFile(new URL('../../public/index.html', import.meta.url), 'utf8');
+  assert.match(
+    html,
+    /:root\s*\{[^}]*color-scheme:\s*dark;[^}]*--surface-0:/s,
+    'global page colors must be defined on :root so html/body never fall back to a white canvas',
+  );
   assert.match(html, /SwapVM Router/);
   assert.match(html, /Data source/);
   assert.match(html, /connection-status/);
