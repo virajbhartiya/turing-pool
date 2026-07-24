@@ -4,11 +4,13 @@
 
 On-chain market makers can't tell retail flow from toxic arb-bot flow, so every taker pays the worst-case spread. TradFi solved this decades ago — brokers segment retail flow and it gets price improvement. Turing Pool brings that to DeFi with cryptography instead of brokers: World's **AgentBook** registry maps agent wallets to a persistent, sybil-resistant `humanId` (a World ID nullifier), and our pool reads it **on-chain, at quote time** to price personhood.
 
-- **Human-backed agents** (within a per-human daily quota): tight spread (e.g. 8bps → strategist-tuned to 5bps)
-- **Anonymous bots**: wide spread (e.g. 30bps)
+- **Human-backed agents** (within a per-human daily quota): tight spread (e.g. 8bps → controller-tuned to 5bps)
+- **Anonymous bots**: activity-priced surcharge (e.g. 30bps → 33bps at a 50/50 flow mix)
 - **Sybil wallets**: same human ⇒ same `humanId` ⇒ same shared quota. A fresh wallet buys you nothing.
 
-The per-human cap is what makes this economically sound rather than a generic identity discount: bounded per-human volume ⇒ bounded adverse selection per human ⇒ LPs can rationally quote the tight tier. One human cannot reset that risk limit by creating another wallet.
+The per-human cap is what makes this economically sound rather than a generic identity discount: bounded per-human volume ⇒ bounded adverse selection per human ⇒ LPs can rationally quote the tight tier. One human cannot reset that risk limit by creating another wallet. A revenue-neutral controller observes the human/bot notional mix and solves the bot fee so the LP keeps a 19bps blended target:
+
+`human volume × tight fee + bot volume × wide fee ≈ total volume × 19bps`
 
 Built at **ETHGlobal Lisbon 2026** for the World AgentKit, 1inch Aqua, and The Graph tracks.
 
@@ -46,10 +48,10 @@ Quote API (Hono + viem) ──────────── eth_call quotes per
 └──────────────────────────────────────────────────────────────────────────┘
    ▲ Swapped events (tier + humanId)
    │
-Subgraph (The Graph) ◄─── Strategist agent: measures per-tier flow toxicity
-                          (markouts vs mid), decides new spreads (Claude API
-                          or deterministic heuristic), then DOCKS + re-SHIPS
-                          the Aqua strategy. Repricing is autonomous.
+Subgraph (The Graph) ◄─── Strategist: measures per-tier activity + toxicity.
+                          A deterministic controller preserves the LP's blended
+                          fee target while shifting cost from bounded human flow
+                          to anonymous flow, then DOCKS + re-SHIPS on Aqua.
 ```
 
 Two independent on-chain implementations:
@@ -115,7 +117,7 @@ container command.
 
 **1inch — Build an Aqua App.** A custom dual-tier Aqua app plus a modified SwapVM router with `_humanGate` at opcode 34. The E2E executes the custom router, verifies its `HumanGated` event, and executes token transfers on the fork. Settlement uses `ship/dock/pull/push`; the strategist demonstrates dock+re-ship as live re-pricing.
 
-**The Graph — Best AI Use Case.** The strategist consumes live per-tier swaps and Aqua balances from the custom subgraph, reasons over execution edge, and acts on-chain by docking and shipping a re-priced strategy. Graph errors, missing strategies, and invalid balances fail loudly. Configure and deploy from `subgraph/` with `pnpm configure <app> <aqua> <block> base && pnpm deploy`; the judged demo requires the resulting `SUBGRAPH_URL`.
+**The Graph — Best AI Use Case.** The strategist consumes live per-tier swaps and Aqua balances from the custom subgraph, reasons over execution edge, and feeds a deterministic revenue-neutral controller. The controller solves tight/wide fees from the observed activity mix while holding a 19bps blended LP target, then the agent docks and ships the re-priced strategy. Graph errors, missing strategies, and invalid balances fail loudly. Configure and deploy from `subgraph/` with `pnpm configure <app> <aqua> <block> base && pnpm deploy`; the judged demo requires the resulting `SUBGRAPH_URL`.
 
 ## Repo layout
 
@@ -131,9 +133,9 @@ docs/        design and deployment runbooks
 
 ## The demo beats (≈3 min)
 
-1. Bot asks for a quote → **402: prove human backing** → anonymous lane at 30bps.
+1. Bot asks for a quote → **402: prove human backing** → the current anonymous lane.
 2. `_humanGate` executes inside SwapVM as opcode 34 and emits `HumanGated`.
-3. AgentKit auto-signs SIWE → verified on-chain → tight lane at 8bps. A second wallet attempts `remaining quota + 1` and is demoted to wide because it shares the same `humanId`.
-4. The strategist reads live Graph data, explains its decision, then **docks + re-ships at 5bps**. The next human quote improves.
+3. AgentKit auto-signs SIWE → verified on-chain → the current tight lane. A second wallet attempts `remaining quota + 1` and is demoted to wide because it shares the same `humanId`.
+4. The strategist reads live activity, targets a lower human fee when risk is bounded, solves the compensating bot fee, proves the blended LP target remains ≈19bps, then docks + re-ships.
 
 The exact stage narration and preflight checklist are in [docs/DEMO.md](./docs/DEMO.md).

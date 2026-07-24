@@ -48,7 +48,7 @@ Hono server: x402-style 402 challenge carrying AgentKit extension → agent sign
 
 ### 3. Subgraph + Strategist (`subgraph/`, `agent/strategist.ts`)
 
-Subgraph indexes `Swapped(strategyHash, taker, humanId, tier, tokenIn, amountIn, amountOut)` + Aqua `Shipped/Docked`. Entities: `Swap`, `TierStat` (per-tier volume, count), `Strategy`. Strategist agent: pulls per-tier flow + computes markouts (execution price vs price N blocks later), decides new `tightFeeBps`/cap (Claude API reasoning when `ANTHROPIC_API_KEY` set, deterministic heuristic otherwise), then `dock` + `ship` a re-parameterized strategy. The Graph is load-bearing: the agent's input data comes from the subgraph.
+Subgraph indexes `Swapped(strategyHash, taker, humanId, tier, tokenIn, amountIn, amountOut)` + Aqua `Shipped/Docked`. Entities: `Swap`, `TierStat` (per-tier volume, count), `Strategy`. The strategist pulls per-tier activity and markouts, chooses a safe human-backed fee target, then passes it through a deterministic revenue-neutral controller. The controller solves the anonymous fee so normalized `tightVolume × tightFee + wideVolume × wideFee ≈ totalVolume × 19bps`, subject to a 100bps bot-fee ceiling. The agent then `dock`s and `ship`s the re-parameterized strategy. The Graph is load-bearing: the agent's input data comes from the subgraph.
 
 ### 4. Dashboard (`web/`, Vite + React)
 
@@ -59,7 +59,7 @@ Side-by-side live quotes (bot vs human), quota meter per humanId, strategist act
 1. Anvil fork of Base mainnet (real Aqua, real AgentBook bytecode). Deploy TuringPoolApp + HumanQuota; maker ships strategy (wide 30bps / tight 8bps).
 2. Bot quotes+swaps → 30bps. Agent wallet registered in AgentBook (storage-write on fork; live registration via World App on stage) → quotes+swaps → 8bps. Same pool, same liquidity.
 3. Same human, second wallet → same humanId → cap shared → over-cap swap falls back to wide tier. Sybil resistance shown on-chain.
-4. Strategist reads subgraph stats → tightens tight-tier to 5bps → docks/re-ships → next human quote improves live.
+4. Strategist reads subgraph stats → targets 5bps for bounded human flow → solves the revenue-neutral bot surcharge from activity → docks/re-ships → next human quote improves live while the blended LP target stays ≈19bps.
 
 ## Decisions
 

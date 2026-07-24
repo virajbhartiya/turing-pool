@@ -27,16 +27,19 @@ Open [http://localhost:4021](http://localhost:4021), then run in terminal two:
 pnpm demo:sepolia
 ```
 
-The command asserts all four claims and prints BaseScan transaction links:
+The command asserts all five claims and prints BaseScan transaction links:
 
 1. An unauthenticated agent receives the AgentKit 402 challenge, selects the
-   30 bps wide lane, and settles on-chain.
+   current wide lane, and settles on-chain.
 2. The human-backed agent signs the SIWE proof, resolves through the test
-   AgentBook, selects the 8 bps tight lane, and settles from the same pool.
+   AgentBook, selects the current tight lane, and settles from the same pool.
 3. A second wallet with the same `humanId` asks for shared remaining quota plus
    one wei and is placed in the wide lane.
 4. The custom SwapVM router executes `_humanGate` at opcode 34 and the receipt
    contains `HumanGated`.
+5. The activity controller lowers the human-backed fee, solves the compensating
+   anonymous fee, and docks + re-ships an Aqua strategy whose projected blended
+   LP fee remains within 0.5 bps of the 19 bps target.
 
 Narrate it in one sentence per terminal beat, then return to the dashboard and
 point at the quote difference, quota meter, tier counts, and decoded swap feed.
@@ -104,15 +107,18 @@ the shared quota meter.
 ### 2:10–2:45 — Graph-grounded autonomous repricing
 
 Show the live Graph endpoint and sync status. The strategist reads indexed
-tight/wide flow and Aqua balances, prints its rationale, docks the old
-strategy, and ships a new one at 5bps.
+tight/wide flow and Aqua balances. Point to the controller equation:
+`human share × tight fee + bot share × wide fee ≈ 19bps`. It lowers the
+human-backed lane toward 5bps, raises the anonymous lane enough to preserve the
+LP target, then docks the old strategy and ships the new fee pair.
 
 ### 2:45–3:00 — close the loop
 
 Show the next human quote improving and finish with:
 
-“World bounds identity risk, The Graph measures the flow, and Aqua makes the
-new price executable without moving the LP’s funds into another pool.”
+“World bounds identity risk, The Graph measures the activity, the controller
+keeps LP fee economics neutral, and Aqua makes the new price executable without
+moving the LP’s funds into another pool.”
 
 ## Truthful fallback language
 

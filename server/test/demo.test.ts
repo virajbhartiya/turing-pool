@@ -54,6 +54,12 @@ test('static dashboard exposes judge-facing provenance and errors', async () => 
   assert.match(html, /connection-status/);
   assert.match(html, /bounds? (?:the )?LP|bounded risk/i);
   assert.match(html, /location\.origin/);
+  assert.match(html, /One pool\. Two prices\./);
+  assert.match(html, /Activity-priced fee controller/);
+  assert.match(html, /pnpm demo:sepolia/);
+  assert.match(html, /Aqua test deployment/);
+  assert.match(html, /id="controller-proof"/);
+  assert.doesNotMatch(html, /data-step="strategy"/);
   assert.doesNotMatch(html, /price improvement for being human/i);
   assert.doesNotMatch(
     html,
@@ -91,6 +97,8 @@ test('hosted preview snapshot stays truthful and preserves all three pricing lan
   assert.equal(state.runtime.mode, 'hosted-preview');
   assert.match(state.runtime.label, /snapshot/i);
   assert.equal(state.runtime.rpcStatus, 'not-used');
+  assert.equal(state.feeController.targetFeeBps, 19);
+  assert.ok(Math.abs(state.feeController.revenueDeltaBps) <= 0.5);
 });
 
 test('Vercel backend serves health, state, quotes, and an explicit non-executable quote', async () => {
@@ -108,5 +116,6 @@ test('Vercel backend serves health, state, quotes, and an explicit non-executabl
   assert.equal(state.status, 200);
   assert.equal(quotes.status, 200);
   assert.equal(anonymousQuote.status, 200);
+  assert.equal((await state.clone().json()).feeController.targetFeeBps, 19);
   assert.equal((await anonymousQuote.json()).execute.available, false);
 });
