@@ -32,6 +32,11 @@ test('runtime labels distinguish local mocks, truthful Base forks, and live chai
     label: 'Base mainnet',
     agentBook: 'live',
   });
+  assert.deepEqual(classifyRuntime(480, false, 'https://worldchain-mainnet.g.alchemy.com/public'), {
+    mode: 'chain',
+    label: 'World Chain · canonical AgentBook',
+    agentBook: 'live',
+  });
 });
 
 test('quote amounts reject malformed, zero, negative, and unreasonably large input', () => {
@@ -40,6 +45,16 @@ test('quote amounts reject malformed, zero, negative, and unreasonably large inp
   for (const input of ['', 'abc', '1.2', '0', '-1', (10n ** 37n).toString()]) {
     assert.throws(() => parseQuoteAmount(input), /amountIn/);
   }
+});
+
+test('anonymous live quotes use the configured bot wallet instead of a zero-address sentinel', async () => {
+  const app = await readFile(new URL('../src/app.ts', import.meta.url), 'utf8');
+  assert.match(app, /quoteRouterFor\(\s*deployments\.bot,/s);
+  assert.doesNotMatch(
+    app,
+    /quoteRouterFor\(\s*'0x0000000000000000000000000000000000000000'/s,
+    'the canonical AgentBook can resolve sentinel addresses unexpectedly',
+  );
 });
 
 test('Vite dashboard exposes judge-facing provenance and trading-terminal structure', async () => {
@@ -64,8 +79,8 @@ test('Vite dashboard exposes judge-facing provenance and trading-terminal struct
   assert.match(source, /Quote ticket/);
   assert.match(source, /Fee market · realized order flow/);
   assert.match(source, /Activity-priced fee controller/);
-  assert.match(source, /pnpm demo:sepolia/);
-  assert.match(source, /Aqua test deployment/);
+  assert.match(source, /pnpm demo:world/);
+  assert.match(source, /Aqua protocol deployment/);
   assert.match(source, /On-chain receipts/);
   assert.match(viteConfig, /outDir:\s*'\.\.\/public'/);
   assert.doesNotMatch(source, /price improvement for being human/i);

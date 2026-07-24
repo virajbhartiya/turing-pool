@@ -8,9 +8,15 @@ importers:
 
   .:
     dependencies:
+      '@worldcoin/agentkit':
+        specifier: 0.2.0
+        version: 0.2.0(ethers@6.17.0)(typescript@5.9.3)
       hono:
         specifier: ^4.12.31
         version: 4.12.31
+      viem:
+        specifier: ^2.21.54
+        version: 2.55.8(typescript@5.9.3)(zod@3.25.76)
     devDependencies:
       '@types/node':
         specifier: ^24.0.0

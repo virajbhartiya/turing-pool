@@ -1,6 +1,7 @@
 import { createPublicClient, decodeAbiParameters, http } from 'viem';
-import { appAbi, aquaAbi, agentBookAbi, quotaAbi, strategyAbiParams } from './abi.js';
+import { appAbi, aquaAbi, agentBookAbi, quotaAbi, routerAbi, strategyAbiParams } from './abi.js';
 import { loadDeployments, RPC_URL, type Deployments } from './config.js';
+import { getLogsInBlockChunks } from './log-ranges.js';
 
 export interface Strategy {
   maker: `0x${string}`;
@@ -62,18 +63,24 @@ async function loadStrategySnapshot(): Promise<StrategySnapshot> {
     if (strategyCache?.latestBlock === latestBlock) return strategyCache;
 
     const [shipped, docked] = await Promise.all([
-      client.getLogs({
-        address: deployments.aqua,
-        event: aquaAbi.find((e) => e.type === 'event' && e.name === 'Shipped') as any,
-        fromBlock: FROM_BLOCK,
-        toBlock: latestBlock,
-      }),
-      client.getLogs({
-        address: deployments.aqua,
-        event: aquaAbi.find((e) => e.type === 'event' && e.name === 'Docked') as any,
-        fromBlock: FROM_BLOCK,
-        toBlock: latestBlock,
-      }),
+      getLogsInBlockChunks(
+        client,
+        {
+          address: deployments.aqua,
+          event: aquaAbi.find((e) => e.type === 'event' && e.name === 'Shipped') as any,
+        },
+        FROM_BLOCK,
+        latestBlock,
+      ),
+      getLogsInBlockChunks(
+        client,
+        {
+          address: deployments.aqua,
+          event: aquaAbi.find((e) => e.type === 'event' && e.name === 'Docked') as any,
+        },
+        FROM_BLOCK,
+        latestBlock,
+      ),
     ]);
 
     const dockedHashes = new Set(
@@ -188,12 +195,26 @@ export async function poolState() {
   return { strategy, strategyHash, balance0: bal0, balance1: bal1 };
 }
 
-interface SwapSnapshot {
-  latestBlock: bigint;
-  swaps: ReturnType<typeof swapFromLog>[];
+interface SwapRecord {
+  blockNumber: string;
+  transactionHash: `0x${string}` | null;
+  taker: `0x${string}`;
+  humanId: string;
+  tight: boolean;
+  tokenIn: `0x${string}`;
+  tokenOut: `0x${string}`;
+  amountIn: string;
+  amountOut: string;
+  feeBps: string;
+  source: 'aqua-app' | 'swapvm';
 }
 
-function swapFromLog(l: any) {
+interface SwapSnapshot {
+  latestBlock: bigint;
+  swaps: SwapRecord[];
+}
+
+function swapFromLog(l: any): SwapRecord {
   return {
     blockNumber: String(l.blockNumber),
     transactionHash: l.transactionHash as `0x${string}` | null,
@@ -205,7 +226,31 @@ function swapFromLog(l: any) {
     amountIn: String(l.args.amountIn),
     amountOut: String(l.args.amountOut),
     feeBps: String(l.args.feeBps),
+    source: 'aqua-app' as const,
   };
+}
+
+function routerSwapsFromLogs(gates: any[], fills: any[]): SwapRecord[] {
+  const gateByTransaction = new Map(
+    gates.map((gate) => [gate.transactionHash?.toLowerCase(), gate] as const),
+  );
+  return fills.flatMap((fill) => {
+    const gate = gateByTransaction.get(fill.transactionHash?.toLowerCase());
+    if (!gate || gate.args.orderHash.toLowerCase() !== fill.args.orderHash.toLowerCase()) return [];
+    return [{
+      blockNumber: String(fill.blockNumber),
+      transactionHash: fill.transactionHash as `0x${string}` | null,
+      taker: fill.args.taker,
+      humanId: String(gate.args.humanId),
+      tight: gate.args.tight,
+      tokenIn: fill.args.tokenIn,
+      tokenOut: fill.args.tokenOut,
+      amountIn: String(fill.args.amountIn),
+      amountOut: String(fill.args.amountOut),
+      feeBps: String(BigInt(gate.args.feeE9) / 100_000n),
+      source: 'swapvm' as const,
+    }];
+  });
 }
 
 let swapCache: SwapSnapshot | undefined;
@@ -216,15 +261,42 @@ export async function recentSwaps(limit = 50) {
     swapLoad = (async () => {
       const latestBlock = await client.getBlockNumber({ cacheTime: 0 });
       if (swapCache?.latestBlock === latestBlock) return swapCache;
-      const logs = await client.getLogs({
-        address: deployments.app,
-        event: appAbi.find((e) => e.type === 'event' && e.name === 'Swapped') as any,
-        fromBlock: FROM_BLOCK,
-        toBlock: latestBlock,
-      });
+      const [appLogs, routerGates, routerFills] = await Promise.all([
+        getLogsInBlockChunks(
+          client,
+          {
+            address: deployments.app,
+            event: appAbi.find((e) => e.type === 'event' && e.name === 'Swapped') as any,
+          },
+          FROM_BLOCK,
+          latestBlock,
+        ),
+        getLogsInBlockChunks(
+          client,
+          {
+            address: deployments.router,
+            event: routerAbi.find((e) => e.type === 'event' && e.name === 'HumanGated') as any,
+          },
+          FROM_BLOCK,
+          latestBlock,
+        ),
+        getLogsInBlockChunks(
+          client,
+          {
+            address: deployments.router,
+            event: routerAbi.find((e) => e.type === 'event' && e.name === 'Swapped') as any,
+          },
+          FROM_BLOCK,
+          latestBlock,
+        ),
+      ]);
+      const swaps: SwapRecord[] = [
+        ...appLogs.map(swapFromLog),
+        ...routerSwapsFromLogs(routerGates, routerFills),
+      ].sort((left, right) => Number(BigInt(left.blockNumber) - BigInt(right.blockNumber)));
       swapCache = {
         latestBlock,
-        swaps: logs.map(swapFromLog),
+        swaps,
       };
       return swapCache;
     })().finally(() => {

@@ -61,6 +61,13 @@ export function classifyRuntime(
       agentBook: 'live',
     };
   }
+  if (chainId === 480) {
+    return {
+      mode: 'chain',
+      label: 'World Chain · canonical AgentBook',
+      agentBook: 'live',
+    };
+  }
   return {
     mode: 'chain',
     label: `Chain ${chainId}`,

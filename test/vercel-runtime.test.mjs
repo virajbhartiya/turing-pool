@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
+import { promisify } from 'node:util';
 
 const functionEntry = resolve('.vercel/output/functions/index.func/index.js');
 const dashboardEntry = resolve('.vercel/output/static/index.html');
 const routeManifest = resolve('.vercel/output/config.json');
+const execFileAsync = promisify(execFile);
 
 test('the Vercel route manifest sends dashboard API paths to the Hono function', async () => {
   const config = JSON.parse(await readFile(routeManifest, 'utf8'));
@@ -15,7 +18,7 @@ test('the Vercel route manifest sends dashboard API paths to the Hono function',
     .map((route, index) => ({ ...route, index }))
     .filter((route) => route.dest === '/' && route.src && route.index < static404Index);
 
-  for (const path of ['/health', '/state', '/demo/quotes', '/quote']) {
+  for (const path of ['/health', '/state', '/demo/quotes', '/demo/trade', '/quote']) {
     assert.ok(
       functionRoutes.some((route) => new RegExp(route.src).test(path)),
       `${path} must reach the Hono function before the static 404 route`,
@@ -59,4 +62,29 @@ test('the built Vercel output initializes and serves every hosted route', async 
     mode: 'hosted-preview-snapshot',
   });
   assert.match(await readFile(dashboardEntry, 'utf8'), /Turing Pool/);
+});
+
+test('the built function packages the live-chain backend and its AgentKit dependencies', async () => {
+  const deployments = await readFile(
+    resolve('contracts/deployments/world-mainnet.json'),
+    'utf8',
+  );
+  const script = `
+    const app = (await import(${JSON.stringify(pathToFileURL(functionEntry).href)})).default;
+    const response = await app.fetch(new Request('https://turing-pool.test/health'));
+    const body = await response.json();
+    if (response.status !== 200 || body.mode !== 'live-chain') {
+      throw new Error(JSON.stringify({ status: response.status, body }));
+    }
+  `;
+
+  await execFileAsync(process.execPath, ['--input-type=module', '-e', script], {
+    env: {
+      ...process.env,
+      DEPLOYMENTS_JSON: deployments,
+      NODE_ENV: 'production',
+      RPC_URL: 'http://127.0.0.1:1',
+      CHAIN_ID: '480',
+    },
+  });
 });

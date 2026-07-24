@@ -16,12 +16,15 @@
     "demo": "bash scripts/demo.sh local",
     "demo:fork": "bash scripts/demo.sh fork",
     "demo:sepolia": "bash scripts/demo-sepolia.sh",
+    "demo:world": "bash scripts/demo-world.sh",
     "demo:beats": "bash scripts/demo-beats.sh",
     "dev:web": "pnpm --filter @turing-pool/web dev",
     "test:vercel-runtime": "vercel build --yes && node --test test/vercel-runtime.test.mjs"
   },
   "dependencies": {
-    "hono": "^4.12.31"
+    "@worldcoin/agentkit": "0.2.0",
+    "hono": "^4.12.31",
+    "viem": "^2.21.54"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

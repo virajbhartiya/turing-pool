@@ -15,15 +15,21 @@ import {
   dailyCap,
   deployments,
   lookupHuman,
-  poolState,
   quotaRemaining,
-  quoteFor,
   recentSwaps,
   strategyHistory,
 } from './chain.js';
 import { amountForOverQuotaQuote, classifyRuntime, parseQuoteAmount } from './demo.js';
-import { activityFeePolicy } from './fee-policy.js';
+import { onChainFeePolicy } from './fee-policy.js';
 import { hostedDemoQuotes, hostedState } from './hosted-snapshot.js';
+import {
+  demoTradesEnabled,
+  executeDemoTrade,
+  quoteRouterFor,
+  routerOpcode,
+  routerPoolState,
+  type DemoTradeLane,
+} from './router-demo.js';
 
 const app = new Hono();
 app.use('*', cors());
@@ -199,7 +205,7 @@ app.get('/quote', async (c) => {
     });
   }
 
-  let taker: `0x${string}` = '0x0000000000000000000000000000000000000000';
+  let taker: `0x${string}` = deployments.bot;
   let identity: Record<string, unknown> = { verified: false, tier: 'wide' };
 
   if (header) {
@@ -219,8 +225,8 @@ app.get('/quote', async (c) => {
     return c.json(agentkitChallenge(resourceUri), 402);
   }
 
-  const q = await quoteFor(taker, amountIn, zeroForOne);
-  const wide = await quoteFor('0x0000000000000000000000000000000000000000', amountIn, zeroForOne);
+  const q = await quoteRouterFor(taker, amountIn, undefined, zeroForOne);
+  const wide = await quoteRouterFor(deployments.bot, amountIn, undefined, zeroForOne);
 
   const tokenIn = zeroForOne ? q.strategy.token0 : q.strategy.token1;
   const quotaLeft =
@@ -241,17 +247,10 @@ app.get('/quote', async (c) => {
     improvementBps,
     quotaRemainingTokenIn: quotaLeft.toString(),
     execute: {
-      to: deployments.app,
-      function: 'swapExactIn((address,address,address,uint256,uint256,bytes32),bool,uint256,uint256,address)',
-      strategy: {
-        maker: q.strategy.maker,
-        token0: q.strategy.token0,
-        token1: q.strategy.token1,
-        wideFeeBps: q.strategy.wideFeeBps.toString(),
-        tightFeeBps: q.strategy.tightFeeBps.toString(),
-        salt: q.strategy.salt,
-      },
-      note: 'taker must approve tokenIn to the app, then call swapExactIn; tier is re-resolved on-chain at swap time',
+      to: deployments.router,
+      function: 'swap((address,uint256,bytes),address,address,uint256,bytes)',
+      orderHash: q.strategyHash,
+      note: 'taker approves tokenIn to the SwapVM router; _humanGate re-resolves identity, quota, and the current volume-priced fee on-chain',
     },
   });
 });
@@ -269,16 +268,16 @@ app.get('/demo/quotes', async (c) => {
     return c.json(hostedDemoQuotes(amountIn));
   }
   const [human, bot] = await Promise.all([
-    quoteFor(deployments.humanAgent, amountIn, true),
-    quoteFor(deployments.bot, amountIn, true),
+    quoteRouterFor(deployments.humanAgent, amountIn),
+    quoteRouterFor(deployments.bot, amountIn),
   ]);
   const sharedHumanId = human.humanId || BigInt(deployments.humanId);
   const remaining = await quotaRemaining(sharedHumanId, human.strategy.token0);
   const sybilAmountIn = amountForOverQuotaQuote(remaining);
-  const sybil = await quoteFor(deployments.sybilAgent, sybilAmountIn, true);
+  const sybil = await quoteRouterFor(deployments.sybilAgent, sybilAmountIn);
   const row = (
     label: string,
-    q: Awaited<ReturnType<typeof quoteFor>>,
+    q: Awaited<ReturnType<typeof quoteRouterFor>>,
     address: string,
     quotedAmountIn: bigint,
   ) => ({
@@ -308,17 +307,54 @@ app.get('/demo/quotes', async (c) => {
   });
 });
 
+app.post('/demo/trade', async (c) => {
+  if (!demoTradesEnabled()) {
+    return c.json({ error: 'interactive demo trades are disabled on this runtime' }, 503);
+  }
+  const allowedOrigin = process.env.DEMO_TRADE_ORIGIN;
+  const requestOrigin = c.req.header('origin');
+  if (allowedOrigin && requestOrigin !== allowedOrigin) {
+    return c.json({ error: 'demo trades must be submitted from the configured dashboard' }, 403);
+  }
+
+  let body: { lane?: unknown; amountIn?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'request body must be JSON' }, 400);
+  }
+  if (body.lane !== 'human' && body.lane !== 'bot') {
+    return c.json({ error: 'lane must be "human" or "bot"' }, 400);
+  }
+  let amountIn: bigint;
+  try {
+    amountIn = parseQuoteAmount(typeof body.amountIn === 'string' ? body.amountIn : undefined);
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : 'invalid amountIn' }, 400);
+  }
+
+  try {
+    return c.json(await executeDemoTrade(body.lane as DemoTradeLane, amountIn));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'trade execution failed';
+    const busy = /already in progress|wait before submitting/.test(message);
+    const unavailable = /not configured|disabled/.test(message);
+    return c.json({ error: message }, busy ? 429 : unavailable ? 503 : 500);
+  }
+});
+
 app.get('/state', async (c) => {
   if (SNAPSHOT_MODE) {
     return c.json(hostedState());
   }
-  const [state, swaps, strategies, latestBlock, rpcChainId, graph] = await Promise.all([
-    poolState(),
+  const [state, swaps, strategies, latestBlock, rpcChainId, graph, opcode] = await Promise.all([
+    routerPoolState(),
     recentSwaps(),
     strategyHistory(),
     client.getBlockNumber({ cacheTime: 0 }),
     client.getChainId(),
     graphStatus(),
+    routerOpcode(),
   ]);
   const humanId = BigInt(deployments.humanId);
   const [remEth, remUsd, cap0, cap1] = await Promise.all([
@@ -338,6 +374,20 @@ app.get('/state', async (c) => {
       quota: deployments.quota,
       mockAgentBook: deployments.mockAgentBook,
     },
+    execution: {
+      enabled: demoTradesEnabled(),
+      venue: 'SwapVM',
+      opcode,
+      instruction: '_humanGate',
+      event: 'HumanGated',
+      router: deployments.router,
+      humanWallet: deployments.humanAgent,
+      botWallet: deployments.bot,
+      tightFeeBps: state.program.tightFeeBps,
+      wideFeeBps: state.program.wideFeeBps,
+      feeSource: 'HumanQuota.feeSchedule',
+      repricesAfter: 'each mined SwapVM fill',
+    },
     runtime: {
       ...classifyRuntime(rpcChainId, deployments.mockAgentBook, RPC_URL),
       chainId: rpcChainId,
@@ -346,7 +396,7 @@ app.get('/state', async (c) => {
     },
     dataSources: {
       quotes: {
-        name: 'On-chain RPC eth_call',
+        name: 'SwapVM router eth_call',
         status: 'connected',
         block: latestBlock.toString(),
       },
@@ -362,6 +412,8 @@ app.get('/state', async (c) => {
     },
     pool: {
       strategyHash: state.strategyHash,
+      orderHash: state.orderHash,
+      venue: 'SwapVM',
       token0: state.strategy.token0,
       token1: state.strategy.token1,
       balance0: state.balance0.toString(),
@@ -381,7 +433,11 @@ app.get('/state', async (c) => {
       tightSwaps: tightSwaps.length,
       wideSwaps: wideSwaps.length,
     },
-    feeController: activityFeePolicy(swaps, state.strategy),
+    feeController: onChainFeePolicy(state.feeController, {
+      observedSwaps: swaps.length,
+      tightSwaps: tightSwaps.length,
+      wideSwaps: wideSwaps.length,
+    }),
     strategyHistory: strategies,
     swaps,
   });
