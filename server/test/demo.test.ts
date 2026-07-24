@@ -55,6 +55,11 @@ test('static dashboard exposes judge-facing provenance and errors', async () => 
   assert.match(html, /bounds? (?:the )?LP|bounded risk/i);
   assert.match(html, /location\.origin/);
   assert.doesNotMatch(html, /price improvement for being human/i);
+  assert.doesNotMatch(
+    html,
+    /network-label'\)\.textContent = `\$\{state\.runtime\.label\} · \$\{agentBookLabel\}`/,
+    'the runtime label already names the AgentBook mode and must not render it twice',
+  );
 });
 
 test('repository includes a guarded single-service deployment definition', async () => {

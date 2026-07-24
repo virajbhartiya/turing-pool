@@ -684,7 +684,7 @@ async function tick() {
         : state.runtime.agentBook === 'live'
           ? 'live AgentBook'
           : `${state.runtime.agentBook} AgentBook`;
-    document.getElementById('network-label').textContent = `${state.runtime.label} · ${agentBookLabel}`;
+    document.getElementById('network-label').textContent = state.runtime.label;
     document.getElementById('agentbook-lane').textContent = `${agentBookLabel} lane`;
     const isSnapshot = state.runtime.mode === 'hosted-preview';
     document.getElementById('quote-source-label').textContent = isSnapshot
