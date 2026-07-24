@@ -2,7 +2,7 @@ import {
   calculateRevenueNeutralFees,
   DEFAULT_REVENUE_POLICY,
   type RevenueNeutralFeeDecision,
-} from '@turing-pool/economics';
+} from '../../economics/index.js';
 
 interface ActivitySwap {
   tight: boolean;
