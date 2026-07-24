@@ -18,13 +18,49 @@ export const RPC_URL = process.env.RPC_URL ?? 'http://127.0.0.1:8545';
 export const API_URL = process.env.API_URL ?? 'http://localhost:4021';
 export const CHAIN_ID = Number(process.env.CHAIN_ID ?? 31337);
 
-// Anvil's well-known dev keys (match DeployDemo.s.sol assignments).
-export const KEYS = {
+type AgentRole = 'maker' | 'bot' | 'humanAgent' | 'sybilAgent';
+type AgentKeyEnvironment = Partial<
+  Record<
+    | 'MAKER_PRIVATE_KEY'
+    | 'BOT_PRIVATE_KEY'
+    | 'HUMAN_AGENT_PRIVATE_KEY'
+    | 'SYBIL_AGENT_PRIVATE_KEY',
+    string
+  >
+>;
+
+// Anvil's well-known dev keys (match DeployDemo.s.sol assignments). Public
+// deployments must override these so they do not use globally shared accounts.
+const ANVIL_KEYS: Record<AgentRole, Hex> = {
   maker: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
   bot: '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
   humanAgent: '0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a',
   sybilAgent: '0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6',
-} as const;
+};
+
+function resolvePrivateKey(name: keyof AgentKeyEnvironment, value: string): Hex {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(value)) {
+    throw new Error(`${name} must be a 0x-prefixed 32-byte hexadecimal private key`);
+  }
+  return value as Hex;
+}
+
+export function resolveAgentKeys(env: AgentKeyEnvironment): Record<AgentRole, Hex> {
+  return {
+    maker: resolvePrivateKey('MAKER_PRIVATE_KEY', env.MAKER_PRIVATE_KEY ?? ANVIL_KEYS.maker),
+    bot: resolvePrivateKey('BOT_PRIVATE_KEY', env.BOT_PRIVATE_KEY ?? ANVIL_KEYS.bot),
+    humanAgent: resolvePrivateKey(
+      'HUMAN_AGENT_PRIVATE_KEY',
+      env.HUMAN_AGENT_PRIVATE_KEY ?? ANVIL_KEYS.humanAgent,
+    ),
+    sybilAgent: resolvePrivateKey(
+      'SYBIL_AGENT_PRIVATE_KEY',
+      env.SYBIL_AGENT_PRIVATE_KEY ?? ANVIL_KEYS.sybilAgent,
+    ),
+  };
+}
+
+export const KEYS = resolveAgentKeys(process.env);
 
 export function loadDeployments() {
   const path =
@@ -61,6 +97,7 @@ export function makeAgentkitFetch(privateKey: Hex): AgentkitClient {
 
 export const erc20Abi = [
   { type: 'function', name: 'approve', stateMutability: 'nonpayable', inputs: [{ name: 'spender', type: 'address' }, { name: 'value', type: 'uint256' }], outputs: [{ type: 'bool' }] },
+  { type: 'function', name: 'allowance', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }], outputs: [{ type: 'uint256' }] },
 ] as const;
 
@@ -112,6 +149,52 @@ export interface QuoteResponse {
   };
 }
 
+const ALLOWANCE_VISIBILITY_ATTEMPTS = 10;
+const ALLOWANCE_VISIBILITY_INITIAL_DELAY_MS = 100;
+const ALLOWANCE_VISIBILITY_MAX_DELAY_MS = 1_000;
+
+async function waitForAllowanceVisibility(
+  wallet: ReturnType<typeof makeWallet>,
+  token: `0x${string}`,
+  spender: `0x${string}`,
+  requiredAllowance: bigint,
+): Promise<void> {
+  let lastAllowance = 0n;
+  let lastReadError: unknown;
+
+  for (let attempt = 0; attempt < ALLOWANCE_VISIBILITY_ATTEMPTS; attempt += 1) {
+    try {
+      lastAllowance = await wallet.readContract({
+        address: token,
+        abi: erc20Abi,
+        functionName: 'allowance',
+        args: [wallet.account.address, spender],
+      });
+      lastReadError = undefined;
+      if (lastAllowance >= requiredAllowance) return;
+    } catch (error) {
+      // A transient read failure can be another symptom of an RPC replica
+      // changing underneath us. Keep polling within the same bounded budget.
+      lastReadError = error;
+    }
+
+    if (attempt + 1 < ALLOWANCE_VISIBILITY_ATTEMPTS) {
+      const delayMs = Math.min(
+        ALLOWANCE_VISIBILITY_INITIAL_DELAY_MS * 2 ** attempt,
+        ALLOWANCE_VISIBILITY_MAX_DELAY_MS,
+      );
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, delayMs));
+    }
+  }
+
+  const readFailure =
+    lastReadError instanceof Error ? ` Last read failed: ${lastReadError.message}` : '';
+  throw new Error(
+    `RPC did not observe allowance ${requiredAllowance} for ${spender} after ` +
+      `${ALLOWANCE_VISIBILITY_ATTEMPTS} attempts (last observed ${lastAllowance}).${readFailure}`,
+  );
+}
+
 export async function executeSwap(
   wallet: ReturnType<typeof makeWallet>,
   quote: QuoteResponse,
@@ -136,6 +219,14 @@ export async function executeSwap(
     chain: null,
   });
   await wallet.waitForTransactionReceipt({ hash: approvalHash });
+
+  // Some hosted RPCs acknowledge the approval receipt from one replica before
+  // another replica serving eth_call has indexed the new allowance. Do not
+  // simulate against stale state. Write-only wallet adapters retain the previous
+  // receipt-only behavior because they cannot perform the visibility check.
+  if (typeof wallet.readContract === 'function') {
+    await waitForAllowanceVisibility(wallet, tokenIn, quote.execute.to, amountIn);
+  }
 
   const slippageBps = BigInt(process.env.SLIPPAGE_BPS ?? '50');
   if (slippageBps < 0n || slippageBps >= 10_000n) {

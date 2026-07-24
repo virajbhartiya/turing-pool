@@ -1,13 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { executeSwap, type QuoteResponse } from './lib.js';
+import { executeSwap, resolveAgentKeys, type QuoteResponse } from './lib.js';
 
 const APPROVAL_HASH = `0x${'11'.repeat(32)}` as const;
 const SWAP_HASH = `0x${'22'.repeat(32)}` as const;
 const WALLET = '0x00000000000000000000000000000000000000aa' as const;
 const TOKEN = '0x00000000000000000000000000000000000000bb' as const;
 const APP = '0x00000000000000000000000000000000000000cc' as const;
+const PRIVATE_KEY_A = `0x${'12'.repeat(32)}` as const;
+const PRIVATE_KEY_B = `0x${'34'.repeat(32)}` as const;
+const PRIVATE_KEY_C = `0x${'56'.repeat(32)}` as const;
+const PRIVATE_KEY_D = `0x${'78'.repeat(32)}` as const;
 
 const quote: QuoteResponse = {
   identity: { verified: true, humanBacked: true, humanId: '1', address: WALLET },
@@ -29,6 +33,23 @@ const quote: QuoteResponse = {
     },
   },
 };
+
+test('agent keys can be supplied for a public-chain deployment', () => {
+  assert.deepEqual(
+    resolveAgentKeys({
+      MAKER_PRIVATE_KEY: PRIVATE_KEY_A,
+      BOT_PRIVATE_KEY: PRIVATE_KEY_B,
+      HUMAN_AGENT_PRIVATE_KEY: PRIVATE_KEY_C,
+      SYBIL_AGENT_PRIVATE_KEY: PRIVATE_KEY_D,
+    }),
+    {
+      maker: PRIVATE_KEY_A,
+      bot: PRIVATE_KEY_B,
+      humanAgent: PRIVATE_KEY_C,
+      sybilAgent: PRIVATE_KEY_D,
+    },
+  );
+});
 
 test('executeSwap mines approval before simulation and protects quoted output', async () => {
   const events: string[] = [];
@@ -68,4 +89,45 @@ test('executeSwap mines approval before simulation and protects quoted output', 
   assert.equal(writeCount, 2);
   assert.ok(amountOutMin > 0n, 'amountOutMin must never be zero');
   assert.ok(amountOutMin <= BigInt(quote.amountOut));
+});
+
+test('executeSwap waits until the RPC observes the mined allowance before simulating', async () => {
+  const events: string[] = [];
+  let allowanceReads = 0;
+
+  const wallet = {
+    account: { address: WALLET },
+    async writeContract(args: any) {
+      if (args.functionName === 'approve') {
+        events.push('approval:write');
+        return APPROVAL_HASH;
+      }
+      events.push('swap:write');
+      return SWAP_HASH;
+    },
+    async waitForTransactionReceipt({ hash }: { hash: string }) {
+      events.push(hash === APPROVAL_HASH ? 'approval:mined' : 'swap:mined');
+      return { status: 'success' };
+    },
+    async readContract() {
+      allowanceReads += 1;
+      const allowance = allowanceReads === 1 ? 0n : 1_000_000_000_000_000_000n;
+      events.push(allowance === 0n ? 'allowance:stale' : 'allowance:ready');
+      return allowance;
+    },
+    async simulateContract() {
+      events.push('swap:simulate');
+      return { result: BigInt(quote.amountOut) };
+    },
+  };
+
+  await executeSwap(wallet as any, quote, TOKEN, 1_000_000_000_000_000_000n);
+
+  assert.deepEqual(events.slice(0, 5), [
+    'approval:write',
+    'approval:mined',
+    'allowance:stale',
+    'allowance:ready',
+    'swap:simulate',
+  ]);
 });
