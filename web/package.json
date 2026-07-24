@@ -1,0 +1,8 @@
+{
+  "name": "@turing-pool/web",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "start": "python3 -m http.server 4030"
+  }
+}

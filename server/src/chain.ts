@@ -88,6 +88,15 @@ export async function quotaRemaining(humanId: bigint, token: `0x${string}`): Pro
   })) as bigint;
 }
 
+export async function dailyCap(token: `0x${string}`): Promise<bigint> {
+  return (await client.readContract({
+    address: deployments.quota,
+    abi: quotaAbi,
+    functionName: 'dailyCap',
+    args: [token],
+  })) as bigint;
+}
+
 export async function poolState() {
   const { strategy, strategyHash } = await getActiveStrategy();
   const [bal0, bal1] = (await client.readContract({

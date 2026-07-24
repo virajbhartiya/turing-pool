@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Turing Pool — the AMM that knows you're human</title>
+<style>
+  .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --surface-2: #232322;
+    --border: #3a3a38;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8a897f;
+    --human: #3987e5;   /* categorical slot 1 (dark) — human/tight */
+    --bot: #d95926;     /* categorical slot 2 (dark) — bot/wide */
+    --good: #199e70;
+    --warn: #c98500;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .viz-root {
+      color-scheme: light;
+      --surface-1: #fcfcfb;
+      --surface-2: #f2f1ee;
+      --border: #dedcd4;
+      --text-primary: #0b0b0b;
+      --text-secondary: #52514e;
+      --text-muted: #7a786e;
+      --human: #2a78d6;
+      --bot: #eb6834;
+      --good: #1baf7a;
+      --warn: #eda100;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--surface-1); }
+  .viz-root {
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--surface-1);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 28px clamp(16px, 4vw, 48px);
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+  h1 { font-size: 26px; letter-spacing: -0.02em; }
+  .tagline { color: var(--text-secondary); font-size: 14px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 24px; }
+  .chip {
+    font: 11px ui-monospace, monospace; color: var(--text-muted);
+    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px;
+  }
+  .chip b { color: var(--text-secondary); font-weight: 600; }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-bottom: 14px; }
+  .card {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px;
+  }
+  .card h3 {
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-muted); margin-bottom: 10px; display: flex; align-items: center; gap: 7px;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .hero { font-size: 30px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .hero small { font-size: 14px; font-weight: 500; color: var(--text-secondary); margin-left: 4px; }
+  .sub { font-size: 12.5px; color: var(--text-secondary); margin-top: 6px; }
+  .delta { color: var(--good); font-weight: 600; }
+  .fee-badge {
+    display: inline-block; font: 600 12px ui-monospace, monospace;
+    border-radius: 6px; padding: 2px 8px; margin-top: 8px;
+    border: 1px solid var(--border); color: var(--text-secondary);
+  }
+  .meter { margin-top: 10px; }
+  .meter-track {
+    height: 12px; border-radius: 6px; background: var(--surface-1);
+    border: 1px solid var(--border); overflow: hidden;
+  }
+  .meter-fill { height: 100%; background: var(--human); border-radius: 4px 0 0 4px; transition: width .6s ease; }
+  .meter-label { font-size: 12px; color: var(--text-secondary); margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .bars { display: grid; gap: 10px; margin-top: 4px; }
+  .bar-row { display: grid; grid-template-columns: 118px 1fr 74px; gap: 10px; align-items: center; font-size: 13px; }
+  .bar-name { color: var(--text-secondary); display: flex; align-items: center; gap: 7px; }
+  .bar-track { height: 14px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px 0 0 4px; transition: width .6s ease; }
+  .bar-val { text-align: right; color: var(--text-primary); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th {
+    text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--text-muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border);
+  }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--border); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  td.mono { font-family: ui-monospace, monospace; font-size: 11.5px; }
+  .tier { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text-primary); }
+  .log { font: 12px ui-monospace, monospace; color: var(--text-secondary); display: grid; gap: 6px; max-height: 180px; overflow-y: auto; }
+  .log .t { color: var(--text-muted); }
+  footer { margin-top: 26px; font-size: 12px; color: var(--text-muted); }
+  .wide-span { grid-column: 1 / -1; }
+  .scroll-x { overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <header>
+    <h1>🧠 Turing Pool</h1>
+    <span class="tagline">the first AMM that quotes better prices for verified humans</span>
+  </header>
+  <div class="chips" id="chips"></div>
+
+  <div class="grid" id="quote-race">
+    <div class="card">
+      <h3><span class="dot" style="background:var(--human)"></span> Human-backed agent — 1 tETH in</h3>
+      <div class="hero" id="human-out">—</div>
+      <div class="sub">World AgentKit verified · <span id="human-fee" class="fee-badge">—</span></div>
+      <div class="sub delta" id="improvement"></div>
+    </div>
+    <div class="card">
+      <h3><span class="dot" style="background:var(--bot)"></span> Anonymous bot — 1 tETH in</h3>
+      <div class="hero" id="bot-out">—</div>
+      <div class="sub">no proof of human backing · <span id="bot-fee" class="fee-badge">—</span></div>
+    </div>
+    <div class="card">
+      <h3><span class="dot" style="background:var(--warn)"></span> Sybil twin — same human, new wallet</h3>
+      <div class="hero" id="sybil-tier">—</div>
+      <div class="sub" id="sybil-note">shares the same humanId → same quota</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Active strategy (live from Aqua events)</h3>
+      <div class="hero" id="fees">—</div>
+      <div class="sub">tight tier / wide tier · re-priced autonomously by the Strategist agent</div>
+      <div class="sub mono" id="strategy-hash"></div>
+    </div>
+    <div class="card">
+      <h3>Pool liquidity (maker wallet, virtual on Aqua)</h3>
+      <div class="hero" id="pool-bal">—</div>
+      <div class="sub" id="pool-detail"></div>
+    </div>
+    <div class="card">
+      <h3>Demo human — daily tight-tier quota (tETH)</h3>
+      <div class="meter">
+        <div class="meter-track"><div class="meter-fill" id="quota-fill" style="width:0%"></div></div>
+        <div class="meter-label" id="quota-label">—</div>
+      </div>
+      <div class="sub">shared across every wallet this human registers</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Flow by tier</h3>
+      <div class="bars" id="tier-bars"></div>
+    </div>
+    <div class="card">
+      <h3>Strategist log</h3>
+      <div class="log" id="log"><div><span class="t">waiting…</span> watching for re-pricings</div></div>
+    </div>
+  </div>
+
+  <div class="card wide-span">
+    <h3>Swap feed</h3>
+    <div class="scroll-x">
+    <table>
+      <thead><tr><th>Block</th><th>Taker</th><th>Tier</th><th>Amount in</th><th>Amount out</th><th>Fee</th><th>humanId</th></tr></thead>
+      <tbody id="swap-rows"></tbody>
+    </table>
+    </div>
+  </div>
+
+  <footer>
+    1inch Aqua shared liquidity · World AgentKit human verification · The Graph flow analytics · ETHGlobal Lisbon 2026
+  </footer>
+</div>
+
+<script>
+const API = (location.hash.slice(1) || 'http://localhost:4021').replace(/\/$/, '');
+const fmt = (v, d = 18, digits = 2) =>
+  (Number(BigInt(v) / 10n ** BigInt(d - 6)) / 1e6).toLocaleString('en-US', { maximumFractionDigits: digits });
+const short = (a) => a ? a.slice(0, 8) + '…' + a.slice(-4) : '—';
+let lastFees = null;
+
+async function tick() {
+  try {
+    const [state, quotes] = await Promise.all([
+      fetch(API + '/state').then((r) => r.json()),
+      fetch(API + '/demo/quotes').then((r) => r.json()),
+    ]);
+
+    document.getElementById('chips').innerHTML = [
+      ['1inch Aqua', state.contracts.aqua],
+      ['World AgentBook' + (state.contracts.mockAgentBook ? ' (mock)' : ' (real)'), state.contracts.agentBook],
+      ['TuringPoolApp', state.contracts.app],
+      ['HumanQuota', state.contracts.quota],
+    ].map(([n, a]) => `<span class="chip"><b>${n}</b> ${short(a)}</span>`).join('');
+
+    document.getElementById('human-out').innerHTML = fmt(quotes.human.amountOut) + '<small>tUSD</small>';
+    document.getElementById('human-fee').textContent = quotes.human.feeBps + ' bps · ' + quotes.human.tier;
+    document.getElementById('bot-out').innerHTML = fmt(quotes.bot.amountOut) + '<small>tUSD</small>';
+    document.getElementById('bot-fee').textContent = quotes.bot.feeBps + ' bps · ' + quotes.bot.tier;
+    document.getElementById('improvement').textContent =
+      '+' + quotes.improvementBps + ' bps price improvement for being human';
+    document.getElementById('sybil-tier').textContent = quotes.sybil.tier.toUpperCase();
+    document.getElementById('sybil-note').textContent =
+      quotes.sybil.tier === 'wide'
+        ? 'quota already spent by wallet #1 → demoted to wide. Sybil defeated.'
+        : 'still inside the shared per-human quota';
+
+    const p = state.pool;
+    document.getElementById('fees').textContent = p.tightFeeBps + ' / ' + p.wideFeeBps + ' bps';
+    document.getElementById('strategy-hash').textContent = 'strategy ' + short(p.strategyHash);
+    document.getElementById('pool-bal').textContent = fmt(p.balance0, 18, 1) + ' tETH · ' + fmt(p.balance1, 18, 0) + ' tUSD';
+    document.getElementById('pool-detail').textContent = 'funds never leave the maker wallet — Aqua tracks virtual balances';
+
+    const rem = BigInt(state.demoHuman.quotaRemainingToken0);
+    const capGuess = BigInt(state.demoHuman.dailyCapToken0 || '1');
+    const used = capGuess > rem ? capGuess - rem : 0n;
+    const pct = Number((used * 100n) / capGuess);
+    document.getElementById('quota-fill').style.width = pct + '%';
+    document.getElementById('quota-label').textContent =
+      fmt(used.toString()) + ' used / ' + fmt(capGuess.toString()) + ' tETH cap (' + fmt(rem.toString()) + ' left)';
+
+    const tight = state.stats.tightSwaps, wide = state.stats.wideSwaps;
+    const maxN = Math.max(tight, wide, 1);
+    document.getElementById('tier-bars').innerHTML = `
+      <div class="bar-row"><span class="bar-name"><span class="dot" style="background:var(--human)"></span>tight (human)</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${(tight / maxN) * 100}%;background:var(--human)"></div></div>
+        <span class="bar-val">${tight} fills</span></div>
+      <div class="bar-row"><span class="bar-name"><span class="dot" style="background:var(--bot)"></span>wide (anon)</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${(wide / maxN) * 100}%;background:var(--bot)"></div></div>
+        <span class="bar-val">${wide} fills</span></div>`;
+
+    const feesNow = p.tightFeeBps + '/' + p.wideFeeBps;
+    if (lastFees && lastFees !== feesNow) {
+      const log = document.getElementById('log');
+      const row = document.createElement('div');
+      row.innerHTML = `<span class="t">${new Date().toLocaleTimeString()}</span> strategist re-priced: ${lastFees} → ${feesNow} bps (docked + shipped on Aqua)`;
+      log.prepend(row);
+    }
+    lastFees = feesNow;
+
+    document.getElementById('swap-rows').innerHTML = state.swaps
+      .slice()
+      .reverse()
+      .slice(0, 12)
+      .map(
+        (s) => `<tr>
+        <td class="mono">${s.blockNumber}</td>
+        <td class="mono">${short(s.taker)}</td>
+        <td><span class="tier"><span class="dot" style="background:var(${s.tight ? '--human' : '--bot'})"></span>${s.tight ? 'tight' : 'wide'}</span></td>
+        <td>${fmt(s.amountIn)} ${s.tokenIn.toLowerCase() === p.token0.toLowerCase() ? 'tETH' : 'tUSD'}</td>
+        <td>${fmt(s.amountOut)} ${s.tokenOut.toLowerCase() === p.token0.toLowerCase() ? 'tETH' : 'tUSD'}</td>
+        <td>${s.feeBps} bps</td>
+        <td class="mono">${s.humanId === '0' ? '—' : s.humanId.slice(0, 10) + '…'}</td>
+      </tr>`,
+      )
+      .join('');
+  } catch (err) {
+    console.error('tick failed', err);
+  }
+}
+tick();
+setInterval(tick, 2500);
+</script>
+</body>
+</html>

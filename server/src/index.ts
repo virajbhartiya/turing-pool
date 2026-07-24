@@ -12,6 +12,7 @@ import {
 
 import { BASE_URL, CHAIN_ID, PORT, SERVER_DOMAIN } from './config.js';
 import {
+  dailyCap,
   deployments,
   lookupHuman,
   poolState,
@@ -150,12 +151,42 @@ app.get('/quote', async (c) => {
   });
 });
 
+/// Dashboard helper: live quotes for the three demo takers (on-chain eth_calls;
+/// the tier shown is exactly what each taker would receive on-chain right now).
+app.get('/demo/quotes', async (c) => {
+  const amountIn = BigInt(c.req.query('amountIn') ?? '1000000000000000000');
+  const [human, bot, sybil] = await Promise.all([
+    quoteFor(deployments.humanAgent, amountIn, true),
+    quoteFor(deployments.bot, amountIn, true),
+    quoteFor(deployments.sybilAgent, amountIn, true),
+  ]);
+  const row = (label: string, q: Awaited<ReturnType<typeof quoteFor>>, address: string) => ({
+    label,
+    address,
+    tier: q.tight ? 'tight' : 'wide',
+    feeBps: q.feeBps.toString(),
+    amountOut: q.amountOut.toString(),
+    humanId: q.humanId === 0n ? null : q.humanId.toString(),
+  });
+  const improvementBps =
+    bot.amountOut > 0n ? Number(((human.amountOut - bot.amountOut) * 10_000n) / bot.amountOut) : 0;
+  return c.json({
+    amountIn: amountIn.toString(),
+    human: row('Human-backed agent', human, deployments.humanAgent),
+    bot: row('Anonymous bot', bot, deployments.bot),
+    sybil: row('Sybil twin (same human)', sybil, deployments.sybilAgent),
+    improvementBps,
+  });
+});
+
 app.get('/state', async (c) => {
   const [state, swaps] = await Promise.all([poolState(), recentSwaps()]);
   const humanId = BigInt(deployments.humanId);
-  const [remEth, remUsd] = await Promise.all([
+  const [remEth, remUsd, cap0, cap1] = await Promise.all([
     quotaRemaining(humanId, state.strategy.token0),
     quotaRemaining(humanId, state.strategy.token1),
+    dailyCap(state.strategy.token0),
+    dailyCap(state.strategy.token1),
   ]);
   const tightSwaps = swaps.filter((s) => s.tight);
   const wideSwaps = swaps.filter((s) => !s.tight);
@@ -181,6 +212,8 @@ app.get('/state', async (c) => {
       humanId: deployments.humanId,
       quotaRemainingToken0: remEth.toString(),
       quotaRemainingToken1: remUsd.toString(),
+      dailyCapToken0: cap0.toString(),
+      dailyCapToken1: cap1.toString(),
     },
     stats: {
       totalSwaps: swaps.length,

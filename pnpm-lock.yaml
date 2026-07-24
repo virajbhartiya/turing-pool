@@ -55,6 +55,8 @@ importers:
         specifier: ^0.38.1
         version: 0.38.2
 
+  web: {}
+
 packages:
 
   '@adraffy/ens-normalize@1.11.1':
