@@ -22,6 +22,7 @@ import {
   strategyHistory,
 } from './chain.js';
 import { amountForOverQuotaQuote, classifyRuntime, parseQuoteAmount } from './demo.js';
+import { activityFeePolicy } from './fee-policy.js';
 import { hostedDemoQuotes, hostedState } from './hosted-snapshot.js';
 
 const app = new Hono();
@@ -380,6 +381,7 @@ app.get('/state', async (c) => {
       tightSwaps: tightSwaps.length,
       wideSwaps: wideSwaps.length,
     },
+    feeController: activityFeePolicy(swaps, state.strategy),
     strategyHistory: strategies,
     swaps,
   });

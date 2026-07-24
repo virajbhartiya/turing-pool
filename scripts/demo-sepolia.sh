@@ -52,6 +52,8 @@ fi
 
 BOT_PRIVATE_KEY="${BOT_PRIVATE_KEY:-$(load_keystore_key \
   turing-pool-base-sepolia-bot dev.turing-pool.base-sepolia-bot)}"
+MAKER_PRIVATE_KEY="${MAKER_PRIVATE_KEY:-$(load_keystore_key \
+  turing-pool-base-sepolia dev.turing-pool.base-sepolia-deployer)}"
 HUMAN_AGENT_PRIVATE_KEY="${HUMAN_AGENT_PRIVATE_KEY:-$(load_keystore_key \
   turing-pool-base-sepolia-human dev.turing-pool.base-sepolia-human)}"
 SYBIL_AGENT_PRIVATE_KEY="${SYBIL_AGENT_PRIVATE_KEY:-$(load_keystore_key \
@@ -95,8 +97,8 @@ router_output="$(run_agent \
 printf '%s\n' "$router_output"
 router_json="$(tail -n 1 <<<"$router_output")"
 
-jq -e '.tier == "wide" and .feeBps == "30"' <<<"$bot_json" >/dev/null
-jq -e '.tier == "tight" and .feeBps == "8" and .sybilTier == "wide"' \
+jq -e '.tier == "wide"' <<<"$bot_json" >/dev/null
+jq -e '.tier == "tight" and .sybilTier == "wide"' \
   <<<"$human_json" >/dev/null
 jq -e '.opcode == 34 and .event == "HumanGated"' <<<"$router_json" >/dev/null
 
@@ -115,6 +117,37 @@ done
 
 if [ "$wide_after" -le "$wide_before" ] || [ "$tight_after" -le "$tight_before" ]; then
   echo "Fresh wide and tight settlements did not appear in the live dashboard state." >&2
+  exit 1
+fi
+
+strategist_output="$(run_agent \
+  "4. Activity controller: retail fee ↓ + bot surcharge ↑ → LP target unchanged" \
+  MAKER_PRIVATE_KEY="$MAKER_PRIVATE_KEY" \
+  ALLOW_CHAIN_EVENT_FALLBACK=1 \
+  pnpm --dir agent --silent strategist)"
+printf '%s\n' "$strategist_output"
+strategist_json="$(tail -n 1 <<<"$strategist_output")"
+jq -e '
+  .role == "strategist" and
+  .to.tight < .to.wide and
+  .targetBlendedFeeBps == 19 and
+  .revenueDeltaBps >= -0.5 and
+  .revenueDeltaBps <= 0.5
+' <<<"$strategist_json" >/dev/null
+
+expected_tight="$(jq -r '.to.tight' <<<"$strategist_json")"
+expected_wide="$(jq -r '.to.wide' <<<"$strategist_json")"
+for _ in $(seq 1 15); do
+  state_after="$(curl -sf "$API_URL/state")"
+  active_tight="$(jq -r '.pool.tightFeeBps' <<<"$state_after")"
+  active_wide="$(jq -r '.pool.wideFeeBps' <<<"$state_after")"
+  if [ "$active_tight" = "$expected_tight" ] && [ "$active_wide" = "$expected_wide" ]; then
+    break
+  fi
+  sleep 1
+done
+if [ "$active_tight" != "$expected_tight" ] || [ "$active_wide" != "$expected_wide" ]; then
+  echo "The re-priced Aqua strategy did not become active in dashboard state." >&2
   exit 1
 fi
 
@@ -140,6 +173,7 @@ human_tx="$(jq -r --arg taker "$human_address" \
   '[.swaps[] | select((.taker | ascii_downcase) == $taker)] | last | .transactionHash' \
   <<<"$state_after")"
 router_tx="$(jq -r '.txHash' <<<"$router_json")"
+strategist_tx="$(jq -r '.shipTx // empty' <<<"$strategist_json")"
 for tx_hash in "$bot_tx" "$human_tx" "$router_tx"; do
   if [[ ! "$tx_hash" =~ ^0x[0-9a-fA-F]{64}$ ]]; then
     echo "Could not resolve a fresh proof transaction from live state: $tx_hash" >&2
@@ -155,6 +189,13 @@ printf 'Dashboard:    %s/\n' "$API_URL"
 printf 'Anonymous tx: %s/tx/%s\n' "$EXPLORER_URL" "$bot_tx"
 printf 'Human tx:    %s/tx/%s\n' "$EXPLORER_URL" "$human_tx"
 printf 'SwapVM tx:   %s/tx/%s\n' "$EXPLORER_URL" "$router_tx"
+if [ -n "$strategist_tx" ]; then
+  printf 'Re-price tx: %s/tx/%s\n' "$EXPLORER_URL" "$strategist_tx"
+else
+  printf 'Re-price:    already balanced at %s/%s bps\n' "$expected_tight" "$expected_wide"
+fi
+printf 'LP target:   19 bps blended · projected %s bps\n' \
+  "$(jq -r '.projectedBlendedFeeBps' <<<"$strategist_json")"
 printf 'State:       %s/state\n' "$API_URL"
 printf 'Quotes:      %s/demo/quotes\n' "$API_URL"
 echo

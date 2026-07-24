@@ -6,6 +6,12 @@
 /// SHIPS a re-parameterized one. Aqua strategies are immutable - repricing IS
 /// dock+ship, which is exactly what this demonstrates.
 import {
+  calculateRevenueNeutralFees,
+  DEFAULT_REVENUE_POLICY,
+  type RevenueNeutralFeeDecision,
+} from '@turing-pool/economics';
+
+import {
   API_URL,
   CHAIN_ID,
   KEYS,
@@ -27,7 +33,7 @@ type SwapRow = StrategistSwap;
 
 interface TierStats {
   count: number;
-  volumeIn: bigint;
+  normalizedVolumeToken0: bigint;
   // Markout proxy: how much better/worse than the CURRENT mid each fill was, in bps.
   // Positive = LP kept edge (benign flow). Negative = flow beat the pool (toxic).
   avgLpEdgeBps: number;
@@ -65,9 +71,10 @@ async function fetchSwaps(): Promise<StrategistInput> {
   }
 
   const usesLocalRpc = /^https?:\/\/(?:127\.0\.0\.1|localhost)(?::|\/|$)/.test(RPC_URL);
-  if (CHAIN_ID !== 31337 || !usesLocalRpc) {
+  const explicitChainFallback = process.env.ALLOW_CHAIN_EVENT_FALLBACK === '1';
+  if ((CHAIN_ID !== 31337 || !usesLocalRpc) && !explicitChainFallback) {
     throw new Error(
-      'SUBGRAPH_URL is required outside a local chain-31337 RPC; API fallback is for non-judged local development only',
+      'SUBGRAPH_URL is required outside local development; set ALLOW_CHAIN_EVENT_FALLBACK=1 only for a truthfully labeled public-testnet rehearsal',
     );
   }
   const state = await (await fetch(`${API_URL}/state`)).json();
@@ -75,17 +82,19 @@ async function fetchSwaps(): Promise<StrategistInput> {
     swaps: state.swaps,
     mid: Number(state.pool.balance1) / Number(state.pool.balance0),
     pool: state.pool,
-    dataSource: 'LOCAL FALLBACK: API /state chain logs (not for judged runs)',
+    dataSource: explicitChainFallback
+      ? 'EXPLICIT TESTNET FALLBACK: API /state decoded chain events (The Graph not connected)'
+      : 'LOCAL FALLBACK: API /state chain logs (not for judged runs)',
   };
 }
 
 function tierStats(swaps: SwapRow[], tight: boolean, mid: number, token0: string): TierStats {
   const rows = swaps.filter((s) => s.tight === tight);
-  let volumeIn = 0n;
+  let normalizedVolumeToken0 = 0n;
   let edgeSum = 0;
   for (const s of rows) {
-    volumeIn += BigInt(s.amountIn);
     const zeroForOne = s.tokenIn.toLowerCase() === token0.toLowerCase();
+    normalizedVolumeToken0 += zeroForOne ? BigInt(s.amountIn) : BigInt(s.amountOut);
     const px = zeroForOne
       ? Number(s.amountOut) / Number(s.amountIn)
       : Number(s.amountIn) / Number(s.amountOut);
@@ -94,47 +103,87 @@ function tierStats(swaps: SwapRow[], tight: boolean, mid: number, token0: string
     const edgeBps = zeroForOne ? ((mid - px) / mid) * 10_000 : ((px - mid) / mid) * 10_000;
     edgeSum += edgeBps;
   }
-  return { count: rows.length, volumeIn, avgLpEdgeBps: rows.length ? edgeSum / rows.length : 0 };
+  return {
+    count: rows.length,
+    normalizedVolumeToken0,
+    avgLpEdgeBps: rows.length ? edgeSum / rows.length : 0,
+  };
 }
 
 interface Decision {
   tightFeeBps: number;
   wideFeeBps: number;
   rationale: string;
+  policy: RevenueNeutralFeeDecision;
 }
 
-function heuristicDecision(tightS: TierStats, wideS: TierStats, cur: { tight: number; wide: number }): Decision {
-  let tightFee = cur.tight;
-  let wideFee = cur.wide;
-  const reasons: string[] = [];
-
-  if (tightS.count > 0 && tightS.avgLpEdgeBps > -cur.tight / 2) {
-    tightFee = Math.max(2, Math.floor(cur.tight * 0.625)); // e.g. 8 -> 5
-    reasons.push(
-      `human-backed flow is benign (avg LP edge ${tightS.avgLpEdgeBps.toFixed(2)} bps over ${tightS.count} fills) -> tighten tight tier ${cur.tight} -> ${tightFee} bps`,
-    );
-  } else if (tightS.count > 0) {
-    tightFee = Math.min(cur.wide, cur.tight * 2);
-    reasons.push(`human-backed flow shows toxicity -> widen tight tier to ${tightFee} bps`);
-  } else {
-    reasons.push('no tight-tier fills yet -> keep tight tier');
-  }
-
-  if (wideS.count > 0 && wideS.avgLpEdgeBps < -cur.wide) {
-    wideFee = Math.min(100, cur.wide + 10);
-    reasons.push(`anonymous flow is running over the pool (avg LP edge ${wideS.avgLpEdgeBps.toFixed(2)} bps) -> widen wide tier to ${wideFee} bps`);
-  } else {
-    reasons.push(`anonymous flow priced adequately at ${cur.wide} bps -> keep wide tier`);
-  }
-
-  return { tightFeeBps: tightFee, wideFeeBps: wideFee, rationale: reasons.join('; ') };
+interface PricingSignal {
+  desiredTightFeeBps: number;
+  rationale: string;
 }
 
-async function claudeDecision(
+function revenueNeutralDecision(
   tightS: TierStats,
   wideS: TierStats,
   cur: { tight: number; wide: number },
-): Promise<Decision | null> {
+  desiredTightFeeBps: number,
+  signalRationale: string,
+): Decision {
+  const policy = calculateRevenueNeutralFees({
+    ...DEFAULT_REVENUE_POLICY,
+    tightVolume: tightS.normalizedVolumeToken0,
+    wideVolume: wideS.normalizedVolumeToken0,
+    currentTightFeeBps: cur.tight,
+    currentWideFeeBps: cur.wide,
+    desiredTightFeeBps,
+  });
+  const exactness =
+    policy.revenueDeltaBps === 0
+      ? `preserves the ${policy.targetFeeBps} bps blended LP target exactly`
+      : `lands at ${policy.projectedWeightedFeeBps.toFixed(3)} bps after integer-bps rounding (${policy.revenueDeltaBps >= 0 ? '+' : ''}${policy.revenueDeltaBps.toFixed(3)} bps)`;
+  return {
+    tightFeeBps: policy.tightFeeBps,
+    wideFeeBps: policy.wideFeeBps,
+    rationale:
+      `${signalRationale}; activity mix is ${(policy.humanShareBps / 100).toFixed(1)}% human-backed; ` +
+      `controller sets ${policy.tightFeeBps}/${policy.wideFeeBps} bps and ${exactness}`,
+    policy,
+  };
+}
+
+function heuristicDecision(
+  tightS: TierStats,
+  wideS: TierStats,
+  cur: { tight: number; wide: number },
+): Decision {
+  const reasons: string[] = [];
+  let desiredTightFeeBps = cur.tight;
+
+  if (tightS.count > 0 && tightS.avgLpEdgeBps > -cur.tight / 2) {
+    desiredTightFeeBps = Math.min(cur.tight, DEFAULT_REVENUE_POLICY.desiredTightFeeBps);
+    reasons.push(
+      `human-backed flow is benign (avg LP edge ${tightS.avgLpEdgeBps.toFixed(2)} bps over ${tightS.count} fills), so target the ${desiredTightFeeBps} bps retail floor`,
+    );
+  } else if (tightS.count > 0) {
+    reasons.push('human-backed flow does not support a deeper discount, so hold the current retail fee');
+  } else {
+    reasons.push('no tight-tier fills yet, so hold until both activity lanes are observed');
+  }
+
+  return revenueNeutralDecision(
+    tightS,
+    wideS,
+    cur,
+    desiredTightFeeBps,
+    reasons.join('; '),
+  );
+}
+
+async function claudePricingSignal(
+  tightS: TierStats,
+  wideS: TierStats,
+  cur: { tight: number; wide: number },
+): Promise<PricingSignal | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
   try {
@@ -149,7 +198,7 @@ async function claudeDecision(
         model: 'claude-sonnet-5',
         max_tokens: 400,
         system:
-          'You are the pricing strategist for Turing Pool, an AMM quoting two fee tiers: tight (verified-human-backed takers under a per-human daily cap) and wide (anonymous flow). Positive avgLpEdgeBps means the LP kept edge vs current mid (benign flow); negative means the flow beat the pool (toxic). Reply ONLY with JSON: {"tightFeeBps": int, "wideFeeBps": int, "rationale": string}. Keep 2 <= tightFeeBps < wideFeeBps <= 100.',
+          'You are the risk signal for Turing Pool. Positive avgLpEdgeBps means the LP kept edge; negative means flow beat the pool. Recommend only a desired human-backed fee. A deterministic revenue controller will solve the bot fee and preserve the LP target. Reply ONLY with JSON: {"desiredTightFeeBps": int, "rationale": string}. Keep 5 <= desiredTightFeeBps <= the current tight fee.',
         messages: [
           {
             role: 'user',
@@ -163,13 +212,14 @@ async function claudeDecision(
     const text = body.content?.[0]?.text ?? '';
     const parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
     if (
-      Number.isInteger(parsed.tightFeeBps) &&
-      Number.isInteger(parsed.wideFeeBps) &&
-      parsed.tightFeeBps >= 2 &&
-      parsed.tightFeeBps < parsed.wideFeeBps &&
-      parsed.wideFeeBps <= 100
+      Number.isInteger(parsed.desiredTightFeeBps) &&
+      parsed.desiredTightFeeBps >= DEFAULT_REVENUE_POLICY.desiredTightFeeBps &&
+      parsed.desiredTightFeeBps <= cur.tight
     ) {
-      return { ...parsed, rationale: `[claude] ${parsed.rationale}` };
+      return {
+        desiredTightFeeBps: parsed.desiredTightFeeBps,
+        rationale: `[claude risk signal] ${parsed.rationale}`,
+      };
     }
     return null;
   } catch {
@@ -194,15 +244,44 @@ async function main() {
 
   const tightS = tierStats(swaps, true, mid, pool.token0);
   const wideS = tierStats(swaps, false, mid, pool.token0);
-  console.log(`tight tier: ${tightS.count} fills, ${fmt(tightS.volumeIn)} in, avg LP edge ${tightS.avgLpEdgeBps.toFixed(2)} bps`);
-  console.log(`wide tier:  ${wideS.count} fills, ${fmt(wideS.volumeIn)} in, avg LP edge ${wideS.avgLpEdgeBps.toFixed(2)} bps`);
+  console.log(
+    `tight tier: ${tightS.count} fills, ${fmt(tightS.normalizedVolumeToken0)} token0-equivalent, avg LP edge ${tightS.avgLpEdgeBps.toFixed(2)} bps`,
+  );
+  console.log(
+    `wide tier:  ${wideS.count} fills, ${fmt(wideS.normalizedVolumeToken0)} token0-equivalent, avg LP edge ${wideS.avgLpEdgeBps.toFixed(2)} bps`,
+  );
 
-  const decision = (await claudeDecision(tightS, wideS, cur)) ?? heuristicDecision(tightS, wideS, cur);
+  const signal = await claudePricingSignal(tightS, wideS, cur);
+  const decision = signal
+    ? revenueNeutralDecision(
+        tightS,
+        wideS,
+        cur,
+        signal.desiredTightFeeBps,
+        signal.rationale,
+      )
+    : heuristicDecision(tightS, wideS, cur);
   console.log(`decision: tight ${cur.tight} -> ${decision.tightFeeBps} bps, wide ${cur.wide} -> ${decision.wideFeeBps} bps`);
+  console.log(
+    `revenue invariant: target=${decision.policy.targetFeeBps}bps projected=${decision.policy.projectedWeightedFeeBps.toFixed(3)}bps delta=${decision.policy.revenueDeltaBps.toFixed(3)}bps status=${decision.policy.status}`,
+  );
   console.log(`rationale: ${decision.rationale}`);
 
   if (decision.tightFeeBps === cur.tight && decision.wideFeeBps === cur.wide) {
     console.log('no repricing needed; strategy unchanged.');
+    console.log(JSON.stringify({
+      role: 'strategist',
+      changed: false,
+      from: cur,
+      to: cur,
+      targetBlendedFeeBps: decision.policy.targetFeeBps,
+      projectedBlendedFeeBps: decision.policy.projectedWeightedFeeBps,
+      humanShareBps: decision.policy.humanShareBps,
+      revenueDeltaBps: decision.policy.revenueDeltaBps,
+      dockTx: null,
+      shipTx: null,
+      rationale: decision.rationale,
+    }));
     return;
   }
 
@@ -257,7 +336,19 @@ async function main() {
 
   const after = await (await fetch(`${API_URL}/state`)).json();
   console.log(`active strategy now: tight=${after.pool.tightFeeBps}bps wide=${after.pool.wideFeeBps}bps hash=${after.pool.strategyHash.slice(0, 14)}...`);
-  console.log(JSON.stringify({ role: 'strategist', from: cur, to: { tight: Number(after.pool.tightFeeBps), wide: Number(after.pool.wideFeeBps) }, rationale: decision.rationale }));
+  console.log(JSON.stringify({
+    role: 'strategist',
+    changed: true,
+    from: cur,
+    to: { tight: Number(after.pool.tightFeeBps), wide: Number(after.pool.wideFeeBps) },
+    targetBlendedFeeBps: decision.policy.targetFeeBps,
+    projectedBlendedFeeBps: decision.policy.projectedWeightedFeeBps,
+    humanShareBps: decision.policy.humanShareBps,
+    revenueDeltaBps: decision.policy.revenueDeltaBps,
+    dockTx,
+    shipTx,
+    rationale: decision.rationale,
+  }));
 }
 
 await main();

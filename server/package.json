@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
+    "@turing-pool/economics": "workspace:*",
     "@worldcoin/agentkit": "0.2.0",
     "hono": "^4.6.14",
     "viem": "^2.21.54"

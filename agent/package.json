@@ -12,6 +12,7 @@
     "strategist": "tsx src/strategist.ts"
   },
   "dependencies": {
+    "@turing-pool/economics": "workspace:*",
     "@worldcoin/agentkit": "0.2.0",
     "viem": "^2.21.54"
   },

@@ -1,3 +1,5 @@
+import { activityFeePolicy } from './fee-policy.js';
+
 const ADDRESSES = {
   aqua: '0x499943E74FB0cE105688beeE8Ef2ABec5D936d31',
   agentBook: '0xE1D1D3526A6FAa37eb36bD10B933C1b77f4561a4',
@@ -75,7 +77,7 @@ export function hostedState() {
   const activeHash =
     '0xe5e4a6912b90eb0008a219dca2156c3fa299eca184911bcfc02de7187669ecd7';
 
-  return {
+  const state = {
     contracts: {
       aqua: ADDRESSES.aqua,
       agentBook: ADDRESSES.agentBook,
@@ -203,5 +205,9 @@ export function hostedState() {
         feeBps: TIGHT_FEE_BPS.toString(),
       },
     ],
+  };
+  return {
+    ...state,
+    feeController: activityFeePolicy(state.swaps, state.pool),
   };
 }
