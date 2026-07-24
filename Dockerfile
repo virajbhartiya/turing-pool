@@ -12,12 +12,12 @@ COPY server/package.json server/package.json
 COPY agent/package.json agent/package.json
 COPY web/package.json web/package.json
 COPY subgraph/package.json subgraph/package.json
-RUN pnpm install --frozen-lockfile --filter @turing-pool/server...
+RUN pnpm install --frozen-lockfile --filter @turing-pool/server... --filter @turing-pool/web...
 
 COPY economics economics
 COPY server server
-COPY public public
-RUN pnpm --filter @turing-pool/server build
+COPY web web
+RUN pnpm --filter @turing-pool/web build && pnpm --filter @turing-pool/server build
 
 FROM node:22-alpine AS runner
 

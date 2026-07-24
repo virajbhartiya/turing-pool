@@ -4,4 +4,5 @@ contracts/cache/
 .env
 *.log
 dist/
+public/
 .vercel

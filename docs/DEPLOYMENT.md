@@ -30,7 +30,7 @@ events beginning at the checked-in deployment block.
 
 The repository includes a zero-secret Vercel preview suitable for judging:
 
-- `public/index.html` is the dashboard.
+- `web/` is the Vite + React trading terminal; Vercel builds it into `public/`.
 - `index.ts` is the Hono Function entrypoint.
 - `/health`, `/state`, `/demo/quotes`, and `/quote?anonymous=1` are live
   backend routes.

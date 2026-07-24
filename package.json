@@ -6,9 +6,9 @@
   "packageManager": "pnpm@11.2.2",
   "description": "An Aqua AMM that prices bounded, sybil-resistant human-backed order flow. ETHGlobal Lisbon 2026.",
   "scripts": {
-    "build": "pnpm --filter @turing-pool/server build",
+    "build": "pnpm --filter @turing-pool/web build && pnpm --filter @turing-pool/server build",
     "test": "pnpm --filter @turing-pool/economics test && pnpm --filter @turing-pool/server test && pnpm --filter @turing-pool/agent test && pnpm --filter @turing-pool/subgraph build && (cd contracts && forge test)",
-    "typecheck": "pnpm --filter @turing-pool/server typecheck && pnpm --filter @turing-pool/agent typecheck",
+    "typecheck": "pnpm --filter @turing-pool/web typecheck && pnpm --filter @turing-pool/server typecheck && pnpm --filter @turing-pool/agent typecheck",
     "format:check": "cd contracts && forge fmt --check",
     "check": "pnpm typecheck && pnpm test && pnpm format:check",
     "e2e": "bash scripts/e2e.sh",
@@ -17,6 +17,7 @@
     "demo:fork": "bash scripts/demo.sh fork",
     "demo:sepolia": "bash scripts/demo-sepolia.sh",
     "demo:beats": "bash scripts/demo-beats.sh",
+    "dev:web": "pnpm --filter @turing-pool/web dev",
     "test:vercel-runtime": "vercel build --yes && node --test test/vercel-runtime.test.mjs"
   },
   "dependencies": {

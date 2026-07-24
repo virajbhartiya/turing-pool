@@ -42,32 +42,33 @@ test('quote amounts reject malformed, zero, negative, and unreasonably large inp
   }
 });
 
-test('static dashboard exposes judge-facing provenance and errors', async () => {
-  const html = await readFile(new URL('../../public/index.html', import.meta.url), 'utf8');
+test('Vite dashboard exposes judge-facing provenance and trading-terminal structure', async () => {
+  const [app, marketHeader, terminal, controller, evidence, styles, viteConfig] = await Promise.all([
+    readFile(new URL('../../web/src/App.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../web/src/components/MarketHeader.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../web/src/components/TradingTerminal.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../web/src/components/FeeControllerPanel.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../web/src/components/EvidenceLedger.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../web/src/styles.css', import.meta.url), 'utf8'),
+    readFile(new URL('../../web/vite.config.ts', import.meta.url), 'utf8'),
+  ]);
+  const source = [app, marketHeader, terminal, controller, evidence].join('\n');
   assert.match(
-    html,
-    /:root\s*\{[^}]*color-scheme:\s*dark;[^}]*--surface-0:/s,
+    styles,
+    /:root\s*\{[^}]*color-scheme:\s*dark;[^}]*--bg:/s,
     'global page colors must be defined on :root so html/body never fall back to a white canvas',
   );
-  assert.match(html, /SwapVM Router/);
-  assert.match(html, /Data source/);
-  assert.match(html, /connection-status/);
-  assert.match(html, /bounds? (?:the )?LP|bounded risk/i);
-  assert.match(html, /location\.origin/);
-  assert.match(html, /Turing Pool <span>tETH \/ tUSD<\/span>/);
-  assert.match(html, /id="kpi-notional"/);
-  assert.match(html, /id="market-price"/);
-  assert.match(html, /Activity-priced fee controller/);
-  assert.match(html, /pnpm demo:sepolia/);
-  assert.match(html, /Aqua test deployment/);
-  assert.match(html, /id="controller-proof"/);
-  assert.doesNotMatch(html, /data-step="strategy"/);
-  assert.doesNotMatch(html, /price improvement for being human/i);
-  assert.doesNotMatch(
-    html,
-    /network-label'\)\.textContent = `\$\{state\.runtime\.label\} · \$\{agentBookLabel\}`/,
-    'the runtime label already names the AgentBook mode and must not render it twice',
-  );
+  assert.match(source, /SwapVM Router/);
+  assert.match(source, /Turing Pool/);
+  assert.match(source, /tETH \/ tUSD/);
+  assert.match(source, /Quote ticket/);
+  assert.match(source, /Fee market · realized order flow/);
+  assert.match(source, /Activity-priced fee controller/);
+  assert.match(source, /pnpm demo:sepolia/);
+  assert.match(source, /Aqua test deployment/);
+  assert.match(source, /On-chain receipts/);
+  assert.match(viteConfig, /outDir:\s*'\.\.\/public'/);
+  assert.doesNotMatch(source, /price improvement for being human/i);
 });
 
 test('repository includes a guarded single-service deployment definition', async () => {

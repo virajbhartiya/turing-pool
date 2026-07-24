@@ -7,6 +7,7 @@ import { PORT } from './config.js';
 import { deployments } from './chain.js';
 
 const webRoot = process.env.WEB_ROOT ?? resolve(import.meta.dirname, '../../public');
+app.use('/assets/*', serveStatic({ root: webRoot }));
 app.get('/', serveStatic({ path: resolve(webRoot, 'index.html') }));
 
 const server = serve({ fetch: app.fetch, port: PORT }, (info) => {

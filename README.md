@@ -93,9 +93,9 @@ Addresses and the server command are in
 [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
 
 The private repository is linked to Vercel. Its judge-facing preview serves the
-dashboard from `public/` and a real Hono Function at `/health`, `/state`,
-`/demo/quotes`, and `/quote`. Because the Turing Pool contracts are not deployed
-on Base, this hosted mode is deliberately labeled as a deterministic,
+Vite/React trading terminal built from `web/` and a real Hono Function at
+`/health`, `/state`, `/demo/quotes`, and `/quote`. Because the Turing Pool
+contracts are not deployed on Base mainnet, this hosted mode is deliberately labeled as a deterministic,
 non-executable snapshot; it never presents fork-only addresses as live state.
 
 The live-chain production shape remains a single container: the Hono API serves
@@ -126,7 +126,7 @@ contracts/   Foundry: TuringPoolApp, HumanQuota, _humanGate + TuringPoolRouter
 server/      AgentKit quote API plus the Vercel hosted-preview Function
 agent/       bot.ts, human-agent.ts (SIWE loop + sybil demo), strategist.ts
 subgraph/    The Graph subgraph (schema, mappings, configure script)
-public/      live dashboard (quote race, quota meter, tier flow, strategist log)
+web/         Vite + React trading terminal (market, quote ticket, fee chart, ledger)
 scripts/     e2e.sh — the whole demo, asserted, local or Base-fork mode
 docs/        design and deployment runbooks
 ```

@@ -2,7 +2,21 @@
   "name": "@turing-pool/web",
   "private": true,
   "version": "0.1.0",
+  "type": "module",
   "scripts": {
-    "start": "python3 -m http.server ${WEB_PORT:-4030} --directory ../public"
+    "build": "vite build",
+    "dev": "vite",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "typescript": "^5.7.2",
+    "vite": "^8.1.5"
   }
 }

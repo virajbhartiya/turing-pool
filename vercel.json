@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "hono",
   "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm --filter @turing-pool/web build",
   "functions": {
     "index.ts": {
       "maxDuration": 30
