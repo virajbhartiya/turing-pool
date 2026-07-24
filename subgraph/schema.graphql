@@ -1,0 +1,44 @@
+type Strategy @entity(immutable: false) {
+  id: Bytes! # strategyHash
+  maker: Bytes!
+  app: Bytes!
+  active: Boolean!
+  wideFeeBps: BigInt!
+  tightFeeBps: BigInt!
+  token0: Bytes!
+  token1: Bytes!
+  shippedAtBlock: BigInt!
+  shippedAtTimestamp: BigInt!
+  swaps: [Swap!]! @derivedFrom(field: "strategy")
+}
+
+type Swap @entity(immutable: true) {
+  id: Bytes! # txHash-logIndex
+  strategy: Strategy!
+  taker: Bytes!
+  humanId: BigInt!
+  tight: Boolean!
+  tokenIn: Bytes!
+  tokenOut: Bytes!
+  amountIn: BigInt!
+  amountOut: BigInt!
+  feeBps: BigInt!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+}
+
+type TierStat @entity(immutable: false) {
+  id: String! # strategyHash-tight|wide
+  strategy: Strategy!
+  tight: Boolean!
+  swapCount: BigInt!
+  volumeIn: BigInt!
+  volumeOut: BigInt!
+}
+
+type Human @entity(immutable: false) {
+  id: String! # humanId (decimal string)
+  swapCount: BigInt!
+  volumeIn: BigInt!
+  wallets: [Bytes!]!
+}

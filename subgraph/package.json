@@ -1,0 +1,15 @@
+{
+  "name": "@turing-pool/subgraph",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "codegen": "graph codegen",
+    "build": "graph build",
+    "configure": "node configure.mjs",
+    "deploy": "graph deploy turing-pool --node https://api.studio.thegraph.com/deploy/"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "^0.97.1",
+    "@graphprotocol/graph-ts": "^0.38.1"
+  }
+}
