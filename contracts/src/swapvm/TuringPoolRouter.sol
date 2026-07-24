@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { Simulator } from "@1inch/solidity-utils/contracts/mixins/Simulator.sol";
-
 import { Context } from "swap-vm/libs/VM.sol";
 import { SwapVM } from "swap-vm/SwapVM.sol";
 import { AquaOpcodes } from "swap-vm/opcodes/AquaOpcodes.sol";
@@ -14,7 +12,7 @@ import { HumanGate } from "./HumanGate.sol";
 ///         set is the standard AquaOpcodes plus one new opcode: _humanGate, which
 ///         reprices the remainder of the program based on whether the taker is a
 ///         World-verified human-backed agent within its daily quota.
-contract TuringPoolRouter is Simulator, SwapVM, AquaOpcodes, HumanGate {
+contract TuringPoolRouter is SwapVM, AquaOpcodes, HumanGate {
     constructor(address aqua, address weth, address owner, string memory name, string memory version)
         SwapVM(aqua, weth, owner, name, version)
         AquaOpcodes(aqua)

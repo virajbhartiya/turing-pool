@@ -1,0 +1,19 @@
+{
+  "name": "@turing-pool/agent",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "bot": "tsx src/bot.ts",
+    "human": "tsx src/human-agent.ts",
+    "strategist": "tsx src/strategist.ts"
+  },
+  "dependencies": {
+    "@worldcoin/agentkit": "0.2.0",
+    "viem": "^2.21.54"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

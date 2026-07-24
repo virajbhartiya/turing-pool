@@ -1,0 +1,6 @@
+packages:
+  - server
+  - agent
+  - web
+allowBuilds:
+  esbuild: true

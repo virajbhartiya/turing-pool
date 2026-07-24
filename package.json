@@ -1,0 +1,9 @@
+{
+  "name": "turing-pool",
+  "private": true,
+  "version": "0.1.0",
+  "description": "The first AMM that quotes tighter spreads for verified-human order flow. ETHGlobal Lisbon 2026.",
+  "scripts": {
+    "e2e": "bash scripts/e2e.sh"
+  }
+}
