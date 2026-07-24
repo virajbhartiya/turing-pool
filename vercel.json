@@ -8,6 +8,24 @@
       "maxDuration": 30
     }
   },
+  "rewrites": [
+    {
+      "source": "/health",
+      "destination": "/"
+    },
+    {
+      "source": "/state",
+      "destination": "/"
+    },
+    {
+      "source": "/demo/quotes",
+      "destination": "/"
+    },
+    {
+      "source": "/quote",
+      "destination": "/"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

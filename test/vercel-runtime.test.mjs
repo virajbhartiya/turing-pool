@@ -6,6 +6,22 @@ import { resolve } from 'node:path';
 
 const functionEntry = resolve('.vercel/output/functions/index.func/index.js');
 const dashboardEntry = resolve('.vercel/output/static/index.html');
+const routeManifest = resolve('.vercel/output/config.json');
+
+test('the Vercel route manifest sends dashboard API paths to the Hono function', async () => {
+  const config = JSON.parse(await readFile(routeManifest, 'utf8'));
+  const static404Index = config.routes.findIndex((route) => route.status === 404);
+  const functionRoutes = config.routes
+    .map((route, index) => ({ ...route, index }))
+    .filter((route) => route.dest === '/' && route.src && route.index < static404Index);
+
+  for (const path of ['/health', '/state', '/demo/quotes', '/quote']) {
+    assert.ok(
+      functionRoutes.some((route) => new RegExp(route.src).test(path)),
+      `${path} must reach the Hono function before the static 404 route`,
+    );
+  }
+});
 
 test('the built Vercel output initializes and serves every hosted route', async () => {
   await Promise.all([access(functionEntry), access(dashboardEntry)]);
