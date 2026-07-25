@@ -177,6 +177,76 @@ export const erc20Abi = [
   },
 ] as const;
 
+export const faucetAbi = [
+  {
+    type: 'event',
+    name: 'Claimed',
+    inputs: [
+      { name: 'account', type: 'address', indexed: true },
+      { name: 'amount0', type: 'uint256', indexed: false },
+      { name: 'amount1', type: 'uint256', indexed: false },
+      { name: 'nextClaimAt', type: 'uint256', indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'function',
+    name: 'TOKEN0',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'TOKEN1',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'CLAIM_AMOUNT0',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'CLAIM_AMOUNT1',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'COOLDOWN',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'nextClaimAt',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'remainingClaims',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'claim',
+    stateMutability: 'nonpayable',
+    inputs: [],
+    outputs: [],
+  },
+] as const;
+
 const orderComponents = [
   { name: 'maker', type: 'address' },
   { name: 'traits', type: 'uint256' },

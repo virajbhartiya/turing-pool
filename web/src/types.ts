@@ -23,6 +23,7 @@ export interface Contracts {
   identitySourceAgentBook?: string;
   identitySourceBlock?: string;
   identitySourceChainId?: number;
+  faucet?: string;
 }
 
 export interface Pool {
@@ -273,6 +274,43 @@ export interface ConnectedWalletQuote {
 export interface PreparedWalletTrade {
   quote: ConnectedWalletQuote;
   action: 'approve' | 'swap';
+  transaction: {
+    from: string;
+    to: string;
+    data: string;
+    value: '0x0';
+  };
+}
+
+export interface FaucetToken {
+  address: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  claimAmount: string;
+  faucetBalance: string;
+  walletBalance: string;
+}
+
+export interface FaucetState {
+  enabled: boolean;
+  chainId: number;
+  faucet: string | null;
+  wallet: string | null;
+  token0?: FaucetToken;
+  token1?: FaucetToken;
+  cooldownSeconds?: string;
+  nextClaimAt?: string;
+  serverTimestamp?: string;
+  remainingClaims?: string;
+  inventoryAvailable?: boolean;
+  claimable?: boolean;
+  reason: string | null;
+}
+
+export interface PreparedFaucetClaim {
+  action: 'claim';
+  state: FaucetState;
   transaction: {
     from: string;
     to: string;

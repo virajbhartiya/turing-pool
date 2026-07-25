@@ -1,9 +1,12 @@
 import type { ConnectedWalletQuote } from '../types';
+import type { Eip1193Provider } from '../lib/wallet';
 import { BrandLogo } from './BrandLogo';
+import { TokenFaucet } from './TokenFaucet';
 import { WorldIdentityControl } from './WorldIdentityControl';
 
 interface IdentityWorkspaceProps {
   account?: string;
+  provider?: Eip1193Provider;
   quote?: ConnectedWalletQuote;
   walletInstalled: boolean;
   walletConnecting: boolean;
@@ -13,6 +16,7 @@ interface IdentityWorkspaceProps {
 
 export function IdentityWorkspace({
   account,
+  provider,
   quote,
   walletInstalled,
   walletConnecting,
@@ -88,6 +92,15 @@ export function IdentityWorkspace({
           </div>
         </aside>
       </div>
+
+      <TokenFaucet
+        account={account}
+        provider={provider}
+        walletConnecting={walletConnecting}
+        walletInstalled={walletInstalled}
+        onConnectWallet={onConnectWallet}
+        onClaimed={onIdentityReady}
+      />
     </section>
   );
 }

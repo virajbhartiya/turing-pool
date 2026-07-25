@@ -726,6 +726,7 @@ export function App() {
       {activeView === 'verify' && (
         <IdentityWorkspace
           account={wallet.account}
+          provider={wallet.provider}
           onConnectWallet={wallet.connect}
           onIdentityReady={async () => {
             await Promise.all([refresh(), refreshWalletQuote()]);

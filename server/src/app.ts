@@ -28,6 +28,7 @@ import {
   parseQuoteAmount,
 } from './demo.js';
 import { onChainFeePolicy } from './fee-policy.js';
+import { faucetState, prepareFaucetClaim } from './faucet.js';
 import { hostedDemoQuotes, hostedState } from './hosted-snapshot.js';
 import { loadNuthatchActivity, type NuthatchActivity } from './nuthatch.js';
 import {
@@ -136,6 +137,26 @@ function vaultRequestError(c: Context, error: unknown) {
   }
   const safeError = describeTradeError(error, 'base');
   return c.json(safeError, safeError.status);
+}
+
+function faucetRequestError(c: Context, error: unknown) {
+  const description = errorDescription(error);
+  if (/wallet address|claim again|temporarily empty|not configured|CooldownActive|InsufficientInventory/i.test(description)) {
+    return c.json(
+      {
+        code: /empty|InsufficientInventory/i.test(description)
+          ? 'faucet_empty'
+          : /claim again|CooldownActive/i.test(description)
+            ? 'faucet_cooldown'
+            : 'invalid_faucet_request',
+        error: error instanceof Error ? error.message : 'invalid faucet request',
+        retryable: false,
+        status: 400,
+      },
+      400,
+    );
+  }
+  return liveReadErrorResponse(c, error);
 }
 
 let graphStatusCache:
@@ -901,6 +922,7 @@ app.get('/state', async (c) => {
       identitySourceChainId: deployments.identitySourceChainId === undefined
         ? undefined
         : Number(deployments.identitySourceChainId),
+      faucet: process.env.FAUCET_ADDRESS ?? deployments.faucet,
     },
     execution: {
       enabled: demoTradesEnabled(),
@@ -993,6 +1015,34 @@ app.get('/vaults', async (c) => {
     return c.json(await vaultRegistry(c.req.query('address')));
   } catch (error) {
     return liveReadErrorResponse(c, error);
+  }
+});
+
+app.get('/faucet', async (c) => {
+  try {
+    return c.json(await faucetState(c.req.query('address')));
+  } catch (error) {
+    return faucetRequestError(c, error);
+  }
+});
+
+app.post('/faucet/prepare', async (c) => {
+  if (!vaultOriginAllowed(c)) {
+    return c.json(
+      {
+        code: 'faucet_forbidden',
+        error: 'faucet claims must be submitted from the configured dashboard',
+        retryable: false,
+        status: 403,
+      },
+      403,
+    );
+  }
+  try {
+    const body = (await c.req.json()) as Record<string, unknown>;
+    return c.json(await prepareFaucetClaim(body.address));
+  } catch (error) {
+    return faucetRequestError(c, error);
   }
 });
 

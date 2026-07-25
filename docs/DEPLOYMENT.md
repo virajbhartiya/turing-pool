@@ -110,6 +110,9 @@ required for pricing or settlement.
   enables pool creation, LP deposits/withdrawals, and selected-vault trades.
   The factory's `ROUTER()` must be the deployed HumanGate v2 SwapVM router and
   each vault is checked against `isVault` before calldata is prepared.
+- `FAUCET_ADDRESS`: optional verified `TuringPoolFaucet` address. The faucet
+  distributes only pre-funded test-token inventory and enforces its claim
+  amount and cooldown on-chain.
 
 ## Container verification
 

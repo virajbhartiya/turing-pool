@@ -35,6 +35,7 @@ export interface Deployments {
   identitySourceAgentBook?: `0x${string}`;
   identitySourceBlock?: string | number;
   identitySourceChainId?: string | number;
+  faucet?: `0x${string}`;
 }
 
 export const DEPLOYMENTS_PATH =

@@ -1019,6 +1019,209 @@ body::before {
   background: #070b0f;
 }
 
+/* Test assets are a setup utility, not another market surface. */
+.token-faucet {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--cyan);
+  background:
+    linear-gradient(100deg, color-mix(in srgb, var(--cyan) 7%, transparent), transparent 34%),
+    #070b0f;
+}
+
+.token-faucet > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.token-faucet > header span {
+  color: var(--cyan);
+  font: 800 10px var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.token-faucet > header h2 {
+  margin-top: 6px;
+  font-size: clamp(20px, 2vw, 28px);
+}
+
+.token-faucet > header > b {
+  border: 1px solid var(--border-strong);
+  padding: 6px 9px;
+  color: var(--muted);
+  font: 800 10px var(--mono);
+  white-space: nowrap;
+}
+
+.token-faucet > header > b.ready {
+  border-color: color-mix(in srgb, var(--human) 55%, var(--border));
+  color: var(--human);
+}
+
+.faucet-bundle {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 36px minmax(180px, 1fr) auto;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+}
+
+.faucet-bundle > div {
+  padding: 18px;
+}
+
+.faucet-bundle > div + div {
+  border-left: 1px solid var(--border);
+}
+
+.faucet-bundle span {
+  display: block;
+  color: var(--muted);
+  font: 750 9px var(--mono);
+  letter-spacing: 0.1em;
+}
+
+.faucet-bundle strong {
+  display: block;
+  margin-top: 7px;
+  color: var(--text);
+  font: 750 25px var(--mono);
+}
+
+.faucet-bundle strong em {
+  color: var(--cyan);
+  font-size: 13px;
+  font-style: normal;
+}
+
+.faucet-bundle > i {
+  display: grid;
+  place-items: center;
+  border-left: 1px solid var(--border);
+  color: var(--muted);
+  font: 500 18px var(--mono);
+  font-style: normal;
+}
+
+.faucet-bundle > small {
+  display: grid;
+  place-items: center;
+  min-width: 190px;
+  border-left: 1px solid var(--border);
+  padding: 14px;
+  color: var(--text-2);
+  font: 750 10px var(--mono);
+  letter-spacing: 0.06em;
+}
+
+.faucet-wallet-balances {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 24px;
+  align-items: center;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font: 650 10px var(--mono);
+}
+
+.faucet-wallet-balances b {
+  color: var(--text-2);
+}
+
+.faucet-claim-button {
+  width: calc(100% - 36px);
+  min-height: 48px;
+  margin: 18px;
+  border: 1px solid var(--cyan);
+  background: var(--cyan);
+  color: #061014;
+  cursor: pointer;
+  font: 850 12px var(--mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.faucet-claim-button:disabled {
+  border-color: var(--border-strong);
+  background: #0b1015;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.token-faucet > footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 18px 18px;
+  color: var(--muted);
+  font: 650 10px var(--mono);
+}
+
+.token-faucet > footer button,
+.token-faucet > footer a {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--cyan);
+  cursor: pointer;
+  font: 750 10px var(--mono);
+  text-decoration: none;
+}
+
+.token-faucet > footer button {
+  margin-left: auto;
+}
+
+.faucet-error {
+  margin: 0 18px 18px;
+  border-left: 2px solid var(--bot);
+  padding: 9px 11px;
+  background: var(--bot-dim);
+  color: var(--bot);
+  font: 650 10px/1.5 var(--mono);
+}
+
+@media (max-width: 760px) {
+  .faucet-bundle {
+    grid-template-columns: 1fr;
+  }
+
+  .faucet-bundle > i {
+    min-height: 24px;
+    border: 0;
+    border-block: 1px solid var(--border);
+  }
+
+  .faucet-bundle > div + div,
+  .faucet-bundle > small {
+    border-left: 0;
+  }
+
+  .faucet-bundle > small {
+    min-height: 42px;
+    border-top: 1px solid var(--border);
+  }
+
+  .faucet-wallet-balances {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .token-faucet > footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .token-faucet > footer button {
+    margin-left: 0;
+  }
+}
+
 .protocol-fill-flow b,
 .protocol-fill-flow span {
   display: block;
