@@ -130,7 +130,7 @@ function AdaptiveFeeChart({
   const references = [
     { label: 'Searcher', value: controller.wideFeeBps, tone: 'bot' },
     { label: 'LP target', value: controller.targetFeeBps, tone: 'target' },
-    { label: 'Human-backed', value: controller.tightFeeBps, tone: 'human' },
+    { label: 'Verified retail', value: controller.tightFeeBps, tone: 'human' },
   ];
 
   return (
@@ -171,7 +171,7 @@ function AdaptiveFeeChart({
         </div>
       ))}
       <div className="chart-legend">
-        <span><i className="human" />human-backed fill</span>
+        <span><i className="human" />verified retail fill</span>
         <span><i className="bot" />searcher fill</span>
         <span><i className="target" />LP target</span>
       </div>

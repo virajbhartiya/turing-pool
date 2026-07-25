@@ -32,7 +32,7 @@ export function MarketHeader({
         </div>
       </div>
       <div className="market-price">
-        <span>Human-backed executable price</span>
+        <span>World ID-verified executable price</span>
         <strong>{humanPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
         <small>tUSD / tETH</small>
         <em>+{identityEdgeBps} BPS VS SEARCHER</em>

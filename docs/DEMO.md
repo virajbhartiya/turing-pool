@@ -32,10 +32,12 @@ PORT=4021 \
 pnpm --filter @turing-pool/server start
 ```
 
-Nuthatch follows the Base mirror, routers, quotas, and Aqua contract, and
-exposes correlated SwapVM trades through SQL and MCP.
-The API falls back to narrow direct event scans if the indexer is unavailable;
-settlement and fee enforcement never depend on the off-chain indexer.
+Nuthatch follows the Base mirror, routers, quotas, and Aqua contract, exposes
+correlated SwapVM trades through SQL and MCP, and materializes the rolling risk
+window used by the strategist. The strategist has no direct-event fallback.
+Settlement can continue at the last accepted on-chain schedule if indexing
+pauses, but no new autonomous policy is accepted without fresh Nuthatch
+provenance.
 
 Open [http://localhost:4021](http://localhost:4021), then run in terminal three:
 
@@ -48,11 +50,11 @@ pnpm demo:sepolia
 1. Add both funded demo accounts to a compatible browser wallet and connect them to the
    dashboard.
 2. Open the dashboard in two tabs. Use the account selector to pin the
-   World-backed address in one tab and the anonymous address in the other;
+   World ID-verified address in one tab and the searcher address in the other;
    the selection is stored per tab.
 3. The wallet switches to the execution network automatically. The terminal
    calls the Base AgentBook mirror and assigns `TIGHT` or `WIDE`; there is no
-   manual human/bot toggle.
+   manual retail/searcher toggle.
 4. Click buy or sell. If needed, the wallet first requests a token approval. A
    second prompt signs the actual SwapVM trade. The backend never signs for the
    connected account.
@@ -66,9 +68,9 @@ receives the demo input asset.
 
 The command asserts the execution claims and prints BaseScan transaction links:
 
-1. The anonymous wallet resolves to zero in the Base mirror,
+1. The searcher wallet resolves to zero in the Base mirror,
    `_humanGate` selects the wide lane, and Aqua settles the trade.
-2. The World-backed wallet resolves to its canonical mirrored `humanId`,
+2. The World ID-verified wallet resolves to its canonical mirrored `humanId`,
    `_humanGate` selects the tight lane, and the same Aqua order settles.
 3. Both receipts contain `HumanGated` from opcode 34 and the SwapVM `Swapped`
    event. Nuthatch correlates them by transaction and order hash, then exposes
@@ -105,8 +107,8 @@ That bounded risk lets LPs rationally quote tighter.”
 
 ### 0:25–0:55 — same pool, different risk
 
-Show simultaneous one-tETH quotes. The anonymous bot receives the wide lane.
-The human-backed agent receives the tight lane from the same liquidity at the
+Show simultaneous one-tETH quotes. The searcher receives the wide lane.
+The World ID-verified trader receives the tight lane from the same liquidity at the
 same pool state. Point to the exact output difference and fee basis points.
 
 ### 0:55–1:20 — AgentKit and on-chain identity
@@ -130,11 +132,12 @@ the shared quota meter.
 ### 2:10–2:45 — executed-volume repricing
 
 Select 1.0 tETH for the verified lane and execute it. Point to the on-chain
-notional moving by exactly 1.0 tETH and to the next anonymous fee changing.
+notional moving by exactly 1.0 tETH and to the next searcher fee changing.
 Then contrast it with a 0.1 tETH fill. Point to the controller equation:
-`human share × tight fee + bot share × wide fee ≈ 19bps`. It lowers the
-human-backed lane toward 5bps and raises or lowers the anonymous lane enough to
-preserve the LP target. Counts remain visible, but never enter the formula.
+`verified share × tight fee + searcher share × wide fee ≈ 30bps`. Nuthatch
+recomputes the rolling volume/risk window; the guarded policy entrypoint moves
+each rate by at most the configured step while preserving the LP target.
+Counts remain visible, but never enter the formula.
 
 ### 2:45–3:00 — index the evidence and close the loop
 

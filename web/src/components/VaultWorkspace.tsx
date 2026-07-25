@@ -449,7 +449,7 @@ export function VaultWorkspace({
             <>
               <div className="vault-market-strip">
                 <div><span>Market</span><strong>{vault.token0.symbol} / {vault.token1.symbol}</strong><small>Aqua order {vault.strategyActive ? 'active' : 'inactive'}</small></div>
-                <div><span>Live fees</span><strong>{vault.feeSchedules.token0.tightFeeBps} / {vault.feeSchedules.token0.wideFeeBps} bps</strong><small>human-backed / searcher · {vault.feeSchedules.token0.targetFeeBps} bps target</small></div>
+                <div><span>Live fees</span><strong>{vault.feeSchedules.token0.tightFeeBps} / {vault.feeSchedules.token0.wideFeeBps} bps</strong><small>verified retail / searcher · {vault.feeSchedules.token0.targetFeeBps} bps target</small></div>
                 <div><span>Pool inventory</span><strong>{formatUnits(vault.reserves.token0, vault.token0.decimals, 4)} {vault.token0.symbol}</strong><small>{formatUnits(vault.reserves.token1, vault.token1.decimals, 4)} {vault.token1.symbol}</small></div>
                 <div><span>My position</span><strong>{ownershipLabel}</strong><small>{formatUnits(vault.position.shares, 18, 4)} {vault.shareToken.symbol}</small></div>
               </div>

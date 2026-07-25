@@ -38,7 +38,7 @@ if (slippageBps < 0n || slippageBps >= 10_000n) {
   throw new Error(`SLIPPAGE_BPS must be between 0 and 9999, got ${slippageBps}`);
 }
 
-// Anvil account #2, registered by DeployDemo as the human-backed agent.
+// Anvil account #2, registered by DeployDemo as the World ID-verified trader.
 const humanAgentKey =
   (process.env.HUMAN_AGENT_PRIVATE_KEY as Hex | undefined) ??
   '0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a';
@@ -226,7 +226,7 @@ if (
   humanGated.args.humanId !== BigInt(deployments.humanId) ||
   !humanGated.args.tight
 ) {
-  throw new Error(`HumanGated event did not prove the expected tight human-backed execution`);
+  throw new Error(`HumanGated event did not prove the expected World ID-verified tight execution`);
 }
 
 console.log(

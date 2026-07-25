@@ -307,7 +307,7 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
               {latestTight === undefined
                 ? 'Awaiting fill'
                 : latestTight
-                  ? 'Human-backed agent'
+                  ? 'World ID-verified retail'
                   : 'Autonomous searcher'}
             </dd>
           </div>

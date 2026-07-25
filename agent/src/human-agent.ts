@@ -1,5 +1,5 @@
-/// The human-backed agent: registered in World's AgentBook, proves it via the
-/// official AgentKit 402 -> SIWE -> retry flow, and gets the tight spread.
+/// The verified retail wallet: registered in World's AgentBook, proves it via
+/// the official AgentKit 402 -> SIWE -> retry flow, and gets the tight spread.
 /// Then its sybil twin (same human, different wallet) shows the cap is per-HUMAN.
 import { API_URL, KEYS, executeSwap, fmt, loadDeployments, makeAgentkitFetch, makeWallet } from './lib.js';
 import type { QuoteResponse } from './lib.js';
@@ -14,17 +14,17 @@ async function agentQuote(key: `0x${string}`, amount: bigint): Promise<QuoteResp
   return (await res.json()) as QuoteResponse;
 }
 
-console.log('=== HUMAN-BACKED AGENT ===');
+console.log('=== WORLD ID-VERIFIED RETAIL FLOW ===');
 const wallet = makeWallet(KEYS.humanAgent);
 console.log(`wallet: ${wallet.account.address} (registered in AgentBook ${d.agentBook})`);
 
 const quote = await agentQuote(KEYS.humanAgent, amountIn);
 console.log(
-  `verified=${quote.identity.verified} humanBacked=${quote.identity.humanBacked} humanId=${quote.identity.humanId?.slice(0, 12)}...`,
+  `verified=${quote.identity.verified} worldIdResolved=${quote.identity.humanBacked} humanId=${quote.identity.humanId?.slice(0, 12)}...`,
 );
 console.log(`quote: tier=${quote.tier} fee=${quote.feeBps}bps -> ${fmt(quote.amountOut)} tUSD`);
 console.log(
-  `vs anonymous: ${fmt(quote.wideAmountOut)} tUSD  (price improvement: ${quote.improvementBps} bps, quota left: ${fmt(quote.quotaRemainingTokenIn)} tETH)`,
+  `vs searcher: ${fmt(quote.wideAmountOut)} tUSD  (price improvement: ${quote.improvementBps} bps, quota left: ${fmt(quote.quotaRemainingTokenIn)} tETH)`,
 );
 
 const { amountOut, txHash } = await executeSwap(wallet, quote, d.tETH, amountIn);

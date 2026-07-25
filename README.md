@@ -1,11 +1,11 @@
 # 🧠 Turing Pool
 
-**An AMM that prices bounded order-flow risk using proof of unique human backing.**
+**An AMM that prices bounded order-flow risk using World ID.**
 
 On-chain market makers can't tell retail flow from toxic arb-bot flow, so every taker pays the worst-case spread. TradFi solved this decades ago — brokers segment retail flow and it gets price improvement. Turing Pool brings that to DeFi with cryptography instead of brokers: World's canonical **AgentBook** maps agent wallets to a persistent, sybil-resistant `humanId`; an authenticated mirror publishes those results onto Base, where SwapVM reads them atomically at quote and execution time.
 
-- **Human-backed agents** (within a per-human daily quota): dynamically priced tight fee
-- **Anonymous bots**: the compensating activity-priced surcharge
+- **World ID-verified retail** (within a per-person daily quota): dynamically priced tight fee
+- **Searchers / HFT flow**: the compensating activity-priced risk fee
 - **Sybil wallets**: same human ⇒ same `humanId` ⇒ same shared quota. A fresh wallet buys you nothing.
 
 The per-human cap is what makes this economically sound rather than a generic identity discount: bounded per-human volume ⇒ bounded adverse selection per human ⇒ LPs can rationally quote the tight tier. One human cannot reset that risk limit by creating another wallet. An on-chain revenue-neutral controller records the executed human/bot input notional after every mined fill and solves the next fee pair so the LP keeps a 30bps blended target. Trade count never enters the equation:
@@ -24,11 +24,11 @@ fees, quotas, vaults, and indexing run on **Base Sepolia (chain 84532)**:
 | Canonical World AgentBook · World Chain | `0xA23aB2712eA7BBa896930544C7d6636a96b944dA` |
 | Authenticated AgentBook mirror · Base Sepolia | `0x70b9FE7Bd162B0014df1E1f435dB47765Db62455` |
 | Aqua · Base Sepolia | `0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec` |
-| Adaptive SwapVM + `_humanGate` router · Base Sepolia | `0x02467E79C0aa8458F4552d427771D72C30F5a484` |
-| Volume controller + shared HumanQuota · Base Sepolia | `0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B` |
-| HumanGate v2 vault router · Base Sepolia | `0x797670993d2E81266F8512C7438d5b3B1E9a49d6` |
-| Permissionless vault factory · Base Sepolia | `0x6B5dA84980f3205F0a6aCc9469c7b8279575cd10` |
-| Seeded public LP vault · Base Sepolia | `0x3f0B4a7d12D368Db1F56a39F907C20Eb04809160` |
+| Adaptive SwapVM + `_humanGate` router · Base Sepolia | `0xc8c614C5Ef7823F4E0E6baf3EbC4593d089c7F22` |
+| Guarded HumanQuota + fee controller · Base Sepolia | `0xEE987052Ac1840AAd96eF322822C664616c15C66` |
+| HumanGate v2 vault router · Base Sepolia | `0x503A9d46Da9A9b1d7EDf798F4cef2E49f296e0CE` |
+| Permissionless vault factory · Base Sepolia | `0x9DbA0d4a5504CFB8d0dbac33E6b0BCe2a9Dfa313` |
+| Seeded public LP vault · Base Sepolia | `0x642c3e986EA0bc8e1D2012732Ef1F0B0A0C38209` |
 
 The Aqua contract is the actual 1inch Aqua implementation compiled from the
 project dependency and deployed on Base Sepolia. The router executes the actual
@@ -40,13 +40,16 @@ Two World-verified wallets resolve to the same canonical `humanId`; the bot
 wallet resolves to zero. The deployment script refuses mainnet deployment
 unless those invariants hold. Example public receipts:
 
-- [World-backed Base fill · tight lane](https://sepolia.basescan.org/tx/0x44458ed078c027d326edb5dd1bf0e6d1f74c4062b9be9f1a7720dc7ab58b264e)
-- [Anonymous Base fill · wide lane](https://sepolia.basescan.org/tx/0xb8bd8b72e2c9b36d47b6855feb8abbcbda2174c9bb3fc14baceb6405d9f35547)
+- [World ID-verified retail fill · tight lane](https://sepolia.basescan.org/tx/0x5818e9fec5847c957cec791dadc7f345e2ed4e390183f4bf5441a3da4c355703)
+- [Searcher fill · wide lane](https://sepolia.basescan.org/tx/0x3145fe998bc92fb737febe39391ab1a4481c4232cb439bf00a438a248f5f8bfc)
+- [Permissionless LP deposit](https://sepolia.basescan.org/tx/0x3cd04c25a2de1e6c2c9d9c57da74e01843c915441e5665ccf0e29c1ec5067e61)
+- [Permissionless LP redemption](https://sepolia.basescan.org/tx/0xceda119f881fb1d3038a8e484d58b652aa0c848a42baa1c63c5df1e110000cac)
+- [Nuthatch-derived guarded policy update](https://sepolia.basescan.org/tx/0xcd37594dd5cf3a573f70e5c4c5f71023484447d51224fef55f135fe72483629b)
 
 ## Architecture
 
 ```
-Agent (@worldcoin/agentkit client)          Anonymous bot
+World ID-verified wallet                  Searcher / HFT wallet
    │ 402 → SIWE sign → retry                     │ (wide lane)
    ▼                                             ▼
 Quote API (Hono + viem) ──────────── eth_call quotes per taker
@@ -112,9 +115,12 @@ pnpm demo:fork
 SUBGRAPH_URL=https://… pnpm demo:beats
 ```
 
-Copy `.env.example` for runtime configuration. `SUBGRAPH_URL` is optional for
-analytics; the executable fee controller reads its authoritative state from
-`HumanQuota` and does not depend on an off-chain indexer.
+Copy `.env.example` for runtime configuration. `NUTHATCH_URL` is required by
+the risk strategist. The indexer derives a bounded decision from the live
+`turing_risk_window`; `HumanQuota` accepts it only from the configured updater,
+only for a fresh and monotonic indexed block, and only within the maximum
+per-update step. Quotes and settlement continue to enforce the accepted state
+entirely on-chain.
 
 ## Deployment readiness
 
@@ -143,7 +149,7 @@ release checks.
 
 **1inch — Build an Aqua App.** A custom dual-tier Aqua app plus a modified SwapVM router with `_humanGate` at opcode 34. The live receipts execute the custom router and verify its `HumanGated` event. Aqua owns the strategy namespace and virtual balances; SwapVM executes the fill while the maker retains asset ownership.
 
-**The Graph — Nuthatch live activity layer.** The checked-in Nuthatch nest indexes the deployed router, quota, and Aqua contracts, correlates `HumanGated` with `Swapped`, and exposes the result through SQL and MCP. The older subgraph remains as an experiment. The safety-critical fee state stays on-chain; Nuthatch is not required to quote or settle.
+**The Graph — Nuthatch risk and activity layer.** The checked-in Nuthatch nest indexes both routers, both quotas, the mirror, and Aqua; correlates `HumanGated` with `Swapped`; and materializes the rolling `turing_risk_window`. The strategist must read that live SQL view—there is no RPC fallback—then submits a provenance-bound decision hash and indexed-through block to the guarded on-chain policy entrypoint. Nuthatch is therefore load-bearing for autonomous repricing, while SwapVM can still quote and settle against the last safely accepted schedule if indexing pauses.
 
 ## Repo layout
 
@@ -160,7 +166,7 @@ docs/        design and deployment runbooks
 
 ## The demo beats (≈3 min)
 
-1. Bot asks for a quote → **402: prove human backing** → the current anonymous lane.
+1. Searcher asks for a quote → **402: prove World ID** → the adaptive wide lane.
 2. `_humanGate` executes inside SwapVM as opcode 34 and emits `HumanGated`.
 3. AgentKit auto-signs SIWE → verified on-chain → the current tight lane. A second wallet attempts `remaining quota + 1` and is demoted to wide because it shares the same `humanId`.
 4. Pick 0.1, 0.5, or 1.0 tETH and mine a fill. HumanQuota adds that exact executed notional and immediately solves the next tight/wide pair. A 1.0 tETH fill has 10× the influence of a 0.1 tETH fill while the LP blend stays ≈30bps.

@@ -29,7 +29,7 @@ export function IdentityWorkspace({
     <section className="identity-workspace view-workspace">
       <div className="view-heading compact">
         <div>
-          <span>World · human-backed agents</span>
+          <span>World · verified trading wallets</span>
           <h1>Bind an agent wallet to one unique human.</h1>
           <p>
             Establish accountable agency once, then let SwapVM enforce a shared risk
@@ -93,7 +93,7 @@ export function IdentityWorkspace({
               <span>04 · SwapVM</span>
               <BrandLogo brand="oneinch" />
               <strong>Opcode 34 selects the rate</strong>
-              <p>Human-backed agents receive a bounded risk lane; autonomous searchers receive variable activity-priced execution.</p>
+              <p>World ID-verified retail receives a bounded risk lane; searchers receive variable activity-priced execution.</p>
             </div>
           </aside>
         </details>

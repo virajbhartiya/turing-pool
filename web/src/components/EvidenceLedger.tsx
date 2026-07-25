@@ -17,7 +17,7 @@ export function EvidenceLedger({ state }: EvidenceLedgerProps) {
             <strong>On-chain receipts</strong>
             <small>
               {latestSwap
-                ? `Latest · ${latestSwap.tight ? 'human-backed agent' : 'autonomous searcher'} · ${latestSwap.feeBps} bps`
+                ? `Latest · ${latestSwap.tight ? 'verified retail' : 'searcher / HFT'} · ${latestSwap.feeBps} bps`
                 : 'No settlement receipts yet'}
             </small>
           </span>

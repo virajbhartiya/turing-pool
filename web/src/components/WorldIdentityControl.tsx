@@ -111,7 +111,7 @@ export function WorldIdentityControl({
     if (run !== activeRun.current) return;
     setStatus(body);
     setPhase('complete');
-    setMessage('Verified by World · the human-backed agent lane is active.');
+    setMessage('Verified by World · the retail lane is active.');
     setConnectorUri(undefined);
     setQrCode(undefined);
     await onIdentityReady();
@@ -207,7 +207,7 @@ export function WorldIdentityControl({
         <BrandLogo brand="world" />
         <div>
           <span>World human backing</span>
-          <strong>{ready ? 'Human-backed agent lane active' : 'Connect wallet to World ID'}</strong>
+          <strong>{ready ? 'World ID-verified retail lane active' : 'Connect wallet to World ID'}</strong>
         </div>
         <b>{ready ? 'VERIFIED' : status?.worldRegistered ? 'SYNCING' : 'VERIFY'}</b>
       </header>

@@ -270,7 +270,7 @@ export function TradingTerminal({
   useEffect(() => {
     const accountLabel = connectedAccount
       ? walletQuote?.humanBacked
-        ? 'HUMAN-BACKED'
+        ? 'WORLD ID VERIFIED'
         : 'SEARCHER'
       : 'MARKET';
     document.title = `${accountLabel} · Turing Pool`;
@@ -452,7 +452,7 @@ export function TradingTerminal({
             </div>
             <div><dt>Live LP rate</dt><dd>{selected.feeBps} bps</dd></div>
             <div>
-              <dt>Human-backed quote</dt>
+              <dt>Verified retail quote</dt>
               <dd>
                 {formatUnits(quotes.human.amountOut, 18, tokenOutSymbol === 'tETH' ? 6 : 2)}{' '}
                 {tokenOutSymbol}
@@ -473,7 +473,7 @@ export function TradingTerminal({
               </dd>
             </div>
             <div>
-              <dt>Human-backed execution edge</dt>
+              <dt>Verified retail execution edge</dt>
               <dd className="positive">
                 +{deltaLabel} {tokenOutSymbol} · +{identityEdgeBps} bps
               </dd>

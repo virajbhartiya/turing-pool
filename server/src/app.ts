@@ -68,7 +68,7 @@ const SNAPSHOT_MODE = process.env.HOSTED_DEMO_MODE === 'snapshot';
 const storage = new InMemoryAgentKitStorage();
 const CHAIN = `eip155:${CHAIN_ID}`;
 const STATEMENT =
-  'Prove you are an agent backed by a unique human so a shared quota can bound LP risk and safely unlock tight-spread pricing.';
+  'Prove this trading wallet belongs to a unique World ID-verified trader so a shared quota can bound LP risk and unlock tighter pricing.';
 
 const SUBGRAPH_URL = process.env.SUBGRAPH_URL;
 const NUTHATCH_URL = process.env.NUTHATCH_URL;
@@ -424,7 +424,7 @@ app.get('/quote', async (c) => {
       humanId: result.humanId.toString(),
     };
   } else if (!anonymous) {
-    // Invite the caller to prove human backing - AgentKit clients handle this automatically.
+    // Invite the caller to prove World ID verification. AgentKit clients handle this automatically.
     return c.json(agentkitChallenge(resourceUri), 402);
   }
 
@@ -546,7 +546,7 @@ app.get('/demo/quotes', async (c) => {
       tightVolume: human.feeSchedule.tightVolume.toString(),
       wideVolume: human.feeSchedule.wideVolume.toString(),
     },
-    human: row('Human-backed agent', human, deployments.humanAgent, amountIn),
+    human: row('World ID-verified retail', human, deployments.humanAgent, amountIn),
     bot: row('HFT / arbitrage flow', bot, deployments.bot, amountIn),
     sybil: {
       ...row('Sybil twin (same human)', sybil, deployments.sybilAgent, sybilAmountIn),

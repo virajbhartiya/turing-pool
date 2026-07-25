@@ -48,7 +48,7 @@ export function SourceCodeGuide() {
             <BrandLogo brand="world" />
             <div><span>World</span><strong>AgentKit + AgentBook</strong></div>
           </div>
-          <h3>Prove the agent is human-backed</h3>
+          <h3>Resolve World ID verification</h3>
           <p>
             The API returns an AgentKit 402 challenge. The agent signs the SIWE payload,
             the server verifies it, then resolves the signer in canonical AgentBook.
@@ -66,7 +66,7 @@ const humanId = await lookupHuman(verification.address as \`0x\${string}\`);`}</
           <footer>
             <SourceLink path="server/src/app.ts" lines="L305-L360">AgentKit challenge + verification</SourceLink>
             <SourceLink path="contracts/src/identity/WorldAgentBookMirror.sol" lines="L58-L78">Finalized AgentBook mirror</SourceLink>
-            <SourceLink path="agent/src/human-agent.ts">Human-backed agent client</SourceLink>
+            <SourceLink path="agent/src/human-agent.ts">World ID-verified client</SourceLink>
           </footer>
         </article>
 

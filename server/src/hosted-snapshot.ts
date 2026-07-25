@@ -72,7 +72,7 @@ export function hostedDemoQuotes(
     },
     human: {
       ...route,
-      label: 'Human-backed agent',
+      label: 'World ID-verified retail',
       address: ADDRESSES.human,
       amountIn: amountIn.toString(),
       tier: 'tight',

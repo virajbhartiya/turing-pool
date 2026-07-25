@@ -11,10 +11,11 @@ See [BASE_MIRROR.md](./BASE_MIRROR.md) for the trust boundary and relay flow.
 | World AgentBook (chain 480) | `0xA23aB2712eA7BBa896930544C7d6636a96b944dA` |
 | Base AgentBook mirror | `0x70b9FE7Bd162B0014df1E1f435dB47765Db62455` |
 | Base Aqua | `0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec` |
-| Base primary SwapVM router | `0x02467E79C0aa8458F4552d427771D72C30F5a484` |
-| Base HumanQuota | `0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B` |
-| Base vault router | `0x797670993d2E81266F8512C7438d5b3B1E9a49d6` |
-| Base vault factory | `0x6B5dA84980f3205F0a6aCc9469c7b8279575cd10` |
+| Base primary SwapVM router | `0xc8c614C5Ef7823F4E0E6baf3EbC4593d089c7F22` |
+| Base guarded HumanQuota | `0xEE987052Ac1840AAd96eF322822C664616c15C66` |
+| Base vault router | `0x503A9d46Da9A9b1d7EDf798F4cef2E49f296e0CE` |
+| Base vault factory | `0x9DbA0d4a5504CFB8d0dbac33E6b0BCe2a9Dfa313` |
+| Seeded LP vault | `0x642c3e986EA0bc8e1D2012732Ef1F0B0A0C38209` |
 
 Run the server:
 
@@ -22,7 +23,7 @@ Run the server:
 RPC_URL=https://base-sepolia-rpc.publicnode.com \
 CHAIN_ID=84532 \
 DEPLOYMENTS_PATH="$PWD/contracts/deployments/base-sepolia-mirrored.json" \
-VAULT_FACTORY=0x6B5dA84980f3205F0a6aCc9469c7b8279575cd10 \
+VAULT_FACTORY=0x9DbA0d4a5504CFB8d0dbac33E6b0BCe2a9Dfa313 \
 NUTHATCH_URL=http://127.0.0.1:8288 \
 pnpm --filter @turing-pool/server start
 ```
@@ -89,10 +90,11 @@ route as the browser.
 
 ## Live-chain production
 
-Turing Pool runs as one service: the Hono API serves the dashboard at `/`, JSON
-endpoints under their existing paths, and a process-only health check at
-`/health`. Nuthatch supplies live indexed activity when configured but is not
-required for pricing or settlement.
+Turing Pool runs as an application container plus a stateful Nuthatch sidecar.
+The Hono API serves the dashboard at `/`, JSON endpoints under their existing
+paths, and a process-only health check at `/health`. Nuthatch is required for
+new autonomous policy decisions. SwapVM quotes and settlement use the last
+accepted on-chain policy if the indexer is unavailable.
 
 ## Required production inputs
 
@@ -104,8 +106,9 @@ required for pricing or settlement.
   `DEMO_TRADE_MAX_AMOUNT_IN=1000000000000000000`.
 - `BOT_PRIVATE_KEY` and `HUMAN_AGENT_PRIVATE_KEY`: disposable, minimally funded
   demo actors. Never expose these to Vite or commit them.
-- `NUTHATCH_URL`: optional stateful Nuthatch HTTP endpoint. The production API
-  falls back to direct chain reads if it is absent or unhealthy.
+- `NUTHATCH_URL`: stateful Nuthatch HTTP endpoint. The production dashboard
+  exposes index lag and risk-window provenance; the strategist refuses to
+  reprice without it.
 - `VAULT_FACTORY`: optional verified `TuringPoolVaultFactory` address. It
   enables pool creation, LP deposits/withdrawals, and selected-vault trades.
   The factory's `ROUTER()` must be the deployed HumanGate v2 SwapVM router and

@@ -325,7 +325,7 @@ export function resolveHumanGateTier(
   amountIn: bigint,
 ): { tight: boolean; feeBps: bigint } {
   if (humanId !== 0n && remaining === undefined) {
-    throw new Error('quota remaining is required for a human-backed router quote');
+    throw new Error('quota remaining is required for a World ID-verified router quote');
   }
   const tight = humanId !== 0n && (remaining ?? 0n) >= amountIn;
   return {
