@@ -1,0 +1,821 @@
+/*
+ * Bloomberg-inspired workstation skin.
+ *
+ * Product components own layout and behavior in styles.css. This file owns the
+ * presentation contract: dense rails, sharp panels, legible market data, and
+ * semantic terminal colors.
+ */
+
+:root {
+  color-scheme: dark;
+  --bg: #040608;
+  --panel: #090d11;
+  --panel-2: #0d1319;
+  --panel-3: #131b23;
+  --border: #202b35;
+  --border-strong: #344451;
+  --text: #f2f5f7;
+  --text-2: #b7c0c8;
+  --muted: #687681;
+  --accent: #ffad1f;
+  --accent-dim: rgba(255, 173, 31, 0.1);
+  --human: #27d3bd;
+  --human-dim: rgba(39, 211, 189, 0.1);
+  --bot: #ff695f;
+  --bot-dim: rgba(255, 105, 95, 0.1);
+  --cyan: #35bdf2;
+  --warn: #ffad1f;
+}
+
+html,
+body {
+  background: var(--bg);
+}
+
+body::before {
+  opacity: 0.7;
+  background:
+    linear-gradient(rgba(75, 100, 119, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(75, 100, 119, 0.035) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.app-shell {
+  width: min(100%, 1760px);
+  padding-inline: clamp(12px, 1.6vw, 26px);
+  padding-bottom: 24px;
+}
+
+/* Global terminal rails */
+.dex-header {
+  margin-inline: calc(clamp(12px, 1.6vw, 26px) * -1);
+  background: rgba(4, 6, 8, 0.97);
+  backdrop-filter: blur(14px);
+}
+
+.dex-statusbar,
+.dex-navbar {
+  padding-inline: clamp(12px, 1.6vw, 26px);
+}
+
+.dex-statusbar {
+  min-height: 29px;
+  background: #080b0f;
+}
+
+.dex-symbol {
+  width: 36px;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.dex-network {
+  gap: 9px;
+  font-size: 11px;
+}
+
+.dex-network i,
+.dex-live i {
+  background: var(--human);
+  box-shadow: 0 0 8px rgba(39, 211, 189, 0.55);
+}
+
+.header-wallet {
+  gap: 9px;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding-inline: 13px;
+  font-size: 11px;
+}
+
+.header-wallet.disconnected {
+  color: var(--accent);
+}
+
+.dex-navbar {
+  min-height: 57px;
+  gap: 24px;
+}
+
+.dex-brand {
+  min-width: 224px;
+  grid-template-columns: 36px auto;
+}
+
+.dex-brand > span {
+  width: 36px;
+  height: 36px;
+  border-color: var(--accent);
+  border-radius: 2px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  box-shadow: inset 0 0 18px rgba(255, 173, 31, 0.05);
+}
+
+.dex-brand strong {
+  font-size: 14px;
+  letter-spacing: 0.035em;
+}
+
+.dex-brand small {
+  color: #82909c;
+  font-size: 10px;
+}
+
+.dex-navbar nav button {
+  min-width: 94px;
+  padding-inline: 15px;
+  font-size: 12px;
+}
+
+.dex-navbar nav button:hover {
+  background: #0a0e12;
+}
+
+.dex-navbar nav button.active {
+  border-bottom-color: var(--accent);
+  background: rgba(255, 173, 31, 0.055);
+  color: var(--text);
+  box-shadow: inset 0 -1px var(--accent);
+}
+
+.dex-navbar nav button.active kbd,
+.dex-live span {
+  color: var(--accent);
+}
+
+.dex-live {
+  font-size: 11px;
+}
+
+/* Market overview */
+.market-tape {
+  margin-top: 10px;
+  border-color: var(--border-strong);
+}
+
+.market-tape article {
+  min-height: 80px;
+  padding: 13px 15px;
+  background: #080c10;
+}
+
+.market-tape article.human {
+  box-shadow: inset 3px 0 var(--human);
+}
+
+.market-tape article.bot {
+  box-shadow: inset 3px 0 var(--bot);
+}
+
+.market-tape article.target {
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.market-tape article > span {
+  font-size: 11px;
+}
+
+.market-tape article strong {
+  color: var(--text-2);
+  font-size: 15px;
+}
+
+.market-tape article b {
+  font-size: 22px;
+}
+
+.market-header.compact-market-header {
+  min-height: 102px;
+  margin-top: 7px;
+  border: 1px solid var(--border);
+  padding: 16px 18px;
+  background:
+    linear-gradient(90deg, rgba(53, 189, 242, 0.035), transparent 42%),
+    #070a0e;
+}
+
+.breadcrumb {
+  margin-bottom: 7px;
+  color: var(--muted);
+}
+
+.breadcrumb span {
+  color: var(--accent);
+}
+
+.pair-icon i {
+  border-color: #070a0e;
+  border-radius: 2px;
+}
+
+.pair-icon i:first-child {
+  background: var(--human);
+}
+
+.pair-icon i:last-child {
+  background: var(--accent);
+}
+
+.pair-title h1 {
+  font-size: clamp(29px, 3.2vw, 43px);
+}
+
+.pair-title p {
+  color: #93a0aa;
+  font-size: 13px;
+}
+
+.market-price strong {
+  color: var(--text);
+  font-size: clamp(31px, 3.3vw, 45px);
+}
+
+.market-price em {
+  color: var(--human);
+}
+
+/* Trade workstation */
+.trading-workspace {
+  margin-top: 8px;
+}
+
+.trading-grid {
+  grid-template-columns: minmax(0, 1.72fr) minmax(365px, 0.64fr);
+  gap: 9px;
+  margin-top: 9px;
+}
+
+.terminal-panel,
+.controller-panel,
+.ledger-panel,
+.protocol-disclosure,
+.identity-action-panel,
+.identity-explainer,
+.vault-card,
+.vault-empty,
+.vault-banner {
+  border-color: var(--border);
+  border-radius: 2px;
+  background: var(--panel);
+  box-shadow: none;
+}
+
+.terminal-panel:hover,
+.vault-card:hover {
+  border-color: #2b3945;
+}
+
+.panel-head {
+  min-height: 49px;
+  padding: 9px 13px;
+  background: #070b0f;
+}
+
+.panel-head strong {
+  font-size: 15px;
+}
+
+.panel-head span {
+  color: #778691;
+  font-size: 11px;
+}
+
+.chart-controls {
+  gap: 0;
+  border: 1px solid var(--border);
+}
+
+.chart-controls button {
+  min-width: 62px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  padding: 7px 10px;
+}
+
+.chart-controls button:last-child {
+  border-right: 0;
+}
+
+.chart-controls button.active {
+  border-color: transparent;
+  background: var(--accent);
+  color: #111;
+}
+
+.fee-chart {
+  height: 340px;
+  background:
+    linear-gradient(rgba(71, 92, 108, 0.11) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(71, 92, 108, 0.11) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(53, 189, 242, 0.025), transparent);
+  background-size: 100% 20%, 10% 100%, 100% 100%;
+}
+
+.fill-line,
+.price-line {
+  stroke: var(--cyan);
+  stroke-width: 2;
+}
+
+.fill-dot {
+  stroke: #070a0e;
+  stroke-width: 3;
+}
+
+.chart-reference.human {
+  color: var(--human);
+}
+
+.chart-reference.bot {
+  color: var(--bot);
+}
+
+.chart-reference.target {
+  color: var(--accent);
+}
+
+.chart-reference span {
+  border: 1px solid currentColor;
+  border-radius: 1px;
+  padding: 2px 6px;
+  background: #070a0e;
+}
+
+.quote-comparison {
+  gap: 0;
+  border-top: 1px solid var(--border-strong);
+}
+
+.quote-card {
+  min-height: 175px;
+  padding: 15px;
+  background: #090d11;
+}
+
+.quote-card.human {
+  border-top-color: var(--human);
+}
+
+.quote-card.bot {
+  border-top-color: var(--bot);
+}
+
+.quote-card > strong {
+  font-size: clamp(28px, 3vw, 39px);
+}
+
+.quote-card-head b,
+.wallet-tier,
+.live-tag {
+  border-radius: 1px;
+}
+
+.comparison-tape {
+  min-height: 39px;
+  background: #070b0f;
+}
+
+.quote-ticket {
+  top: 96px;
+}
+
+.ticket-tabs {
+  gap: 0;
+  margin: 11px;
+  border-radius: 1px;
+}
+
+.ticket-tabs button {
+  border-radius: 0;
+  background: #06090c;
+}
+
+.ticket-tabs button.active {
+  background: var(--panel-3);
+}
+
+.ticket-tabs button[data-lane="human"].active {
+  box-shadow: inset 0 -2px var(--human);
+}
+
+.ticket-tabs button[data-lane="bot"].active {
+  box-shadow: inset 0 -2px var(--bot);
+}
+
+.ticket-body {
+  padding: 10px 13px 14px;
+}
+
+.wallet-panel,
+.account-context,
+.world-identity-control,
+.token-field,
+.order-controls label,
+.direction-tabs button,
+.size-selector button {
+  border-radius: 1px;
+  background: #070b0f;
+}
+
+.wallet-panel,
+.account-context {
+  border-left-width: 2px;
+}
+
+.wallet-connect-button,
+.compact-verify-link {
+  border-radius: 1px;
+}
+
+.direction-tabs {
+  gap: 3px;
+}
+
+.direction-tabs button {
+  padding-inline: 12px;
+}
+
+.direction-tabs button.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.size-selector button {
+  min-height: 34px;
+}
+
+.size-selector button.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #111;
+}
+
+.token-field {
+  padding: 11px 12px;
+}
+
+.token-field strong,
+.token-field input {
+  font-size: 28px;
+}
+
+.token-field b {
+  border-radius: 1px;
+}
+
+.swap-arrow {
+  width: 28px;
+  height: 28px;
+  border-radius: 1px;
+}
+
+.trade-action {
+  min-height: 50px;
+  border: 0;
+  border-radius: 1px;
+  color: #07100f;
+  font-size: 13px;
+}
+
+.trade-action.human {
+  background: var(--human);
+}
+
+.trade-action.bot {
+  background: var(--bot);
+  color: #160807;
+}
+
+.execution-trace {
+  border-radius: 1px;
+}
+
+/* Landing: pitch rendered as a market terminal, not a marketing microsite */
+.landing {
+  padding-top: 10px;
+}
+
+.landing-hero {
+  min-height: 340px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.55fr);
+  gap: 40px;
+  border: 1px solid var(--border-strong);
+  padding: clamp(28px, 4vw, 54px);
+  background:
+    linear-gradient(rgba(83, 108, 127, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(83, 108, 127, 0.06) 1px, transparent 1px),
+    radial-gradient(circle at 72% 30%, rgba(53, 189, 242, 0.06), transparent 35%),
+    #070b0f;
+  background-size: 28px 28px, 28px 28px, 100% 100%, 100% 100%;
+}
+
+.landing .eyebrow {
+  color: var(--accent);
+}
+
+.landing-hero h1 {
+  max-width: 1020px;
+  margin-top: 14px;
+  color: var(--text);
+  font-size: clamp(44px, 5.4vw, 74px);
+  line-height: 0.98;
+}
+
+.landing-hero p {
+  max-width: 760px;
+  margin-top: 19px;
+  color: #a6b1b9;
+  font-size: 15px;
+}
+
+.landing-actions {
+  margin-top: 24px;
+}
+
+.landing-actions button,
+.landing-proof button {
+  min-height: 42px;
+  border-radius: 1px;
+}
+
+.landing-actions button {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #111;
+}
+
+.landing-actions button.secondary,
+.landing-proof button {
+  background: transparent;
+  color: var(--accent);
+}
+
+.landing-market {
+  border-color: var(--border-strong);
+  border-radius: 1px;
+  background: #080c10;
+}
+
+.landing-market > span,
+.landing-market > div {
+  border-color: var(--border);
+}
+
+.landing-market > div {
+  padding: 15px;
+}
+
+.landing-market strong {
+  font-size: 30px;
+}
+
+.landing-math {
+  grid-template-columns: minmax(250px, 0.5fr) minmax(520px, 1.5fr);
+  gap: 28px;
+  padding: 28px 0;
+}
+
+.landing-section-copy h2 {
+  font-size: clamp(25px, 2.8vw, 36px);
+}
+
+.math-card {
+  border-color: var(--border-strong);
+  padding: 24px;
+  background: #080c10;
+}
+
+.math-formula .result b,
+.math-live strong {
+  color: var(--accent);
+}
+
+.landing-flow {
+  padding: 28px 0;
+}
+
+.event-flow {
+  margin-top: 18px;
+}
+
+.event-flow article {
+  min-height: 170px;
+  border-color: var(--border);
+  background: #080c10;
+}
+
+.event-flow article:nth-of-type(1) {
+  border-top-color: var(--human);
+}
+
+.event-flow article:nth-of-type(2),
+.event-flow article:nth-of-type(3) {
+  border-top-color: var(--accent);
+}
+
+.event-flow article:nth-of-type(4) {
+  border-top-color: #9d76ff;
+}
+
+.landing-proof {
+  border-color: var(--border-strong);
+  border-left-color: var(--accent);
+  background: #080c10;
+}
+
+/* Pool, verify, and protocol all use the same workstation grammar */
+.view-workspace {
+  padding-top: 10px;
+}
+
+.view-heading {
+  min-height: 116px;
+  border: 1px solid var(--border);
+  padding: 18px;
+  background: #070b0f;
+}
+
+.view-heading h1 {
+  font-size: clamp(31px, 3.5vw, 46px);
+}
+
+.vault-workspace {
+  margin-top: 0;
+}
+
+.vault-heading {
+  min-height: 70px;
+  border: 1px solid var(--border);
+  padding: 13px 15px;
+  background: #070b0f;
+}
+
+.vault-toolbar {
+  border-radius: 1px;
+  background: #080c10;
+}
+
+.vault-toolbar nav button.active {
+  border-bottom-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.vault-market-strip {
+  background: var(--border);
+}
+
+.vault-market-strip > div {
+  background: #090d11;
+}
+
+.vault-grid,
+.vault-create-grid {
+  gap: 7px;
+}
+
+.vault-card {
+  padding: 15px;
+}
+
+.vault-direction button,
+.redeem-options button,
+.vault-quote,
+.vault-redemption,
+.vault-pnl,
+.vault-token-button {
+  border-radius: 1px;
+  background: #070b0f;
+}
+
+.vault-primary {
+  min-height: 47px;
+  border-radius: 1px;
+  background: var(--accent);
+  color: #111;
+}
+
+.vault-pnl.positive {
+  border-left-color: var(--human);
+}
+
+.identity-layout {
+  gap: 7px;
+}
+
+.identity-connect-button,
+.world-verify-button {
+  border-radius: 1px;
+  background: var(--accent);
+  color: #111;
+}
+
+.identity-explainer > i {
+  border-color: var(--border);
+}
+
+.protocol-panel-head {
+  border-color: var(--border-strong);
+  background: #070b0f;
+}
+
+.integration-flow.compact {
+  border-color: var(--border);
+}
+
+.integration-flow.compact .integration-step {
+  background: #080c10;
+}
+
+.lean-controller {
+  grid-template-columns: minmax(250px, 0.48fr) minmax(520px, 1.52fr);
+  padding: 14px;
+}
+
+.fee-term {
+  background: #070b0f;
+}
+
+.fee-term.target {
+  border-top-color: var(--accent);
+}
+
+.ledger-panel > summary,
+.protocol-disclosure > summary {
+  min-height: 55px;
+}
+
+.table-scroll th {
+  background: #070b0f;
+  color: var(--accent);
+}
+
+.table-scroll tr:hover td {
+  background: rgba(255, 173, 31, 0.035);
+}
+
+.protocol-grid article {
+  background: #080c10;
+}
+
+.error-banner {
+  border-color: rgba(255, 105, 95, 0.5);
+  border-radius: 1px;
+  background: rgba(48, 10, 10, 0.95);
+}
+
+footer {
+  margin-top: 18px;
+  color: #57646e;
+}
+
+@media (max-width: 1120px) {
+  .trading-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quote-ticket {
+    position: static;
+  }
+
+  .landing-hero,
+  .landing-math {
+    grid-template-columns: 1fr;
+  }
+
+  .lean-controller {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .dex-navbar {
+    padding-inline: 12px;
+  }
+
+  .dex-navbar nav {
+    background: #070b0f;
+  }
+
+  .market-tape,
+  .quote-comparison,
+  .event-flow {
+    grid-template-columns: 1fr;
+  }
+
+  .fee-chart {
+    height: 250px;
+  }
+
+  .landing-hero {
+    min-height: 0;
+    padding: 25px 18px;
+  }
+
+  .landing-hero h1 {
+    font-size: clamp(39px, 13vw, 56px);
+  }
+}
