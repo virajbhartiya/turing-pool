@@ -3,6 +3,7 @@ contracts/out/
 contracts/cache/
 .env
 .env*.local
+*.pem
 *.log
 dist/
 public/
