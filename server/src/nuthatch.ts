@@ -84,7 +84,7 @@ const TRADE_SQL = `
     amount_in,
     amount_out,
     fee_bps
-  FROM turing_trades
+  FROM turing_all_trades
   ORDER BY block_number DESC, log_index DESC
 `;
 

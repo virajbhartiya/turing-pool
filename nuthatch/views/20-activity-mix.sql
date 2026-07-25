@@ -13,4 +13,4 @@ SELECT
     0
   ) AS human_share_bps,
   max(block_number) AS indexed_trade_block
-FROM turing_trades;
+FROM turing_all_trades;

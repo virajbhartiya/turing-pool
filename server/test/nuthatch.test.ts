@@ -106,8 +106,11 @@ test('loads correlated SwapVM activity and preserves Nuthatch provenance', async
     feeBps: '5',
     source: 'swapvm',
   });
-  assert.equal(requested.length, 3);
-  assert.ok(requested.some((url) => decodeURIComponent(url).includes('FROM turing_trades')));
+  assert.equal(requested.length, 4);
+  assert.ok(
+    requested.some((url) => decodeURIComponent(url).includes('FROM turing_all_trades')),
+    'the terminal chart must include both primary-maker and permissionless-vault fills',
+  );
 });
 
 test('rejects a stalled Nuthatch node instead of presenting stale rows as live', async () => {
