@@ -2,6 +2,7 @@ node_modules/
 contracts/out/
 contracts/cache/
 .env
+.env*.local
 *.log
 dist/
 public/

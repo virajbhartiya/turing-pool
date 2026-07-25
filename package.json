@@ -17,6 +17,7 @@
     "demo:fork": "bash scripts/demo.sh fork",
     "demo:sepolia": "bash scripts/demo-sepolia.sh",
     "demo:world": "bash scripts/demo-world.sh",
+    "identity:sync": "node scripts/sync-agentbook-mirror.mjs",
     "demo:beats": "bash scripts/demo-beats.sh",
     "nuthatch:dev": "bash scripts/nuthatch-dev.sh",
     "nuthatch:schema": "nuthatch schema --dir nuthatch",
