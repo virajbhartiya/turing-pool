@@ -81,6 +81,7 @@ export function VaultWorkspace({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string>();
   const [status, setStatus] = useState<ActionStatus>(IDLE_STATUS);
+  const [lastConfirmed, setLastConfirmed] = useState<ActionStatus>();
   const [deposit0, setDeposit0] = useState('1');
   const [deposit1, setDeposit1] = useState('1');
   const [redeemPercent, setRedeemPercent] = useState(100);
@@ -176,7 +177,8 @@ export function VaultWorkspace({
     );
     const currentValue = claim0 * token0Price + claim1;
     const contributedValue = contributed0 * token0Price + contributed1;
-    const pnl = currentValue - contributedValue;
+    const rawPnl = currentValue - contributedValue;
+    const pnl = Math.abs(rawPnl) < 0.00005 ? 0 : rawPnl;
     return {
       currentValue,
       contributedValue,
@@ -255,6 +257,7 @@ export function VaultWorkspace({
       title: 'Building safe transaction',
       detail: 'Reading the latest Aqua order and simulating against current reserves.',
     });
+    setLastConfirmed(undefined);
     try {
       for (let attempt = 0; attempt < 4; attempt += 1) {
         const prepared = await responseJson<PreparedVaultAction>(
@@ -284,7 +287,7 @@ export function VaultWorkspace({
         });
         const receipt = await waitForWalletReceipt(connected.provider, transactionHash);
         if (finalActions.includes(prepared.action)) {
-          setStatus({
+          const confirmedStatus: ActionStatus = {
             state: 'confirmed',
             title:
               prepared.action === 'swap'
@@ -296,7 +299,9 @@ export function VaultWorkspace({
                   : 'Liquidity action confirmed',
             detail: `Confirmed in execution block ${BigInt(receipt.blockNumber)}.`,
             transactionHash,
-          });
+          };
+          setStatus(confirmedStatus);
+          setLastConfirmed(confirmedStatus);
           await Promise.all([refreshAll(), onProtocolRefresh()]);
           return;
         }
@@ -446,10 +451,33 @@ export function VaultWorkspace({
                 <div><span>Market</span><strong>{vault.token0.symbol} / {vault.token1.symbol}</strong><small>Aqua order {vault.strategyActive ? 'active' : 'inactive'}</small></div>
                 <div><span>Live fees</span><strong>{vault.feeSchedules.token0.tightFeeBps} / {vault.feeSchedules.token0.wideFeeBps} bps</strong><small>retail / HFT-arb · {vault.feeSchedules.token0.targetFeeBps} bps target</small></div>
                 <div><span>Pool inventory</span><strong>{formatUnits(vault.reserves.token0, vault.token0.decimals, 4)} {vault.token0.symbol}</strong><small>{formatUnits(vault.reserves.token1, vault.token1.decimals, 4)} {vault.token1.symbol}</small></div>
-                <div><span>Your LP position</span><strong>{ownershipLabel}</strong><small>{formatUnits(vault.position.shares, 18, 4)} {vault.shareToken.symbol} · transferable ERC-20</small></div>
+                <div><span>My position</span><strong>{ownershipLabel}</strong><small>{formatUnits(vault.position.shares, 18, 4)} {vault.shareToken.symbol}</small></div>
               </div>
 
-              <div className={`vault-grid ${status.state === 'idle' ? 'idle' : ''}`}>
+              {lastConfirmed && (
+                <div className="vault-action-success" role="status">
+                  <i aria-hidden="true">✓</i>
+                  <div>
+                    <span>Liquidity action confirmed</span>
+                    <strong>{lastConfirmed.title}</strong>
+                    <small>{lastConfirmed.detail} Your position and pool balances are now refreshed.</small>
+                  </div>
+                  {explorerUrl && (
+                    <a href={explorerUrl} rel="noreferrer" target="_blank">
+                      Open transaction receipt ↗
+                    </a>
+                  )}
+                  <button
+                    aria-label="Dismiss confirmation"
+                    onClick={() => setLastConfirmed(undefined)}
+                    type="button"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              <div className={`vault-grid ${status.state === 'idle' || status.state === 'confirmed' ? 'idle' : ''}`}>
                 <article className="vault-card vault-action-card">
                   {action === 'deposit' && (
                     <>
@@ -525,11 +553,17 @@ export function VaultWorkspace({
                 </article>
 
                 <article className="vault-card vault-position">
-                  <span>LP position</span>
-                  <h3>{account ? `${vault.shareToken.symbol} earnings` : 'Wallet not connected'}</h3>
+                  <span>Connected wallet</span>
+                  <h3>My position</h3>
+                  {!account && (
+                    <div className="vault-position-empty">
+                      <strong>Connect a wallet to view its LP position</strong>
+                      <p>Ownership, supplied assets, withdrawable balances, and earnings will appear here.</p>
+                    </div>
+                  )}
                   {account && lpEconomics && (
                     <div className={`vault-pnl ${lpEconomics.pnl >= 0 ? 'positive' : 'negative'}`}>
-                      <span>Mark-to-pool P&amp;L</span>
+                      <span>Position earnings</span>
                       <strong>
                         {lpEconomics.pnl >= 0 ? '+' : ''}
                         {lpEconomics.pnl.toLocaleString('en-US', { maximumFractionDigits: 4 })}{' '}
@@ -539,25 +573,33 @@ export function VaultWorkspace({
                         {lpEconomics.pnlPercent === undefined
                           ? 'No contribution basis yet'
                           : `${lpEconomics.pnlPercent >= 0 ? '+' : ''}${lpEconomics.pnlPercent.toFixed(3)}%`}
-                        {' · '}fees and inventory marked at the current pool price
+                        {' · '}fees and inventory at the current pool price
                       </small>
                     </div>
                   )}
-                  <dl>
-                    <div><dt>LP shares</dt><dd>{formatUnits(vault.position.shares, 18, 6)} {vault.shareToken.symbol}</dd></div>
-                    <div><dt>Pool ownership</dt><dd>{ownershipLabel}</dd></div>
-                    <div><dt>Redeemable now</dt><dd>{formatUnits(vault.position.claimToken0, vault.token0.decimals, 5)} {vault.token0.symbol} + {formatUnits(vault.position.claimToken1, vault.token1.decimals, 5)} {vault.token1.symbol}</dd></div>
-                    <div><dt>Net contributed</dt><dd>{formatUnits(vault.position.accounting.netContributedToken0, vault.token0.decimals, 5)} {vault.token0.symbol} + {formatUnits(vault.position.accounting.netContributedToken1, vault.token1.decimals, 5)} {vault.token1.symbol}</dd></div>
-                    <div><dt>Position value</dt><dd>{lpEconomics ? `${lpEconomics.currentValue.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${vault.token1.symbol}` : '—'}</dd></div>
-                    <div><dt>LP token contract</dt><dd>{lpTokenUrl ? <a href={lpTokenUrl} rel="noreferrer" target="_blank">{shortAddress(vault.shareToken.address)} ↗</a> : shortAddress(vault.shareToken.address)}</dd></div>
-                    <div><dt>Aqua order</dt><dd>{vault.strategyActive ? 'ACTIVE' : vault.paused ? 'PAUSED' : 'UNSEEDED'}</dd></div>
-                  </dl>
-                  <button className="vault-token-button" onClick={() => void watchLpToken()} type="button">
-                    {lpTokenAdded ? `${vault.shareToken.symbol} added to wallet` : `Add ${vault.shareToken.symbol} to wallet`}
-                  </button>
+                  {account && (
+                    <>
+                      <dl>
+                        <div><dt>Position value</dt><dd>{lpEconomics ? `${lpEconomics.currentValue.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${vault.token1.symbol}` : '—'}</dd></div>
+                        <div><dt>You supplied</dt><dd>{formatUnits(vault.position.accounting.netContributedToken0, vault.token0.decimals, 5)} {vault.token0.symbol} + {formatUnits(vault.position.accounting.netContributedToken1, vault.token1.decimals, 5)} {vault.token1.symbol}</dd></div>
+                        <div><dt>Available to withdraw</dt><dd>{formatUnits(vault.position.claimToken0, vault.token0.decimals, 5)} {vault.token0.symbol} + {formatUnits(vault.position.claimToken1, vault.token1.decimals, 5)} {vault.token1.symbol}</dd></div>
+                        <div><dt>Pool ownership</dt><dd>{ownershipLabel}</dd></div>
+                        <div><dt>LP tokens</dt><dd>{formatUnits(vault.position.shares, 18, 6)} {vault.shareToken.symbol}</dd></div>
+                      </dl>
+                      <details className="vault-position-token">
+                        <summary>LP token details</summary>
+                        <a href={lpTokenUrl} rel="noreferrer" target="_blank">
+                          Contract {shortAddress(vault.shareToken.address)} ↗
+                        </a>
+                        <button className="vault-token-button" onClick={() => void watchLpToken()} type="button">
+                          {lpTokenAdded ? `${vault.shareToken.symbol} added to wallet` : `Add ${vault.shareToken.symbol} to wallet`}
+                        </button>
+                      </details>
+                    </>
+                  )}
                 </article>
 
-                {status.state !== 'idle' && (
+                {!['idle', 'confirmed'].includes(status.state) && (
                   <VaultStatus status={status} explorerUrl={explorerUrl} />
                 )}
               </div>
