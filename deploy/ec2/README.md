@@ -50,6 +50,7 @@ sudo docker run -d \
   --rpc "$WORLD_RPC_URL" \
   --seal-direct \
   --concurrency 4 \
+  --window 100 \
   --no-admin
 
 sudo docker run -d \
@@ -75,6 +76,18 @@ sudo docker run -d \
 Set `NUTHATCH_URL=http://turing-pool-indexer:8288` in the host runtime
 environment. The indexer is reachable only by containers on the private
 network.
+
+The 100-block Nuthatch window is intentional. The RPC proxy splits log scans
+into the 10-block ranges accepted by the upstream provider. Larger concurrent
+windows can exceed Nuthatch's request timeout while the proxy drains those
+subrequests.
+
+When changing the indexed chain or contract registry, do not reuse the old
+`nuthatch.redb` cursor or sealed `segments/`. Stop the indexer, move both into a
+dated backup outside `/home/ec2-user/turing-pool/nuthatch`, and then start the
+indexer against an empty store. A valid rebuild must report a nonzero
+`last_block`, `last_block <= tip`, and a small `lag_blocks`; the `/ready`
+boolean alone is not sufficient during initial catch-up.
 
 Only ports 80, 443, and restricted SSH should be open in the instance security
 group. Ports 4021 and 8288 stay private.

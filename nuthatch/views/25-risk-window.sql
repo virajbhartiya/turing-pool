@@ -6,12 +6,12 @@ WITH ranked AS (
       ORDER BY block_number DESC, log_index DESC
     ) AS recency_rank,
     CASE
-      WHEN lower(token_in) = lower('0xb68A4fa68E967e107BDEDD3A8C990D3cF110Fb52')
+      WHEN lower(token_in) = lower('0x265f638eb93314AD0e0471E3cC2c97565e75D6E6')
         THEN amount_in_dec
       ELSE amount_out_dec
     END AS token0_volume,
     CASE
-      WHEN lower(token_in) = lower('0xb68A4fa68E967e107BDEDD3A8C990D3cF110Fb52')
+      WHEN lower(token_in) = lower('0x265f638eb93314AD0e0471E3cC2c97565e75D6E6')
         THEN amount_out_dec / nullif(amount_in_dec, 0)
       ELSE amount_in_dec / nullif(amount_out_dec, 0)
     END AS execution_price

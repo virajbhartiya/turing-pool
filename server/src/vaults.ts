@@ -1,8 +1,6 @@
 import {
-  createPublicClient,
   encodeFunctionData,
   getAddress,
-  http,
   isAddress,
   type Address,
   type Hex,
@@ -18,7 +16,7 @@ import {
   vaultFactoryAbi,
 } from './abi.js';
 import { client, deployments } from './chain.js';
-import { CHAIN_ID, RPC_URL } from './config.js';
+import { loadNuthatchVaultAccounting } from './nuthatch.js';
 import {
   applyFeeSchedule,
   buildTakerTraits,
@@ -92,14 +90,15 @@ export interface PreparedVaultTrade {
 const ZERO_HASH = `0x${'00'.repeat(32)}` as Hex;
 const ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 const tokenMetadataCache = new Map<string, Promise<TokenMetadata>>();
-const historyClient = createPublicClient({
-  transport: http(process.env.HISTORY_RPC_URL ?? RPC_URL),
-});
 const liquidityAccountingCache = new Map<
   string,
   { loadedAt: number; value: Awaited<ReturnType<typeof loadLiquidityAccounting>> }
 >();
 const LIQUIDITY_ACCOUNTING_TTL_MS = 15_000;
+
+export function publicVaultHistoryError(_error: unknown): string {
+  return 'Liquidity history is temporarily unavailable.';
+}
 
 function configuredFactory(): Address | undefined {
   const value = process.env.VAULT_FACTORY ?? deployments.vaultFactory;
@@ -230,49 +229,15 @@ async function assertRegisteredVault(vault: Address): Promise<void> {
 }
 
 async function loadLiquidityAccounting(vault: Address, wallet: Address) {
-  const fromBlock = BigInt(deployments.deployBlock ?? 0);
-  const [deposits, withdrawals] = await Promise.all([
-    historyClient.getLogs({
-      address: vault,
-      event: vaultAbi[0],
-      args: { receiver: wallet },
-      fromBlock,
-      toBlock: 'latest',
-    }),
-    historyClient.getLogs({
-      address: vault,
-      event: vaultAbi[1],
-      args: { provider: wallet },
-      fromBlock,
-      toBlock: 'latest',
-    }),
-  ]);
-  const deposited = { token0: 0n, token1: 0n, shares: 0n };
-  for (const event of deposits) {
-    const { amount0, amount1, shares } = event.args;
-    if (amount0 === undefined || amount1 === undefined || shares === undefined) {
-      throw new Error('LiquidityAdded log is missing decoded amounts');
-    }
-    deposited.token0 += amount0;
-    deposited.token1 += amount1;
-    deposited.shares += shares;
+  const endpoint = process.env.NUTHATCH_URL;
+  if (!endpoint) throw new Error('NUTHATCH_URL is not configured');
+  if (
+    !deployments.activeVault ||
+    vault.toLowerCase() !== deployments.activeVault.toLowerCase()
+  ) {
+    throw new Error('Nuthatch accounting is only available for the active vault');
   }
-  const withdrawn = { token0: 0n, token1: 0n, shares: 0n };
-  for (const event of withdrawals) {
-    const { amount0, amount1, shares } = event.args;
-    if (amount0 === undefined || amount1 === undefined || shares === undefined) {
-      throw new Error('LiquidityRemoved log is missing decoded amounts');
-    }
-    withdrawn.token0 += amount0;
-    withdrawn.token1 += amount1;
-    withdrawn.shares += shares;
-  }
-  return {
-    deposited,
-    withdrawn,
-    depositCount: deposits.length,
-    withdrawalCount: withdrawals.length,
-  };
+  return loadNuthatchVaultAccounting(endpoint, wallet);
 }
 
 async function liquidityAccounting(vault: Address, wallet: Address) {
@@ -498,8 +463,7 @@ export async function vaultState(vaultInput: unknown, walletInput?: unknown) {
     try {
       accounting = await liquidityAccounting(vault, wallet);
     } catch (error) {
-      accountingError =
-        error instanceof Error ? error.message : 'liquidity history is temporarily unavailable';
+      accountingError = publicVaultHistoryError(error);
     }
   }
   const deposited0 = accounting?.deposited.token0 ?? 0n;

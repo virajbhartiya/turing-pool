@@ -6,6 +6,17 @@ export function formatUnits(value: string | bigint, decimals = 18, maximumFracti
   return sixDecimalNumber.toLocaleString('en-US', { maximumFractionDigits });
 }
 
+export function formatSignedUnits(
+  value: string | bigint,
+  decimals = 18,
+  maximumFractionDigits = 2,
+): string {
+  const amount = typeof value === 'bigint' ? value : BigInt(value);
+  const sign = amount > 0n ? '+' : amount < 0n ? '-' : '';
+  const magnitude = amount < 0n ? -amount : amount;
+  return `${sign}${formatUnits(magnitude, decimals, maximumFractionDigits)}`;
+}
+
 export function unitsAsNumber(value: string, decimals = 18): number {
   return Number(BigInt(value)) / 10 ** decimals;
 }

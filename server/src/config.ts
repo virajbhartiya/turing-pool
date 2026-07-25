@@ -30,6 +30,7 @@ export interface Deployments {
   vaultRouter?: `0x${string}`;
   activeVault?: `0x${string}`;
   activeVaultQuota?: `0x${string}`;
+  activeVaultDeployBlock?: string | number;
   faucet?: `0x${string}`;
 }
 

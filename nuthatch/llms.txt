@@ -3,22 +3,13 @@
 A self-hosted blockchain index. Query it locally; there is no third-party API.
 
 ## Contracts
-- `router` = 0x237726Cdf497794357D4BcB0bCDBD04437F0eAa3
-- `quota` = 0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B
-- `aqua` = 0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec
 - `vault_router` = 0x0435F9650b70310e98fAEcADa042b3b4e4937Cad
 - `vault_quota` = 0xea15Bd49c4917E456AD563D5531bDCF95b5A5253
-- `faucet` = 0x8DE77C94983ACDaE8f08d558804068cA24FF4fC6
+- `active_vault` = 0xfe193d73161053E52B15527c9B508DB1357Ed072
 
 ## Tables (one per contract event)
-- `aqua__docked` - Docked(address,address,bytes32) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, maker, app, strategyHash)
-- `aqua__shipped` - Shipped(address,address,bytes32,bytes) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, maker, app, strategyHash, strategy)
-- `faucet__claimed` - Claimed(address,uint256,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, account, amount0, amount1, nextClaimAt)
-- `quota__fee_schedule_updated` - FeeScheduleUpdated(address,uint256,uint256,uint256,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, token, tightFeeBps, wideFeeBps, tightVolume, wideVolume, humanShareBps)
-- `quota__risk_policy_applied` - RiskPolicyApplied(address,uint256,bytes32,uint256,uint256,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, token, indexedThroughBlock, decisionHash, desiredTightFeeBps, riskSpreadBps, tightFeeBps, wideFeeBps)
-- `quota__usage_recorded` - UsageRecorded(uint256,address,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, humanId, token, amount, day)
-- `router__human_gated` - HumanGated(bytes32,address,uint256,bool,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, orderHash, taker, humanId, tight, feeE9)
-- `router__swapped` - Swapped(bytes32,address,address,address,address,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, orderHash, maker, taker, tokenIn, tokenOut, amountIn, amountOut)
+- `active_vault__liquidity_added` - LiquidityAdded(address,address,uint256,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, provider, receiver, amount0, amount1, shares)
+- `active_vault__liquidity_removed` - LiquidityRemoved(address,address,uint256,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, provider, receiver, amount0, amount1, shares)
 - `vault_quota__fee_schedule_updated` - FeeScheduleUpdated(address,uint256,uint256,uint256,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, token, tightFeeBps, wideFeeBps, tightVolume, wideVolume, humanShareBps)
 - `vault_quota__risk_policy_applied` - RiskPolicyApplied(address,uint256,bytes32,uint256,uint256,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, token, indexedThroughBlock, decisionHash, desiredTightFeeBps, riskSpreadBps, tightFeeBps, wideFeeBps)
 - `vault_quota__usage_recorded` - UsageRecorded(uint256,address,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, humanId, token, amount, day)

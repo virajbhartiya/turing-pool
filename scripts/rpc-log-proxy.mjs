@@ -2,12 +2,20 @@
 
 import { createServer } from 'node:http';
 
-const upstreamUrl = process.env.RPC_UPSTREAM_URL;
-if (!upstreamUrl) {
-  throw new Error('RPC_UPSTREAM_URL is required');
+const upstreamUrls = (
+  process.env.RPC_UPSTREAM_URLS ??
+  process.env.RPC_UPSTREAM_URL ??
+  ''
+)
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
+if (upstreamUrls.length === 0) {
+  throw new Error('RPC_UPSTREAM_URLS or RPC_UPSTREAM_URL is required');
 }
 
 const port = Number(process.env.RPC_PROXY_PORT ?? '8546');
+const host = process.env.RPC_PROXY_HOST ?? '127.0.0.1';
 const maxLogBlockRange = BigInt(process.env.RPC_MAX_LOG_BLOCK_RANGE ?? '10');
 const minimumIntervalMs = Number(process.env.RPC_MIN_INTERVAL_MS ?? '150');
 const maxRetries = Number(process.env.RPC_MAX_RETRIES ?? '6');
@@ -19,22 +27,32 @@ if (maxLogBlockRange <= 0n) {
   throw new Error('RPC_MAX_LOG_BLOCK_RANGE must be greater than zero');
 }
 
-let nextRequestAt = 0;
-let requestQueue = Promise.resolve();
+const upstreamStates = upstreamUrls.map(() => ({
+  nextRequestAt: 0,
+  requestQueue: Promise.resolve(),
+}));
+let upstreamCursor = 0;
 
 function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-function scheduleUpstreamRequest(task) {
-  const scheduled = requestQueue.then(async () => {
-    const wait = Math.max(0, nextRequestAt - Date.now());
+function scheduleUpstreamRequest(index, task) {
+  const state = upstreamStates[index];
+  const scheduled = state.requestQueue.then(async () => {
+    const wait = Math.max(0, state.nextRequestAt - Date.now());
     if (wait > 0) await delay(wait);
-    nextRequestAt = Date.now() + minimumIntervalMs;
+    state.nextRequestAt = Date.now() + minimumIntervalMs;
     return task();
   });
-  requestQueue = scheduled.catch(() => undefined);
+  state.requestQueue = scheduled.catch(() => undefined);
   return scheduled;
+}
+
+function nextUpstreamIndex() {
+  const index = upstreamCursor % upstreamUrls.length;
+  upstreamCursor = (upstreamCursor + 1) % upstreamUrls.length;
+  return index;
 }
 
 function isRateLimited(status, payload) {
@@ -47,31 +65,51 @@ function isRateLimited(status, payload) {
 }
 
 async function upstream(request) {
+  let lastResult;
+  let lastError;
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-    const result = await scheduleUpstreamRequest(async () => {
-      const response = await fetch(upstreamUrl, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(request),
-        signal: AbortSignal.timeout(30_000),
-      });
-      const payload = await response.json().catch(() => ({
-        jsonrpc: '2.0',
-        id: request.id ?? null,
-        error: {
-          code: -32_000,
-          message: `RPC upstream returned HTTP ${response.status}`,
-        },
-      }));
-      return { status: response.status, payload };
-    });
-
-    if (!isRateLimited(result.status, result.payload) || attempt === maxRetries) {
-      return result.payload;
+    for (let providerAttempt = 0; providerAttempt < upstreamUrls.length; providerAttempt += 1) {
+      const upstreamIndex = nextUpstreamIndex();
+      try {
+        const result = await scheduleUpstreamRequest(upstreamIndex, async () => {
+          const response = await fetch(upstreamUrls[upstreamIndex], {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(request),
+            signal: AbortSignal.timeout(30_000),
+          });
+          const payload = await response.json().catch(() => ({
+            jsonrpc: '2.0',
+            id: request.id ?? null,
+            error: {
+              code: -32_000,
+              message: `RPC upstream returned HTTP ${response.status}`,
+            },
+          }));
+          return { status: response.status, payload };
+        });
+        lastResult = result;
+        const providerUnavailable =
+          result.status === 401 ||
+          result.status === 403 ||
+          result.status === 429 ||
+          result.status >= 500;
+        if (!providerUnavailable && !isRateLimited(result.status, result.payload)) {
+          return result.payload;
+        }
+      } catch (error) {
+        lastError = error;
+      }
     }
-    await delay(Math.min(8_000, 500 * 2 ** attempt));
+
+    if (attempt < maxRetries) {
+      await delay(Math.min(8_000, 500 * 2 ** attempt));
+    }
   }
-  throw new Error('unreachable');
+  if (lastResult) return lastResult.payload;
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('Every RPC upstream failed');
 }
 
 function hexBlock(value) {
@@ -167,7 +205,13 @@ async function readBody(request) {
 const server = createServer(async (request, response) => {
   if (request.method === 'GET' && request.url === '/health') {
     response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ status: 'ok', maxLogBlockRange: maxLogBlockRange.toString() }));
+    response.end(
+      JSON.stringify({
+        status: 'ok',
+        upstreams: upstreamUrls.length,
+        maxLogBlockRange: maxLogBlockRange.toString(),
+      }),
+    );
     return;
   }
   if (request.method !== 'POST') {
@@ -196,9 +240,9 @@ const server = createServer(async (request, response) => {
   }
 });
 
-server.listen(port, '127.0.0.1', () => {
+server.listen(port, host, () => {
   console.log(
-    `[rpc-log-proxy] listening on http://127.0.0.1:${port} (eth_getLogs max ${maxLogBlockRange} blocks)`,
+    `[rpc-log-proxy] listening on ${host}:${port} with ${upstreamUrls.length} upstreams (eth_getLogs max ${maxLogBlockRange} blocks)`,
   );
 });
 

@@ -1,4 +1,4 @@
-export const MAX_LOG_BLOCK_RANGE = 100n;
+export const MAX_LOG_BLOCK_RANGE = 10n;
 
 interface BlockRange {
   fromBlock: bigint;

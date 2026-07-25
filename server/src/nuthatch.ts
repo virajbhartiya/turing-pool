@@ -1,3 +1,5 @@
+import { CHAIN_ID } from './config.js';
+
 type Fetcher = typeof fetch;
 
 export interface IndexedSwap {
@@ -62,6 +64,21 @@ export interface NuthatchActivity {
   riskWindow: NuthatchRiskWindow | null;
 }
 
+export interface NuthatchVaultAccounting {
+  deposited: {
+    token0: bigint;
+    token1: bigint;
+    shares: bigint;
+  };
+  withdrawn: {
+    token0: bigint;
+    token1: bigint;
+    shares: bigint;
+  };
+  depositCount: number;
+  withdrawalCount: number;
+}
+
 interface NuthatchReady {
   ready?: boolean;
   stalled?: boolean;
@@ -69,6 +86,11 @@ interface NuthatchReady {
   last_block?: number | string;
   lag_blocks?: number | string;
   sealed_through?: number | string | null;
+}
+
+interface NuthatchNest {
+  chain_id?: number | string;
+  registry_hash?: string | null;
 }
 
 interface SqlResponse {
@@ -179,6 +201,14 @@ function hash(value: unknown, field: string): `0x${string}` {
   return parsed as `0x${string}`;
 }
 
+function unsignedBigInt(value: unknown, field: string): bigint {
+  const parsed = text(value, field);
+  if (!/^[0-9]+$/.test(parsed)) {
+    throw new Error(`Nuthatch row has invalid ${field}`);
+  }
+  return BigInt(parsed);
+}
+
 function pool(value: unknown): 'primary' | 'vault' {
   if (value === 'primary' || value === 'vault') return value;
   throw new Error('Nuthatch row has invalid pool');
@@ -189,6 +219,89 @@ function rowObject(value: unknown): Record<string, unknown> {
     throw new Error('Nuthatch SQL returned a non-object row');
   }
   return value as Record<string, unknown>;
+}
+
+interface ValidatedReadiness {
+  tip: number;
+  lastBlock: number;
+  lagBlocks: number;
+  sealedThrough: number;
+}
+
+function validateReadiness(ready: NuthatchReady): ValidatedReadiness {
+  if (ready.ready !== true || ready.stalled === true) {
+    throw new Error('Nuthatch is not ready or has stalled');
+  }
+
+  const tip = integer(ready.tip, 'connected chain tip');
+  const lastBlock = integer(ready.last_block, 'readiness last block');
+  const lagBlocks = integer(ready.lag_blocks, 'readiness lag');
+  const sealedThrough =
+    ready.sealed_through === null
+      ? 0
+      : integer(ready.sealed_through, 'readiness sealed block');
+  if (sealedThrough > lastBlock || lastBlock > tip) {
+    throw new Error('Nuthatch readiness must satisfy sealed block <= last block <= chain tip');
+  }
+  if (lagBlocks !== tip - lastBlock) {
+    throw new Error('Nuthatch readiness lag does not match chain tip minus last block');
+  }
+  if (tip > 0 && lastBlock === 0) {
+    throw new Error('Nuthatch is not ready: the index has not begun its initial catch-up');
+  }
+  return { tip, lastBlock, lagBlocks, sealedThrough };
+}
+
+function validateNest(nest: NuthatchNest, expectedChainId: number): `0x${string}` {
+  if (!Number.isSafeInteger(expectedChainId) || expectedChainId <= 0) {
+    throw new Error('Expected Nuthatch chain ID must be a positive safe integer');
+  }
+  const chainId = integer(nest.chain_id, 'nest chain ID');
+  if (chainId !== expectedChainId) {
+    throw new Error(
+      `Nuthatch nest chain ID ${chainId} does not match expected chain ID ${expectedChainId}`,
+    );
+  }
+  return hash(nest.registry_hash, 'nest registry hash');
+}
+
+function validateProvenance(
+  response: SqlResponse,
+  query: string,
+  ready: ValidatedReadiness,
+  registryHash: `0x${string}`,
+): void {
+  const asOfValue = response.provenance?.as_of;
+  if (asOfValue === null || asOfValue === undefined) {
+    throw new Error(`Nuthatch ${query} response is missing provenance`);
+  }
+
+  const asOf = integer(asOfValue, `${query} provenance block`);
+  const sealedThroughValue = response.provenance?.sealed_through;
+  const sealedThrough =
+    sealedThroughValue === null || sealedThroughValue === undefined
+      ? null
+      : integer(sealedThroughValue, `${query} sealed provenance block`);
+  if (asOf > ready.lastBlock) {
+    throw new Error(
+      `Nuthatch ${query} provenance is ahead of the connected chain's final indexed block`,
+    );
+  }
+  if (sealedThrough !== null && sealedThrough > ready.sealedThrough) {
+    throw new Error(
+      `Nuthatch ${query} sealed provenance is ahead of the final readiness snapshot`,
+    );
+  }
+  if (sealedThrough !== null && sealedThrough > asOf) {
+    throw new Error(`Nuthatch ${query} sealed provenance is ahead of its indexed block`);
+  }
+  const provenanceRegistryHash = hash(
+    response.provenance?.registry_hash,
+    `${query} provenance registry hash`,
+  );
+  if (provenanceRegistryHash.toLowerCase() !== registryHash.toLowerCase()) {
+    throw new Error(`Nuthatch ${query} provenance registry hash does not match the nest`);
+  }
 }
 
 function parseSwap(value: unknown): IndexedSwap {
@@ -259,6 +372,7 @@ export async function loadNuthatchActivity(
   endpoint: string,
   limit = 50,
   fetcher: Fetcher = fetch,
+  expectedChainId = CHAIN_ID,
 ): Promise<NuthatchActivity> {
   const base = normalizeNuthatchUrl(endpoint);
   const rowLimit = Math.max(1, Math.min(100, Math.floor(limit)));
@@ -267,7 +381,11 @@ export async function loadNuthatchActivity(
   // The public/free-tier Nuthatch server deliberately caps concurrent SQL
   // work. Keep this read path serialized so one dashboard refresh cannot
   // self-throttle with its own queries.
-  const ready = await getJson<NuthatchReady>(`${base}/ready`, fetcher);
+  validateReadiness(await getJson<NuthatchReady>(`${base}/ready`, fetcher));
+  const registryHash = validateNest(
+    await getJson<NuthatchNest>(`${base}/nest`, fetcher),
+    expectedChainId,
+  );
   const trades = await getJson<SqlResponse>(
     `${base}/sql?q=${encodeURIComponent(tradeQuery)}&max_rows=${rowLimit}`,
     fetcher,
@@ -284,9 +402,9 @@ export async function loadNuthatchActivity(
     `${base}/sql?q=${encodeURIComponent(RISK_WINDOW_SQL)}&max_rows=1`,
     fetcher,
   );
-  if (ready.ready !== true || ready.stalled === true) {
-    throw new Error('Nuthatch is not ready or has stalled');
-  }
+  const ready = validateReadiness(
+    await getJson<NuthatchReady>(`${base}/ready`, fetcher),
+  );
   if (
     !Array.isArray(trades.rows) ||
     !Array.isArray(activity.rows) ||
@@ -295,9 +413,13 @@ export async function loadNuthatchActivity(
   ) {
     throw new Error('Nuthatch SQL response is missing rows');
   }
+  validateProvenance(trades, 'trades', ready, registryHash);
+  validateProvenance(activity, 'activity', ready, registryHash);
+  validateProvenance(feeHistoryResponse, 'fee history', ready, registryHash);
+  validateProvenance(riskWindowResponse, 'risk window', ready, registryHash);
 
   const indexedBlock = text(
-    trades.provenance?.as_of ?? ready.last_block ?? 0,
+    trades.provenance?.as_of ?? ready.lastBlock,
     'indexed block',
   );
   const summary = activity.rows[0]
@@ -327,12 +449,85 @@ export async function loadNuthatchActivity(
       trades.provenance?.sealed_through === undefined
         ? null
         : text(trades.provenance.sealed_through, 'sealed through'),
-    lagBlocks: integer(ready.lag_blocks ?? 0, 'lag blocks'),
-    registryHash: trades.provenance?.registry_hash ?? null,
+    lagBlocks: ready.lagBlocks,
+    registryHash,
     provenance: trades.provenance?.source ?? 'hot+sealed',
     swaps: trades.rows.map(parseSwap).reverse(),
     feeHistory: feeHistoryResponse.rows.map(parseFeeSchedule).reverse(),
     summary,
     riskWindow,
   };
+}
+
+export async function loadNuthatchVaultAccounting(
+  endpoint: string,
+  walletInput: unknown,
+  fetcher: Fetcher = fetch,
+  expectedChainId = CHAIN_ID,
+): Promise<NuthatchVaultAccounting> {
+  const base = normalizeNuthatchUrl(endpoint);
+  const wallet = address(walletInput, 'wallet');
+  const sql = `
+    SELECT
+      'deposit' AS action,
+      "amount0" AS amount0,
+      "amount1" AS amount1,
+      shares
+    FROM active_vault__liquidity_added
+    WHERE lower(receiver) = lower('${wallet}')
+    UNION ALL
+    SELECT
+      'withdrawal' AS action,
+      "amount0" AS amount0,
+      "amount1" AS amount1,
+      shares
+    FROM active_vault__liquidity_removed
+    WHERE lower(provider) = lower('${wallet}')
+  `;
+
+  validateReadiness(await getJson<NuthatchReady>(`${base}/ready`, fetcher));
+  const registryHash = validateNest(
+    await getJson<NuthatchNest>(`${base}/nest`, fetcher),
+    expectedChainId,
+  );
+  const response = await getJson<SqlResponse>(
+    `${base}/sql?q=${encodeURIComponent(sql)}&max_rows=1000`,
+    fetcher,
+  );
+  const ready = validateReadiness(
+    await getJson<NuthatchReady>(`${base}/ready`, fetcher),
+  );
+  if (!Array.isArray(response.rows)) {
+    throw new Error('Nuthatch SQL response is missing rows');
+  }
+  validateProvenance(response, 'vault accounting', ready, registryHash);
+
+  const accounting: NuthatchVaultAccounting = {
+    deposited: { token0: 0n, token1: 0n, shares: 0n },
+    withdrawn: { token0: 0n, token1: 0n, shares: 0n },
+    depositCount: 0,
+    withdrawalCount: 0,
+  };
+  for (const value of response.rows) {
+    const row = rowObject(value);
+    const amounts = {
+      token0: unsignedBigInt(row.amount0, 'amount0'),
+      token1: unsignedBigInt(row.amount1, 'amount1'),
+      shares: unsignedBigInt(row.shares, 'shares'),
+    };
+    if (row.action === 'deposit') {
+      accounting.deposited.token0 += amounts.token0;
+      accounting.deposited.token1 += amounts.token1;
+      accounting.deposited.shares += amounts.shares;
+      accounting.depositCount += 1;
+    } else if (row.action === 'withdrawal') {
+      accounting.withdrawn.token0 += amounts.token0;
+      accounting.withdrawn.token1 += amounts.token1;
+      accounting.withdrawn.shares += amounts.shares;
+      accounting.withdrawalCount += 1;
+    } else {
+      throw new Error('Nuthatch row has invalid vault accounting action');
+    }
+  }
+  return accounting;
 }

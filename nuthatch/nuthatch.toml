@@ -6,27 +6,6 @@ rpc_urls = ["https://worldchain-mainnet.g.alchemy.com/public"]
 schema_version = 1
 
 [[contracts]]
-alias = "router"
-address = "0x237726Cdf497794357D4BcB0bCDBD04437F0eAa3"
-start_block = 32814381
-abi = "abis/router.json"
-events = ["HumanGated", "Swapped"]
-
-[[contracts]]
-alias = "quota"
-address = "0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B"
-start_block = 32814381
-abi = "abis/quota.json"
-events = ["UsageRecorded", "FeeScheduleUpdated", "RiskPolicyApplied"]
-
-[[contracts]]
-alias = "aqua"
-address = "0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec"
-start_block = 32814381
-abi = "abis/aqua.json"
-events = ["Shipped", "Docked"]
-
-[[contracts]]
 alias = "vault_router"
 address = "0x0435F9650b70310e98fAEcADa042b3b4e4937Cad"
 start_block = 32837643
@@ -41,8 +20,8 @@ abi = "abis/quota.json"
 events = ["UsageRecorded", "FeeScheduleUpdated", "RiskPolicyApplied"]
 
 [[contracts]]
-alias = "faucet"
-address = "0x8DE77C94983ACDaE8f08d558804068cA24FF4fC6"
-start_block = 32836272
-abi = "abis/faucet.json"
-events = ["Claimed"]
+alias = "active_vault"
+address = "0xfe193d73161053E52B15527c9B508DB1357Ed072"
+start_block = 32837643
+abi = "abis/vault.json"
+events = ["LiquidityAdded", "LiquidityRemoved"]

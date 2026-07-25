@@ -4,6 +4,7 @@ import { apiBase } from '../hooks/useProtocol';
 import { responseJson } from '../lib/apiResponse';
 import {
   addressExplorer,
+  formatSignedUnits,
   formatUnits,
   parseUnits,
   shortAddress,
@@ -578,9 +579,9 @@ export function VaultWorkspace({
                   )}
                   {account && lpEconomics && (
                     <div className={`vault-pnl ${lpEconomics.pnl >= 0 ? 'positive' : 'negative'}`}>
-                      <span>Position earnings</span>
+                      <span>Position P&amp;L</span>
                       <strong>
-                        {lpEconomics.pnl >= 0 ? '+' : ''}
+                        {lpEconomics.pnl > 0 ? '+' : ''}
                         {lpEconomics.pnl.toLocaleString('en-US', { maximumFractionDigits: 4 })}{' '}
                         {vault.token1.symbol}
                       </strong>
@@ -588,8 +589,53 @@ export function VaultWorkspace({
                         {lpEconomics.pnlPercent === undefined
                           ? 'No contribution basis yet'
                           : `${lpEconomics.pnlPercent >= 0 ? '+' : ''}${lpEconomics.pnlPercent.toFixed(3)}%`}
-                        {' · '}fees and inventory at the current pool price
+                        {' · '}inventory change valued at the current pool price
                       </small>
+                      <section
+                        aria-labelledby="vault-token-change-label"
+                        className="vault-pnl-legs"
+                      >
+                        <h4 id="vault-token-change-label">Token inventory change</h4>
+                        <dl>
+                          <div
+                            className={BigInt(vault.position.accounting.pnlToken0) > 0n
+                              ? 'positive'
+                              : BigInt(vault.position.accounting.pnlToken0) < 0n
+                                ? 'negative'
+                                : 'neutral'}
+                          >
+                            <dt>{vault.token0.symbol}</dt>
+                            <dd>
+                              {formatSignedUnits(
+                                vault.position.accounting.pnlToken0,
+                                vault.token0.decimals,
+                                6,
+                              )}{' '}
+                              {vault.token0.symbol}
+                            </dd>
+                          </div>
+                          <div
+                            className={BigInt(vault.position.accounting.pnlToken1) > 0n
+                              ? 'positive'
+                              : BigInt(vault.position.accounting.pnlToken1) < 0n
+                                ? 'negative'
+                                : 'neutral'}
+                          >
+                            <dt>{vault.token1.symbol}</dt>
+                            <dd>
+                              {formatSignedUnits(
+                                vault.position.accounting.pnlToken1,
+                                vault.token1.decimals,
+                                6,
+                              )}{' '}
+                              {vault.token1.symbol}
+                            </dd>
+                          </div>
+                        </dl>
+                        <small>
+                          Compared with assets supplied, net of withdrawals.
+                        </small>
+                      </section>
                     </div>
                   )}
                   {account && (

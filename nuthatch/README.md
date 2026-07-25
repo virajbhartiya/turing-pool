@@ -3,10 +3,10 @@
 This nest indexes the live World Chain market:
 
 - canonical World AgentBook identity reads
-- identity decisions emitted by `_humanGate` on the primary and vault routers
+- identity decisions emitted by `_humanGate` on the active vault router
 - real SwapVM fills settled from Aqua virtual balances
+- active-vault deposits, withdrawals, and LP-share accounting
 - HumanQuota usage and activity-priced fee updates
-- Aqua strategy shipping and docking
 
 The contracts use World Chain `tETH/tUSD` test assets. They exercise the real
 deployed Aqua and SwapVM code paths, but do not claim Pathfinder liquidity.
@@ -41,9 +41,9 @@ pnpm nuthatch:dev
 
 Nuthatch serves its admin UI at `http://127.0.0.1:8288/_admin/`. Start the
 Turing Pool API with `NUTHATCH_URL=http://127.0.0.1:8288`; the dashboard will
-then show Nuthatch's indexed block and use its correlated trade rows. If the
-indexer is unavailable, settlement continues and the API falls back to direct
-chain events.
+then show Nuthatch's indexed block and use its correlated trade and LP rows.
+The live dashboard fails closed while this load-bearing index is unavailable;
+it never substitutes mocked or stale activity.
 
 The project command honors each contract's checked-in deployment block. Set
 `NUTHATCH_BACKFILL_BLOCKS` only when you explicitly want recent-history mode.
@@ -54,11 +54,14 @@ Useful queries:
 
 ```bash
 nuthatch sql --dir nuthatch \
-  'SELECT * FROM turing_trades ORDER BY block_number DESC, log_index DESC LIMIT 10'
+  'SELECT * FROM turing_all_trades ORDER BY block_number DESC, log_index DESC LIMIT 10'
 
 nuthatch sql --dir nuthatch \
   'SELECT * FROM turing_activity_mix'
 
 nuthatch sql --dir nuthatch \
   'SELECT * FROM turing_fee_history ORDER BY block_number DESC, log_index DESC'
+
+nuthatch sql --dir nuthatch \
+  'SELECT * FROM active_vault__liquidity_added ORDER BY block_number DESC, log_index DESC'
 ```
