@@ -22,8 +22,20 @@ export const demoTradeAmounts: Record<DemoTradeDirection, string[]> = {
 };
 
 export function apiBase(): string {
-  const override = window.location.hash.slice(1);
-  return (override || window.location.origin).replace(/\/$/, '');
+  const fragment = window.location.hash.slice(1).trim();
+
+  if (fragment) {
+    try {
+      const override = new URL(decodeURIComponent(fragment));
+      if (override.protocol === 'http:' || override.protocol === 'https:') {
+        return override.toString().replace(/\/$/, '');
+      }
+    } catch {
+      // Ordinary section hashes are navigation state, not API host overrides.
+    }
+  }
+
+  return window.location.origin.replace(/\/$/, '');
 }
 
 export function useProtocol(
