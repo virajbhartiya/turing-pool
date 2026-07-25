@@ -4,28 +4,28 @@ import test from 'node:test';
 import { calculateRevenueNeutralFees } from './index.js';
 
 const defaults = {
-  targetFeeBps: 19,
+  targetFeeBps: 30,
   riskSpreadBps: 28,
   desiredTightFeeBps: 5,
-  currentTightFeeBps: 8,
-  currentWideFeeBps: 30,
+  currentTightFeeBps: 16,
+  currentWideFeeBps: 44,
   minTightFeeBps: 2,
   maxWideFeeBps: 100,
 };
 
-test('equal human and bot activity funds a 5 bps retail fee with a 33 bps bot fee', () => {
+test('equal human and bot activity balances a 16 bps human fee with a 44 bps bot fee', () => {
   const decision = calculateRevenueNeutralFees({
     ...defaults,
     tightVolume: 100n,
     wideVolume: 100n,
   });
 
-  assert.equal(decision.tightFeeBps, 5);
-  assert.equal(decision.wideFeeBps, 33);
+  assert.equal(decision.tightFeeBps, 16);
+  assert.equal(decision.wideFeeBps, 44);
   assert.equal(decision.riskSpreadBps, 28);
-  assert.equal(decision.projectedWeightedFeeBps, 19);
+  assert.equal(decision.projectedWeightedFeeBps, 30);
   assert.equal(decision.revenueDeltaBps, 0);
-  assert.equal(decision.status, 'balanced');
+  assert.equal(decision.status, 'already-balanced');
 });
 
 test('both rates move up the curve when human-backed flow reaches 75 percent', () => {
@@ -35,22 +35,22 @@ test('both rates move up the curve when human-backed flow reaches 75 percent', (
     wideVolume: 100n,
   });
 
-  assert.equal(decision.tightFeeBps, 12);
-  assert.equal(decision.wideFeeBps, 40);
-  assert.equal(decision.projectedWeightedFeeBps, 19);
+  assert.equal(decision.tightFeeBps, 23);
+  assert.equal(decision.wideFeeBps, 51);
+  assert.equal(decision.projectedWeightedFeeBps, 30);
   assert.equal(decision.humanShareBps, 7500);
 });
 
-test('a two-to-one human mix rounds to 10/37 while preserving the target exactly', () => {
+test('a two-to-one human mix moves to 21/48 while preserving the target exactly', () => {
   const decision = calculateRevenueNeutralFees({
     ...defaults,
     tightVolume: 200n,
     wideVolume: 100n,
   });
 
-  assert.equal(decision.tightFeeBps, 10);
-  assert.equal(decision.wideFeeBps, 37);
-  assert.equal(decision.projectedWeightedFeeBps, 19);
+  assert.equal(decision.tightFeeBps, 21);
+  assert.equal(decision.wideFeeBps, 48);
+  assert.equal(decision.projectedWeightedFeeBps, 30);
   assert.equal(decision.status, 'balanced');
 });
 
@@ -61,9 +61,9 @@ test('both rates continue upward as human-backed flow reaches 90 percent', () =>
     wideVolume: 100n,
   });
 
-  assert.equal(decision.tightFeeBps, 16);
-  assert.equal(decision.wideFeeBps, 46);
-  assert.equal(decision.projectedWeightedFeeBps, 19);
+  assert.equal(decision.tightFeeBps, 27);
+  assert.equal(decision.wideFeeBps, 57);
+  assert.equal(decision.projectedWeightedFeeBps, 30);
 });
 
 test('a capped wide lane recomputes the tight lane from residual target revenue', () => {
@@ -71,12 +71,12 @@ test('a capped wide lane recomputes the tight lane from residual target revenue'
     ...defaults,
     tightVolume: 900n,
     wideVolume: 100n,
-    maxWideFeeBps: 30,
+    maxWideFeeBps: 40,
   });
 
-  assert.equal(decision.tightFeeBps, 18);
-  assert.equal(decision.wideFeeBps, 30);
-  assert.equal(decision.projectedWeightedFeeBps, 19.2);
+  assert.equal(decision.tightFeeBps, 29);
+  assert.equal(decision.wideFeeBps, 40);
+  assert.equal(decision.projectedWeightedFeeBps, 30.1);
   assert.equal(decision.status, 'rounded');
 });
 
@@ -100,9 +100,9 @@ test('the tight-only endpoint puts the active lane at target and unused lane at 
     wideVolume: 0n,
   });
 
-  assert.equal(decision.tightFeeBps, 19);
-  assert.equal(decision.wideFeeBps, 47);
-  assert.equal(decision.projectedWeightedFeeBps, 19);
+  assert.equal(decision.tightFeeBps, 30);
+  assert.equal(decision.wideFeeBps, 58);
+  assert.equal(decision.projectedWeightedFeeBps, 30);
   assert.equal(decision.status, 'balanced');
 });
 
@@ -114,8 +114,8 @@ test('the wide-only endpoint keeps the tight floor and puts the active lane at t
   });
 
   assert.equal(decision.tightFeeBps, 5);
-  assert.equal(decision.wideFeeBps, 19);
-  assert.equal(decision.projectedWeightedFeeBps, 19);
+  assert.equal(decision.wideFeeBps, 30);
+  assert.equal(decision.projectedWeightedFeeBps, 30);
   assert.equal(decision.status, 'balanced');
 });
 
@@ -123,11 +123,11 @@ test('integer fee rounding is explicit and bounded to at most half a blended bas
   const decision = calculateRevenueNeutralFees({
     ...defaults,
     tightVolume: 1n,
-    wideVolume: 18n,
+    wideVolume: 2n,
   });
 
-  assert.equal(decision.tightFeeBps, 5);
-  assert.equal(decision.wideFeeBps, 20);
+  assert.equal(decision.tightFeeBps, 11);
+  assert.equal(decision.wideFeeBps, 40);
   assert.ok(Math.abs(decision.revenueDeltaBps) <= 0.5);
   assert.equal(decision.status, 'rounded');
 });

@@ -31,11 +31,11 @@ contract DeployDemo is Script {
     uint256 internal constant POOL_USD = 4_000_000e18; // demo price: 1 tETH = 4000 tUSD
     uint256 internal constant DAILY_CAP_ETH = 10e18;
     uint256 internal constant DAILY_CAP_USD = 40_000e18;
-    uint32 internal constant TARGET_FEE_BPS = 19;
+    uint32 internal constant TARGET_FEE_BPS = 30;
     uint32 internal constant DESIRED_TIGHT_FEE_BPS = 5;
     uint32 internal constant MAX_WIDE_FEE_BPS = 100;
-    uint32 internal constant WIDE_BPS = 33;
-    uint32 internal constant TIGHT_BPS = 5;
+    uint32 internal constant WIDE_BPS = 44;
+    uint32 internal constant TIGHT_BPS = 16;
 
     function run() external {
         uint256 deployerPk = vm.envOr(

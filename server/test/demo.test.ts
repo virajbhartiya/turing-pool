@@ -171,7 +171,7 @@ test('hosted preview snapshot stays truthful and preserves all three pricing lan
   assert.equal(state.runtime.mode, 'hosted-preview');
   assert.match(state.runtime.label, /snapshot/i);
   assert.equal(state.runtime.rpcStatus, 'not-used');
-  assert.equal(state.feeController.targetFeeBps, 19);
+  assert.equal(state.feeController.targetFeeBps, 30);
   assert.ok(Math.abs(state.feeController.revenueDeltaBps) <= 0.5);
 });
 
@@ -192,7 +192,7 @@ test('Vercel backend serves health, state, direction-aware quotes, and an explic
   assert.equal(quotes.status, 200);
   assert.equal(reverseQuotes.status, 200);
   assert.equal(anonymousQuote.status, 200);
-  assert.equal((await state.clone().json()).feeController.targetFeeBps, 19);
+  assert.equal((await state.clone().json()).feeController.targetFeeBps, 30);
   assert.equal((await reverseQuotes.json()).direction, 'tUSD-to-tETH');
   assert.equal((await anonymousQuote.json()).execute.available, false);
 });

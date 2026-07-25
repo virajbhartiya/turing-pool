@@ -2,7 +2,7 @@ const BPS_SCALE = 10_000n;
 const DISPLAY_SCALE = 1_000_000n;
 
 export const DEFAULT_REVENUE_POLICY = Object.freeze({
-  targetFeeBps: 19,
+  targetFeeBps: 30,
   riskSpreadBps: 28,
   desiredTightFeeBps: 5,
   // Retained for backwards compatibility. desiredTightFeeBps is the actual

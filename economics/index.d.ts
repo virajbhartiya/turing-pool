@@ -37,7 +37,7 @@ export interface RevenueNeutralFeeDecision {
 }
 
 export const DEFAULT_REVENUE_POLICY: Readonly<{
-  targetFeeBps: 19;
+  targetFeeBps: 30;
   riskSpreadBps: 28;
   desiredTightFeeBps: 5;
   minTightFeeBps: 2;

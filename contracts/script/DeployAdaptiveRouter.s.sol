@@ -21,11 +21,11 @@ contract DeployAdaptiveRouter is Script {
     uint8 internal constant OP_SALT = 20;
     uint8 internal constant OP_HUMAN_GATE = 34;
 
-    uint32 internal constant TARGET_FEE_BPS = 19;
+    uint32 internal constant TARGET_FEE_BPS = 30;
     uint32 internal constant DESIRED_TIGHT_FEE_BPS = 5;
     uint32 internal constant MAX_WIDE_FEE_BPS = 100;
-    uint32 internal constant INITIAL_TIGHT_FEE_BPS = 5;
-    uint32 internal constant INITIAL_WIDE_FEE_BPS = 33;
+    uint32 internal constant INITIAL_TIGHT_FEE_BPS = 16;
+    uint32 internal constant INITIAL_WIDE_FEE_BPS = 44;
     uint256 internal constant DAILY_CAP_ETH = 10e18;
     uint256 internal constant DAILY_CAP_USD = 40_000e18;
 

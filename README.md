@@ -8,9 +8,9 @@ On-chain market makers can't tell retail flow from toxic arb-bot flow, so every 
 - **Anonymous bots**: the compensating activity-priced surcharge
 - **Sybil wallets**: same human ⇒ same `humanId` ⇒ same shared quota. A fresh wallet buys you nothing.
 
-The per-human cap is what makes this economically sound rather than a generic identity discount: bounded per-human volume ⇒ bounded adverse selection per human ⇒ LPs can rationally quote the tight tier. One human cannot reset that risk limit by creating another wallet. An on-chain revenue-neutral controller records the executed human/bot input notional after every mined fill and solves the next fee pair so the LP keeps a 19bps blended target. Trade count never enters the equation:
+The per-human cap is what makes this economically sound rather than a generic identity discount: bounded per-human volume ⇒ bounded adverse selection per human ⇒ LPs can rationally quote the tight tier. One human cannot reset that risk limit by creating another wallet. An on-chain revenue-neutral controller records the executed human/bot input notional after every mined fill and solves the next fee pair so the LP keeps a 30bps blended target. Trade count never enters the equation:
 
-`human volume × tight fee + bot volume × wide fee ≈ total volume × 19bps`
+`human volume × tight fee + bot volume × wide fee ≈ total volume × 30bps`
 
 Built at **ETHGlobal Lisbon 2026** for the World AgentKit, 1inch Aqua, and The Graph tracks.
 
@@ -144,6 +144,6 @@ docs/        design and deployment runbooks
 1. Bot asks for a quote → **402: prove human backing** → the current anonymous lane.
 2. `_humanGate` executes inside SwapVM as opcode 34 and emits `HumanGated`.
 3. AgentKit auto-signs SIWE → verified on-chain → the current tight lane. A second wallet attempts `remaining quota + 1` and is demoted to wide because it shares the same `humanId`.
-4. Pick 0.1, 0.5, or 1.0 tETH and mine a fill. HumanQuota adds that exact executed notional and immediately solves the next tight/wide pair. A 1.0 tETH fill has 10× the influence of a 0.1 tETH fill while the LP blend stays ≈19bps.
+4. Pick 0.1, 0.5, or 1.0 tETH and mine a fill. HumanQuota adds that exact executed notional and immediately solves the next tight/wide pair. A 1.0 tETH fill has 10× the influence of a 0.1 tETH fill while the LP blend stays ≈30bps.
 
 The exact stage narration and preflight checklist are in [docs/DEMO.md](./docs/DEMO.md).

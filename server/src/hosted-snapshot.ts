@@ -18,8 +18,8 @@ const ADDRESSES = {
 const HUMAN_ID = '3203383023';
 const TOKEN_SCALE = 10n ** 18n;
 const PRICE = 100n;
-const TIGHT_FEE_BPS = 5n;
-const WIDE_FEE_BPS = 30n;
+const TIGHT_FEE_BPS = 13n;
+const WIDE_FEE_BPS = 41n;
 const QUOTA_REMAINING = 2n * TOKEN_SCALE;
 const QUOTA_REMAINING_TUSD = 20_000n * TOKEN_SCALE;
 const DAILY_CAP = 10n * TOKEN_SCALE;
@@ -65,10 +65,10 @@ export function hostedDemoQuotes(
     feeSchedule: {
       tightFeeBps: TIGHT_FEE_BPS.toString(),
       wideFeeBps: WIDE_FEE_BPS.toString(),
-      targetFeeBps: '19',
-      humanShareBps: '6666',
-      tightVolume: '0',
-      wideVolume: '0',
+      targetFeeBps: '30',
+      humanShareBps: '3999',
+      tightVolume: (2n * TOKEN_SCALE).toString(),
+      wideVolume: (3n * TOKEN_SCALE + 1n).toString(),
     },
     human: {
       ...route,
@@ -189,7 +189,7 @@ export function hostedState() {
         active: false,
         kind: 'initial-ship',
         from: null,
-        to: { tightFeeBps: '8', wideFeeBps: '30' },
+        to: { tightFeeBps: '16', wideFeeBps: '44' },
       },
       {
         blockNumber: 'preview-2',
@@ -197,8 +197,8 @@ export function hostedState() {
         strategyHash: activeHash,
         active: true,
         kind: 'repriced',
-        from: { tightFeeBps: '8', wideFeeBps: '30' },
-        to: { tightFeeBps: '5', wideFeeBps: '30' },
+        from: { tightFeeBps: '16', wideFeeBps: '44' },
+        to: { tightFeeBps: '13', wideFeeBps: '41' },
       },
     ],
     swaps: [
