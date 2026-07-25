@@ -1126,6 +1126,66 @@ td a:hover { color: var(--accent); }
 }
 .vault-amount input { min-height: 50px; padding: 8px 70px 8px 12px; font: 650 20px var(--mono); }
 .vault-amount b { position: absolute; right: 11px; bottom: 17px; color: var(--text-2); font: 750 11px var(--mono); }
+.vault-deposit-preview {
+  margin-top: 11px;
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--human);
+  padding: 11px;
+  background: #080d10;
+}
+.vault-deposit-preview > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 9px;
+}
+.vault-deposit-preview > header span {
+  color: var(--text);
+  font: 800 10px var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.vault-deposit-preview > header b {
+  color: var(--human);
+  font: 750 9px var(--mono);
+  text-align: right;
+  text-transform: uppercase;
+}
+.vault-deposit-consumed {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 0;
+}
+.vault-deposit-consumed i { color: var(--muted); font: 12px var(--mono); font-style: normal; }
+.vault-deposit-consumed div:last-child { text-align: right; }
+.vault-deposit-consumed small {
+  display: block;
+  color: var(--muted);
+  font: 8px var(--mono);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.vault-deposit-consumed strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font: 750 13px var(--mono);
+}
+.vault-deposit-preview dl { display: grid; gap: 5px; margin: 0; }
+.vault-deposit-preview dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font: 9px/1.4 var(--mono);
+}
+.vault-deposit-preview dd { margin: 0; color: var(--text-2); text-align: right; }
+.vault-deposit-preview.invalid { border-left-color: var(--bot); }
+.vault-deposit-preview.invalid > header b { color: var(--bot); }
+.vault-deposit-preview > p { margin: 10px 0 0; color: var(--muted); font: 10px/1.45 var(--mono); }
 .vault-quote { margin-top: 9px; border: 1px solid var(--border); border-left: 3px solid var(--bot); padding: 11px; background: #0b0d10; }
 .vault-quote.human { border-left-color: var(--human); }
 .vault-quote > span { color: var(--muted); font: 750 11px var(--mono); text-transform: uppercase; }

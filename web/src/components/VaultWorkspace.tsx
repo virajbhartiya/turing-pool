@@ -46,9 +46,26 @@ const IDLE_STATUS: ActionStatus = {
 };
 
 const ACTIONS = ['deposit', 'redeem'] as const;
+const MINIMUM_LIQUIDITY = 1_000n;
 
 function waitForRpcVisibility(milliseconds = 650): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function squareRoot(value: bigint): bigint {
+  if (value < 2n) return value;
+  let previous = value;
+  let next = (previous + value / previous) / 2n;
+  while (next < previous) {
+    previous = next;
+    next = (previous + value / previous) / 2n;
+  }
+  return previous;
+}
+
+function ceilMulDiv(value: bigint, multiplier: bigint, denominator: bigint): bigint {
+  const product = value * multiplier;
+  return (product + denominator - 1n) / denominator;
 }
 
 export function VaultWorkspace({
@@ -168,6 +185,50 @@ export function VaultWorkspace({
       token0Price,
     };
   }, [vault]);
+  const depositPreview = useMemo(() => {
+    if (!vault) return undefined;
+    try {
+      const maxAmount0 = BigInt(parseUnits(deposit0, vault.token0.decimals));
+      const maxAmount1 = BigInt(parseUnits(deposit1, vault.token1.decimals));
+      const reserve0 = BigInt(vault.reserves.token0);
+      const reserve1 = BigInt(vault.reserves.token1);
+      const supply = BigInt(vault.totalSupply);
+      let shares: bigint;
+      let amount0: bigint;
+      let amount1: bigint;
+
+      if (supply === 0n) {
+        const grossShares = squareRoot(maxAmount0 * maxAmount1);
+        shares = grossShares > MINIMUM_LIQUIDITY
+          ? grossShares - MINIMUM_LIQUIDITY
+          : 0n;
+        amount0 = shares > 0n ? maxAmount0 : 0n;
+        amount1 = shares > 0n ? maxAmount1 : 0n;
+      } else if (reserve0 > 0n && reserve1 > 0n) {
+        const sharesFromToken0 = (maxAmount0 * supply) / reserve0;
+        const sharesFromToken1 = (maxAmount1 * supply) / reserve1;
+        shares = sharesFromToken0 < sharesFromToken1
+          ? sharesFromToken0
+          : sharesFromToken1;
+        amount0 = shares > 0n ? ceilMulDiv(shares, reserve0, supply) : 0n;
+        amount1 = shares > 0n ? ceilMulDiv(shares, reserve1, supply) : 0n;
+      } else {
+        shares = 0n;
+        amount0 = 0n;
+        amount1 = 0n;
+      }
+
+      return {
+        amount0,
+        amount1,
+        shares,
+        unused0: maxAmount0 - amount0,
+        unused1: maxAmount1 - amount1,
+      };
+    } catch {
+      return undefined;
+    }
+  }, [deposit0, deposit1, vault]);
   const actionPending = ['preparing', 'wallet', 'mining'].includes(status.state);
 
   async function requireWallet(): Promise<{
@@ -394,11 +455,48 @@ export function VaultWorkspace({
                     <>
                       <span>Add liquidity</span>
                       <h3>Mint {vault.shareToken.symbol}</h3>
-                      <p>Enter maximums. The vault consumes only the current pool ratio; excess remains in your wallet.</p>
+                      <p>Set the most you will supply. The live quote below shows the exact two-token ratio the vault can consume.</p>
                       <label className="vault-amount">Maximum {vault.token0.symbol}<input inputMode="decimal" value={deposit0} onChange={(event) => setDeposit0(event.target.value)} /><b>{vault.token0.symbol}</b></label>
                       <label className="vault-amount">Maximum {vault.token1.symbol}<input inputMode="decimal" value={deposit1} onChange={(event) => setDeposit1(event.target.value)} /><b>{vault.token1.symbol}</b></label>
+                      <div className={`vault-deposit-preview ${!depositPreview || depositPreview.shares === 0n ? 'invalid' : ''}`}>
+                        <header>
+                          <span>Live deposit quote</span>
+                          <b>Two-sided · current pool ratio</b>
+                        </header>
+                        {depositPreview && depositPreview.shares > 0n ? (
+                          <>
+                            <div className="vault-deposit-consumed">
+                              <div>
+                                <small>Vault will take</small>
+                                <strong>{formatUnits(depositPreview.amount0, vault.token0.decimals, 6)} {vault.token0.symbol}</strong>
+                              </div>
+                              <i>+</i>
+                              <div>
+                                <small>Vault will take</small>
+                                <strong>{formatUnits(depositPreview.amount1, vault.token1.decimals, 6)} {vault.token1.symbol}</strong>
+                              </div>
+                            </div>
+                            <dl>
+                              <div>
+                                <dt>Estimated LP shares</dt>
+                                <dd>{formatUnits(depositPreview.shares, 18, 6)} {vault.shareToken.symbol}</dd>
+                              </div>
+                              <div>
+                                <dt>Unused maximums</dt>
+                                <dd>
+                                  {formatUnits(depositPreview.unused0, vault.token0.decimals, 6)} {vault.token0.symbol}
+                                  {' · '}
+                                  {formatUnits(depositPreview.unused1, vault.token1.decimals, 6)} {vault.token1.symbol}
+                                </dd>
+                              </div>
+                            </dl>
+                          </>
+                        ) : (
+                          <p>Enter positive amounts for both assets. This vault does not accept one-sided deposits.</p>
+                        )}
+                      </div>
                       <div className="vault-balance-row"><span>Wallet</span><b>{formatUnits(vault.position.token0Balance, vault.token0.decimals, 4)} {vault.token0.symbol}</b><b>{formatUnits(vault.position.token1Balance, vault.token1.decimals, 4)} {vault.token1.symbol}</b></div>
-                      <button className="vault-primary" disabled={vault.paused || actionPending} onClick={() => void addLiquidity()} type="button">
+                      <button className="vault-primary" disabled={vault.paused || actionPending || !depositPreview || depositPreview.shares === 0n} onClick={() => void addLiquidity()} type="button">
                         {!account ? 'Connect MetaMask to deposit' : vault.paused ? 'Pool deposits paused' : 'Approve assets & add liquidity'}
                       </button>
                     </>
