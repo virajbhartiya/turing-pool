@@ -8,8 +8,8 @@ interface IntegrationFlowProps {
 
 export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
   const activity = state.dataSources.activity;
-  const nuthatchConnected =
-    activity.name.toLowerCase().includes('nuthatch') && activity.status === 'connected';
+  const usesNuthatch = activity.mode === 'sql+mcp';
+  const nuthatchConnected = usesNuthatch && activity.status === 'connected';
   const receiptIndexed =
     lastTrade !== undefined &&
     state.swaps.some(
@@ -21,7 +21,7 @@ export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
       ? 'Receipt indexed'
       : `Following block ${activity.indexedBlock ?? '—'}`
     : activity.status === 'error'
-      ? 'Nuthatch offline · chain fallback'
+      ? `${usesNuthatch ? 'Nuthatch' : 'Indexer'} offline · chain fallback`
       : 'Chain fallback active';
 
   return (
