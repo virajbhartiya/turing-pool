@@ -61,6 +61,19 @@ body::before {
   margin-left: auto;
 }
 
+.dex-source-link {
+  padding: 9px 11px;
+  color: var(--muted);
+  font: 750 10px var(--mono);
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.dex-source-link:hover {
+  color: var(--accent);
+}
+
 .dex-symbol {
   width: 36px;
   color: var(--accent);
@@ -1822,6 +1835,174 @@ body::before {
   white-space: nowrap;
 }
 
+.source-guide {
+  border: 1px solid var(--border-strong);
+  border-top: 2px solid var(--accent);
+  background:
+    linear-gradient(180deg, rgba(255, 173, 31, 0.025), transparent 18%),
+    #060a0e;
+}
+
+.source-guide > header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 23px 25px;
+  border-bottom: 1px solid var(--border);
+}
+
+.source-guide > header h2 {
+  margin-top: 7px;
+  font-size: clamp(26px, 3vw, 40px);
+  letter-spacing: -0.035em;
+}
+
+.source-guide > header p {
+  max-width: 760px;
+  margin: 8px 0 0;
+  color: var(--text-2);
+  font: 14px/1.55 var(--sans);
+}
+
+.repository-link {
+  flex: 0 0 auto;
+  border: 1px solid var(--accent);
+  padding: 11px 13px;
+  color: var(--accent);
+  font: 800 10px var(--mono);
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.source-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--border);
+}
+
+.source-guide-grid > article {
+  min-width: 0;
+  padding: 21px;
+  background: #080c10;
+  box-shadow: inset 0 2px var(--border-strong);
+}
+
+.source-guide-grid > article.world {
+  box-shadow: inset 0 2px var(--human);
+}
+
+.source-guide-grid > article.swapvm,
+.source-guide-grid > article.aqua {
+  box-shadow: inset 0 2px var(--accent);
+}
+
+.source-guide-grid > article.controller {
+  box-shadow: inset 0 2px var(--cyan);
+}
+
+.source-guide-grid > article.graph {
+  grid-column: 1 / -1;
+  box-shadow: inset 0 2px #9d76ff;
+}
+
+.source-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.source-card-head > div span,
+.source-card-head > div strong {
+  display: block;
+}
+
+.source-card-head > div span {
+  color: var(--muted);
+  font: 800 9px var(--mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.source-card-head > div strong {
+  margin-top: 2px;
+  font-size: 13px;
+}
+
+.source-guide-grid h3 {
+  margin-top: 18px;
+  font: 720 21px var(--sans);
+  letter-spacing: -0.025em;
+}
+
+.source-guide-grid article > p {
+  max-width: 760px;
+  min-height: 66px;
+  margin: 8px 0 0;
+  color: var(--text-2);
+  font: 13px/1.58 var(--sans);
+}
+
+.source-guide-grid article > p code {
+  color: var(--accent);
+  font: 11px var(--mono);
+}
+
+.source-guide-grid pre {
+  overflow-x: auto;
+  margin: 16px 0 0;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--border-strong);
+  padding: 13px 14px;
+  background: #030608;
+  color: #bfcbd3;
+  tab-size: 2;
+}
+
+.source-guide-grid pre code {
+  font: 11px/1.55 var(--mono);
+  white-space: pre;
+}
+
+.source-guide-grid article.world pre {
+  border-left-color: var(--human);
+}
+
+.source-guide-grid article.swapvm pre,
+.source-guide-grid article.aqua pre {
+  border-left-color: var(--accent);
+}
+
+.source-guide-grid article.controller pre {
+  border-left-color: var(--cyan);
+}
+
+.source-guide-grid article.graph pre {
+  border-left-color: #9d76ff;
+}
+
+.source-guide-grid footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.source-guide-grid footer a {
+  border: 1px solid var(--border);
+  padding: 7px 9px;
+  color: var(--text-2);
+  font: 750 9px var(--mono);
+  text-decoration: none;
+}
+
+.source-guide-grid footer a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* Secondary analytics stay one click away instead of competing with the task. */
 .lp-performance-disclosure {
   border: 1px solid var(--border);
@@ -1927,6 +2108,58 @@ body::before {
   border: 0;
 }
 
+/* Readable narrative hierarchy; monospace is reserved for labels and market data. */
+.landing h1,
+.landing h2,
+.protocol-explainer h1,
+.protocol-explainer h2,
+.identity-workspace h1,
+.vault-workspace h2,
+.vault-workspace h3 {
+  font-family: var(--sans);
+  font-weight: 720;
+}
+
+.landing-hero p,
+.landing-section-copy p,
+.event-flow article > p,
+.protocol-hero p,
+.protocol-pipeline article > p,
+.protocol-invariant > div:first-child > p,
+.identity-workspace p,
+.vault-card > p,
+.vault-position-empty p {
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.58;
+}
+
+.eyebrow,
+.view-heading > div > span,
+.vault-card > span,
+.protocol-pipeline article > header > span:last-child,
+.protocol-phases span,
+.protocol-hero dt,
+.protocol-pipeline dt,
+.protocol-latest-receipt dt,
+.protocol-contracts h3 {
+  font-size: 10px;
+  line-height: 1.3;
+  letter-spacing: 0.11em;
+}
+
+.protocol-phases strong {
+  font-size: 15px;
+}
+
+.protocol-phases small,
+.protocol-pipeline dd,
+.protocol-contracts section > div,
+.protocol-latest-receipt dd {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .error-banner {
   border-color: rgba(255, 105, 95, 0.5);
   border-radius: 1px;
@@ -1959,6 +2192,14 @@ footer {
   .protocol-hero,
   .protocol-deep-dive {
     grid-template-columns: 1fr;
+  }
+
+  .source-guide-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .source-guide-grid > article.graph {
+    grid-column: auto;
   }
 
   .protocol-hero > dl {
@@ -2070,6 +2311,15 @@ footer {
 
   .protocol-formula {
     flex-direction: column;
+  }
+
+  .source-guide > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .repository-link {
+    text-align: center;
   }
 
   .vault-grid,

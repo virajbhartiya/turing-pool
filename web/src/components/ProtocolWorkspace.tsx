@@ -7,6 +7,7 @@ import {
 import type { DemoTradeResult, ProtocolState } from '../types';
 import { BrandLogo } from './BrandLogo';
 import { EvidenceLedger } from './EvidenceLedger';
+import { SourceCodeGuide } from './SourceCodeGuide';
 
 interface ProtocolWorkspaceProps {
   state: ProtocolState;
@@ -57,11 +58,11 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
       <header className="protocol-hero">
         <div>
           <span className="eyebrow">Protocol anatomy</span>
-          <h1>One signed intent. Five verifiable protocol stages.</h1>
+          <h1>Human-backed agency becomes executable market structure.</h1>
           <p>
-            A quote and a swap execute the same SwapVM program. Identity selects the
-            risk lane, opcode 34 applies its live fee, Aqua settles against LP
-            inventory, and confirmed notional computes the next fee pair.
+            World AgentKit establishes accountable agency. The same custom SwapVM
+            program prices every quote and fill, Aqua settles LP inventory, and
+            Nuthatch turns confirmed activity into an agent-readable feedback signal.
           </p>
         </div>
         <dl>
@@ -102,7 +103,7 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
         <div>
           <span>03 · FEEDBACK</span>
           <strong>Confirmed volume reprices the next fill</strong>
-          <small>Events → controller state → Nuthatch query surface</small>
+          <small>Events → controller state → Nuthatch SQL + MCP</small>
         </div>
       </div>
 
@@ -115,8 +116,9 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
           </header>
           <h2>Resolve the taker</h2>
           <p>
-            The execution-chain mirror returns the canonical World AgentBook human ID
-            for the connected wallet. No World proof or biometric data enters the swap.
+            AgentKit verification registers a human-backed agent in World AgentBook.
+            The execution mirror returns only its canonical human ID; no proof or
+            biometric data enters the swap.
           </p>
           <dl>
             <div><dt>CALL</dt><dd><code>lookupHuman(taker)</code></dd></div>
@@ -128,7 +130,7 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
                   ? `humanId ${latestHumanId.slice(0, 12)}…`
                   : latestHumanId === '0'
                     ? 'humanId 0 · searcher lane'
-                    : 'non-zero → retail · zero → searcher'}
+                    : 'non-zero → human-backed · zero → searcher'}
               </dd>
             </div>
           </dl>
@@ -152,8 +154,8 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
               <dt>SELECTS</dt>
               <dd className={latestTight ? 'positive' : 'negative'}>
                 {latestTight === undefined
-                  ? `${controller.tightFeeBps} bps retail / ${controller.wideFeeBps} bps searcher`
-                  : `${latestTight ? 'RETAIL' : 'SEARCHER'} · ${latestFee} bps`}
+                  ? `${controller.tightFeeBps} bps human-backed / ${controller.wideFeeBps} bps searcher`
+                  : `${latestTight ? 'HUMAN-BACKED' : 'SEARCHER'} · ${latestFee} bps`}
               </dd>
             </div>
           </dl>
@@ -172,7 +174,7 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
           </p>
           <dl>
             <div><dt>WRITE</dt><dd><code>recordTrade(orderHash, humanId, token, amount, lane)</code></dd></div>
-            <div><dt>VOLUME</dt><dd>{formatUnits(controller.tightVolume)} retail · {formatUnits(controller.wideVolume)} searcher</dd></div>
+            <div><dt>VOLUME</dt><dd>{formatUnits(controller.tightVolume)} human-backed · {formatUnits(controller.wideVolume)} searcher</dd></div>
             <div><dt>NEXT</dt><dd>{controller.tightFeeBps} / {controller.wideFeeBps} bps</dd></div>
           </dl>
         </article>
@@ -207,7 +209,8 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
           <h2>Make every result queryable</h2>
           <p>
             Nuthatch follows the protocol events and exposes decoded receipts through
-            SQL and MCP. It reports evidence; it never decides the quote or settlement.
+            SQL and MCP to the UI and pricing-agent workflow. It supplies live evidence;
+            it never sits in the safety-critical quote or settlement path.
           </p>
           <dl>
             <div><dt>TABLES</dt><dd><code>router__human_gated + router__swapped</code></dd></div>
@@ -216,6 +219,8 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
           </dl>
         </article>
       </div>
+
+      <SourceCodeGuide />
 
       <div className="protocol-deep-dive">
         <article className="protocol-invariant">
@@ -229,7 +234,7 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
           </div>
           <div className="protocol-equation">
             <div>
-              <span>Retail</span>
+              <span>Human-backed</span>
               <strong>{controller.tightFeeBps}<small>bps</small></strong>
               <em>× {humanShare.toFixed(0)}%</em>
             </div>
@@ -247,7 +252,7 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
             </div>
           </div>
           <code className="protocol-formula">
-            f<sub>retail</sub> = target − spread × searcherShare
+            f<sub>agent</sub> = target − spread × searcherShare
             <span>·</span>
             f<sub>searcher</sub> absorbs the rounded remainder
           </code>
@@ -302,8 +307,8 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
               {latestTight === undefined
                 ? 'Awaiting fill'
                 : latestTight
-                  ? 'Verified retail'
-                  : 'HFT / arbitrage searcher'}
+                  ? 'Human-backed agent'
+                  : 'Autonomous searcher'}
             </dd>
           </div>
           <div><dt>APPLIED FEE</dt><dd>{latestFee} bps</dd></div>

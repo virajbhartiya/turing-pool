@@ -20,14 +20,14 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
         <div>
           <span className="eyebrow">Identity-priced liquidity</span>
           <h1>
-            Better prices for humans.
+            Human-backed agents trade tighter.
             <br />
-            The same target yield for LPs.
+            LP economics stay whole.
           </h1>
           <p>
-            Turing Pool uses World ID as an on-chain risk signal. Verified retail flow
-            receives the tighter rate, while HFT and arbitrage flow gets always-on
-            execution at a variable risk price. Both rates move with executed volume.
+            World AgentKit proves accountable agency. A custom SwapVM instruction turns
+            that proof into bounded economic risk, Aqua settles against LP inventory,
+            and Nuthatch makes every fill available to the pricing loop.
           </p>
           <div className="landing-actions">
             <button onClick={() => onNavigate('trade')} type="button">Open live market</button>
@@ -36,8 +36,8 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
         </div>
         <div className="landing-market">
           <span>Live adaptive fee schedule</span>
-          <div><small>Verified</small><strong>{controller.tightFeeBps}<em>bps</em></strong></div>
-          <div><small>HFT / arbitrage</small><strong>{controller.wideFeeBps}<em>bps</em></strong></div>
+          <div><small>Human-backed agent</small><strong>{controller.tightFeeBps}<em>bps</em></strong></div>
+          <div><small>Autonomous searcher</small><strong>{controller.wideFeeBps}<em>bps</em></strong></div>
           <div className="target"><small>LP target</small><strong>{controller.targetFeeBps}<em>bps</em></strong></div>
         </div>
       </div>
@@ -68,14 +68,14 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
           </div>
           <div className="math-solve">
             <div>
-              <span>Retail fee</span>
+              <span>Human-backed fee</span>
               <code>
                 {controller.targetFeeBps} − {(botShare * 100).toFixed(0)}% × {feeSpread}
                 {' = '}<b>{controller.tightFeeBps} bps</b>
               </code>
             </div>
             <div>
-              <span>HFT / arb fee</span>
+              <span>Searcher fee</span>
               <code>
                 {controller.targetFeeBps} + {(humanShare * 100).toFixed(0)}% × {feeSpread}
                 {' = '}<b>{controller.wideFeeBps} bps</b>
@@ -89,12 +89,12 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
           <dl className="math-definitions">
             <div><dt>Input</dt><dd>Realized trade volume by lane</dd></div>
             <div><dt>Constraint</dt><dd>Weighted fee stays at the LP target</dd></div>
-            <div><dt>Output</dt><dd>The next retail and searcher fee pair</dd></div>
+            <div><dt>Output</dt><dd>The next human-backed and searcher fee pair</dd></div>
           </dl>
           <p className="math-incentive">
-            More searcher volume lowers both next rates; more verified volume raises
-            both. The searcher lane stays executable and adaptive, retail keeps the
-            identity discount, and LPs retain the same blended target.
+            More searcher volume lowers both next rates; more human-backed volume raises
+            both. The identity signal underwrites a bounded lane rather than granting a
+            static perk, while LPs retain the same blended target.
           </p>
         </div>
       </div>
@@ -118,7 +118,7 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
               </div>
             </div>
             <strong>Resolve the trader</strong>
-            <p>The execution mirror resolves the wallet to a humanId and selects the bounded retail or HFT / arbitrage lane.</p>
+            <p>AgentBook resolves whether the trading agent is backed by a unique human, then the execution mirror selects its bounded risk lane.</p>
             <div className="event-output">
               <span>Output</span>
               <b>humanId → risk lane</b>

@@ -76,9 +76,9 @@ export function WorldIdentityControl({
     setStatus(next);
     if (next.mirrorReady) {
       setPhase('complete');
-      setMessage('World ID is linked and live on the Base pricing mirror.');
+      setMessage('World ID is linked and live on the execution mirror.');
     } else if (next.worldRegistered) {
-      setMessage('World registration found. Base mirror synchronization is pending.');
+      setMessage('World registration found. Execution mirror synchronization is pending.');
     } else {
       setPhase('idle');
       setMessage('Verify once in World App to unlock identity-priced execution.');
@@ -100,18 +100,18 @@ export function WorldIdentityControl({
 
   async function synchronize(run: number) {
     setPhase('mirroring');
-    setMessage('Publishing the canonical World humanId to the Base mirror…');
+    setMessage('Publishing the canonical World humanId to the execution mirror…');
     const response = await fetch(`${apiBase()}/identity/sync`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ address: account }),
     });
     const body = (await response.json()) as IdentityStatus & { error?: string };
-    if (!response.ok) throw new Error(body.error ?? 'Base identity mirror could not synchronize');
+    if (!response.ok) throw new Error(body.error ?? 'Execution identity mirror could not synchronize');
     if (run !== activeRun.current) return;
     setStatus(body);
     setPhase('complete');
-    setMessage('Verified by World · human rate is now active on Base.');
+    setMessage('Verified by World · the human-backed agent lane is active.');
     setConnectorUri(undefined);
     setQrCode(undefined);
     await onIdentityReady();
@@ -126,7 +126,7 @@ export function WorldIdentityControl({
       setStatus(current);
       if (current.mirrorReady) {
         setPhase('complete');
-        setMessage('World ID is linked and live on the Base pricing mirror.');
+        setMessage('World ID is linked and live on the execution mirror.');
         return;
       }
       if (current.worldRegistered) {
@@ -206,8 +206,8 @@ export function WorldIdentityControl({
       <header>
         <BrandLogo brand="world" />
         <div>
-          <span>World ID pricing passport</span>
-          <strong>{ready ? 'Verified human rate active' : 'Connect wallet to World ID'}</strong>
+          <span>World human backing</span>
+          <strong>{ready ? 'Human-backed agent lane active' : 'Connect wallet to World ID'}</strong>
         </div>
         <b>{ready ? 'VERIFIED' : status?.worldRegistered ? 'SYNCING' : 'VERIFY'}</b>
       </header>
@@ -250,7 +250,7 @@ export function WorldIdentityControl({
           {working
             ? 'Verifying with World…'
             : status?.worldRegistered
-              ? 'Sync verified identity to Base'
+              ? 'Sync verified identity to execution'
               : phase === 'error'
                 ? 'Retry World verification'
                 : 'Connect wallet to World ID'}

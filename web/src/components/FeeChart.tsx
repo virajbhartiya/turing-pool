@@ -101,7 +101,7 @@ function PriceChart({ swaps, pool }: { swaps: Swap[]; pool: Pool }) {
       )}
       <div className="chart-legend">
         <span><i className="human" />verified fill</span>
-        <span><i className="bot" />HFT / arb fill</span>
+        <span><i className="bot" />searcher fill</span>
         <span>{observations.length} mined price observations</span>
       </div>
     </div>
@@ -128,9 +128,9 @@ function AdaptiveFeeChart({
   });
   const paths = pathFor(points);
   const references = [
-    { label: 'HFT / arb', value: controller.wideFeeBps, tone: 'bot' },
+    { label: 'Searcher', value: controller.wideFeeBps, tone: 'bot' },
     { label: 'LP target', value: controller.targetFeeBps, tone: 'target' },
-    { label: 'Human', value: controller.tightFeeBps, tone: 'human' },
+    { label: 'Human-backed', value: controller.tightFeeBps, tone: 'human' },
   ];
 
   return (
@@ -171,8 +171,8 @@ function AdaptiveFeeChart({
         </div>
       ))}
       <div className="chart-legend">
-        <span><i className="human" />verified fill</span>
-        <span><i className="bot" />HFT / arb fill</span>
+        <span><i className="human" />human-backed fill</span>
+        <span><i className="bot" />searcher fill</span>
         <span><i className="target" />LP target</span>
       </div>
     </div>

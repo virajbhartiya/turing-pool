@@ -17,8 +17,9 @@
   --bot-dim: rgba(232, 147, 58, 0.1);
   --cyan: #24c1ac;
   --warn: #e8933a;
+  --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --mono: "SFMono-Regular", "Roboto Mono", Consolas, monospace;
-  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }

@@ -29,11 +29,11 @@ export function IdentityWorkspace({
     <section className="identity-workspace view-workspace">
       <div className="view-heading compact">
         <div>
-          <span>World ID pricing passport</span>
-          <h1>Prove personhood once. Trade at the human rate.</h1>
+          <span>World · human-backed agents</span>
+          <h1>Bind an agent wallet to one unique human.</h1>
           <p>
-            Unlock the bounded human lane without exposing proof or biometric data to
-            the DEX.
+            Establish accountable agency once, then let SwapVM enforce a shared risk
+            budget without exposing proof or biometric data to the DEX.
           </p>
         </div>
       </div>
@@ -44,7 +44,7 @@ export function IdentityWorkspace({
             <span>01</span>
             <div>
               <strong>Connect the trading wallet</strong>
-              <small>The proof is bound to the exact wallet you will use on Base.</small>
+              <small>The proof is bound to the exact wallet that will submit trades.</small>
             </div>
           </header>
           {!account ? (
@@ -93,7 +93,7 @@ export function IdentityWorkspace({
               <span>04 · SwapVM</span>
               <BrandLogo brand="oneinch" />
               <strong>Opcode 34 selects the rate</strong>
-              <p>Verified retail receives the bounded lane; HFT and arbitrage flow receives variable risk pricing.</p>
+              <p>Human-backed agents receive a bounded risk lane; autonomous searchers receive variable activity-priced execution.</p>
             </div>
           </aside>
         </details>

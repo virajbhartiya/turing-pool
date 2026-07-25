@@ -58,6 +58,14 @@ export function DexHeader({
           ))}
         </nav>
         <div className="dex-header-actions">
+          <a
+            className="dex-source-link"
+            href="https://github.com/virajbhartiya/turing-pool"
+            rel="noreferrer"
+            target="_blank"
+          >
+            GitHub ↗
+          </a>
           {!account ? (
             <button
               className="header-wallet disconnected"
@@ -71,7 +79,7 @@ export function DexHeader({
             <div className={`header-wallet ${human ? 'human' : 'bot'}`}>
               <span>
                 <i />
-                {human ? 'Verified retail' : 'HFT / arb'}
+                {human ? 'Human-backed' : 'Searcher / HFT'}
               </span>
               {accounts.length > 1 ? (
                 <select

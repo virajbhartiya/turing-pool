@@ -270,8 +270,8 @@ export function TradingTerminal({
   useEffect(() => {
     const accountLabel = connectedAccount
       ? walletQuote?.humanBacked
-        ? 'HUMAN'
-        : 'HFT / ARB'
+        ? 'HUMAN-BACKED'
+        : 'SEARCHER'
       : 'MARKET';
     document.title = `${accountLabel} · Turing Pool`;
   }, [connectedAccount, walletQuote?.humanBacked]);
@@ -351,8 +351,8 @@ export function TradingTerminal({
               onClick={onOpenVerify}
               type="button"
             >
-              <span>HFT / arbitrage rate active</span>
-              Verify with World ID for the retail rate →
+              <span>Autonomous searcher rate active</span>
+              Prove human backing with World ID →
             </button>
           ) : null}
           <div className="direction-tabs" aria-label="Trade direction">
@@ -447,19 +447,19 @@ export function TradingTerminal({
                   ? walletQuote.tight
                     ? 'human bounded'
                     : 'human quota exceeded'
-                  : 'HFT / arbitrage flow'}
+                  : 'autonomous searcher'}
               </dd>
             </div>
             <div><dt>Live LP rate</dt><dd>{selected.feeBps} bps</dd></div>
             <div>
-              <dt>Verified retail quote</dt>
+              <dt>Human-backed quote</dt>
               <dd>
                 {formatUnits(quotes.human.amountOut, 18, tokenOutSymbol === 'tETH' ? 6 : 2)}{' '}
                 {tokenOutSymbol}
               </dd>
             </div>
             <div>
-              <dt>HFT / arbitrage quote</dt>
+              <dt>Searcher quote</dt>
               <dd>
                 {formatUnits(quotes.bot.amountOut, 18, tokenOutSymbol === 'tETH' ? 6 : 2)}{' '}
                 {tokenOutSymbol}
@@ -473,7 +473,7 @@ export function TradingTerminal({
               </dd>
             </div>
             <div>
-              <dt>Retail receives more</dt>
+              <dt>Human-backed execution edge</dt>
               <dd className="positive">
                 +{deltaLabel} {tokenOutSymbol} · +{identityEdgeBps} bps
               </dd>
