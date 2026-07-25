@@ -45,6 +45,10 @@
       "destination": "/"
     },
     {
+      "source": "/vaults/:path*",
+      "destination": "/"
+    },
+    {
       "source": "/quote",
       "destination": "/"
     }

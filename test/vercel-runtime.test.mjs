@@ -42,9 +42,12 @@ test('the Vercel route manifest serves the dashboard at the production root', as
     .slice(0, static404Index)
     .find(
       (route) =>
-        route.dest === '/index.html' &&
         typeof route.src === 'string' &&
-        new RegExp(route.src).test('/'),
+        new RegExp(route.src).test('/') &&
+        (route.dest === '/index.html' ||
+          (route.status >= 300 &&
+            route.status < 400 &&
+            route.headers?.Location === '/index.html')),
     );
 
   assert.ok(

@@ -16,6 +16,8 @@ export default defineConfig({
       '/demo': 'http://localhost:4021',
       '/health': 'http://localhost:4021',
       '/quote': 'http://localhost:4021',
+      '/wallet': 'http://localhost:4021',
+      '/vaults': 'http://localhost:4021',
     },
   },
 });

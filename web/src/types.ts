@@ -14,6 +14,8 @@ export interface Contracts {
   router: string;
   quota: string;
   mockAgentBook: boolean;
+  vaultFactory?: string;
+  vaultRouter?: string;
 }
 
 export interface Pool {
@@ -299,4 +301,100 @@ export interface DemoQuotes {
   };
   rationale: string;
   improvementBps?: number;
+}
+
+export interface VaultRegistry {
+  enabled: boolean;
+  chainId: number;
+  factory: string | null;
+  router: string | null;
+  vaults: string[];
+  wallet: string | null;
+  reason: string | null;
+}
+
+export interface VaultToken {
+  address: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+}
+
+export interface VaultFeeSchedule {
+  tightFeeBps: string;
+  wideFeeBps: string;
+  targetFeeBps: string;
+  humanShareBps: string;
+  tightVolume: string;
+  wideVolume: string;
+}
+
+export interface VaultState {
+  vault: string;
+  factory: string;
+  router: string;
+  quota: string;
+  manager: string;
+  shareToken: VaultToken;
+  token0: VaultToken;
+  token1: VaultToken;
+  reserves: { token0: string; token1: string };
+  totalSupply: string;
+  strategyActive: boolean;
+  paused: boolean;
+  orderHash: string;
+  feeSchedules: {
+    token0: VaultFeeSchedule;
+    token1: VaultFeeSchedule;
+  };
+  position: {
+    wallet: string | null;
+    shares: string;
+    token0Balance: string;
+    token1Balance: string;
+    token0Allowance: string;
+    token1Allowance: string;
+  };
+}
+
+export type VaultTradeDirection = 'token0-to-token1' | 'token1-to-token0';
+
+export interface VaultQuote {
+  vault: string;
+  router: string;
+  orderHash: string;
+  wallet: string;
+  direction: VaultTradeDirection;
+  tokenIn: VaultToken;
+  tokenOut: VaultToken;
+  amountIn: string;
+  amountOut: string;
+  balance: string;
+  allowance: string;
+  humanId: string;
+  humanBacked: boolean;
+  tight: boolean;
+  tier: 'tight' | 'wide';
+  feeBps: number;
+  sufficientBalance: boolean;
+  requiresApproval: boolean;
+  feeSchedule: VaultFeeSchedule;
+}
+
+export interface PreparedVaultAction {
+  action:
+    | 'approve-token0'
+    | 'approve-token1'
+    | 'approve-trade-token'
+    | 'deposit'
+    | 'redeem'
+    | 'swap'
+    | 'create';
+  transaction: {
+    from: string;
+    to: string;
+    data: string;
+    value: '0x0';
+  };
+  preview: Record<string, unknown>;
 }

@@ -10,6 +10,22 @@ export function unitsAsNumber(value: string, decimals = 18): number {
   return Number(BigInt(value)) / 10 ** decimals;
 }
 
+export function parseUnits(value: string, decimals = 18): string {
+  const normalized = value.trim();
+  if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/.test(normalized)) {
+    throw new Error('Enter a valid positive token amount.');
+  }
+  const [whole = '0', fraction = ''] = normalized.split('.');
+  if (fraction.length > decimals) {
+    throw new Error(`This token supports at most ${decimals} decimal places.`);
+  }
+  const units =
+    BigInt(whole) * 10n ** BigInt(decimals) +
+    BigInt((fraction + '0'.repeat(decimals)).slice(0, decimals) || '0');
+  if (units <= 0n) throw new Error('Amount must be greater than zero.');
+  return units.toString();
+}
+
 export function compactUsd(value: number): string {
   return `$${Intl.NumberFormat('en-US', {
     notation: 'compact',

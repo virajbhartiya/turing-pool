@@ -59,6 +59,12 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
     ['TuringPoolApp', state.contracts.app],
     ['SwapVM Router', state.contracts.router],
     ['HumanQuota', state.contracts.quota],
+    ...(state.contracts.vaultFactory
+      ? [
+          ['Vault Factory', state.contracts.vaultFactory],
+          ['Vault Router v2', state.contracts.vaultRouter ?? state.contracts.router],
+        ]
+      : []),
   ];
 
   return (
@@ -75,8 +81,9 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
           <nav className="primary-nav" aria-label="Primary navigation">
             <a aria-current="page" className="active" href="#market"><kbd>F1</kbd> Market</a>
             <a href="#activity"><kbd>F2</kbd> Execution</a>
-            <a href="#lp"><kbd>F3</kbd> LP book</a>
-            <a href="#risk"><kbd>F4</kbd> Risk</a>
+            <a href="#liquidity"><kbd>F3</kbd> Vaults</a>
+            <a href="#lp"><kbd>F4</kbd> LP book</a>
+            <a href="#risk"><kbd>F5</kbd> Risk</a>
           </nav>
         </div>
         <div className="topbar-status">

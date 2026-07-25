@@ -7,6 +7,7 @@ import { LPEconomicsPanel } from './components/LPEconomicsPanel';
 import { MarketHeader } from './components/MarketHeader';
 import { ProtocolDetails } from './components/ProtocolDetails';
 import { TradingTerminal } from './components/TradingTerminal';
+import { VaultWorkspace } from './components/VaultWorkspace';
 import { useInjectedWallet } from './hooks/useInjectedWallet';
 import { apiBase, demoTradeAmounts, useProtocol } from './hooks/useProtocol';
 import { unitsAsNumber } from './lib/format';
@@ -479,6 +480,12 @@ export function App() {
           activeTokenInSymbol={quotes.tokenInSymbol}
         />
       </TradingTerminal>
+      <VaultWorkspace
+        account={wallet.account}
+        provider={wallet.provider}
+        onConnectWallet={wallet.connect}
+        onProtocolRefresh={refresh}
+      />
       <IntegrationFlow state={state} lastTrade={lastTrade} />
       <FeeControllerPanel controller={state.feeController} copied={copied} onReplay={copyReplayCommand} />
       <EvidenceLedger state={state} />
