@@ -9,3 +9,23 @@
 		X-Frame-Options "SAMEORIGIN"
 	}
 }
+
+{$NUTHATCH_PUBLIC_DOMAIN} {
+	encode zstd gzip
+
+	basic_auth {
+		{$NUTHATCH_ADMIN_USER} {$NUTHATCH_ADMIN_PASSWORD_HASH}
+	}
+
+	@admin path /_admin/*
+	uri @admin query token {$NUTHATCH_ADMIN_TOKEN}
+
+	reverse_proxy turing-pool-indexer:8288
+
+	header {
+		Cache-Control "no-store"
+		Referrer-Policy "no-referrer"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+	}
+}
