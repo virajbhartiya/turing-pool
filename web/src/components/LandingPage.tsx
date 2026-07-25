@@ -38,7 +38,7 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
           <span>Live adaptive fee schedule</span>
           <div><small>Verified retail</small><strong>{controller.tightFeeBps}<em>bps</em></strong></div>
           <div><small>HFT / arbitrage</small><strong>{controller.wideFeeBps}<em>bps</em></strong></div>
-          <div className="target"><small>LP target</small><strong>{controller.targetFeeBps}<em>bps</em></strong></div>
+          <div className="target"><small>Configured LP target</small><strong>{controller.targetFeeBps}<em>bps</em></strong></div>
         </div>
       </div>
 

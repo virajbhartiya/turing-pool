@@ -75,7 +75,7 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
             <dd>{controller.tightFeeBps} / {controller.wideFeeBps} bps</dd>
           </div>
           <div>
-            <dt>LP constraint</dt>
+            <dt>Configured LP target</dt>
             <dd>{controller.targetFeeBps} bps</dd>
           </div>
           <div>

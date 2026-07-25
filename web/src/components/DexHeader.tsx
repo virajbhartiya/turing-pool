@@ -33,6 +33,10 @@ export function DexHeader({
   onSelectAccount,
 }: DexHeaderProps) {
   const human = quote?.humanBacked === true;
+  const verifiedHumanId = human && quote?.humanId !== '0' ? quote?.humanId : undefined;
+  const worldId = verifiedHumanId
+    ? `${verifiedHumanId.slice(0, 8)}…${verifiedHumanId.slice(-6)}`
+    : undefined;
   return (
     <header className="dex-header">
       <div className="dex-navbar">
@@ -81,6 +85,11 @@ export function DexHeader({
                 <i />
                 {human ? 'Verified retail' : 'Searcher / HFT'}
               </span>
+              {worldId && (
+                <b className="header-world-id" title={`AgentBook humanId ${verifiedHumanId}`}>
+                  World ID {worldId}
+                </b>
+              )}
               {accounts.length > 1 ? (
                 <select
                   aria-label="Active wallet"

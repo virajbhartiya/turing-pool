@@ -129,7 +129,7 @@ function AdaptiveFeeChart({
   const paths = pathFor(points);
   const references = [
     { label: 'Searcher', value: controller.wideFeeBps, tone: 'bot' },
-    { label: 'LP target', value: controller.targetFeeBps, tone: 'target' },
+    { label: 'Configured LP target', value: controller.targetFeeBps, tone: 'target' },
     { label: 'Verified retail', value: controller.tightFeeBps, tone: 'human' },
   ];
 
@@ -173,7 +173,7 @@ function AdaptiveFeeChart({
       <div className="chart-legend">
         <span><i className="human" />verified retail fill</span>
         <span><i className="bot" />searcher fill</span>
-        <span><i className="target" />LP target</span>
+        <span><i className="target" />configured LP target</span>
       </div>
     </div>
   );

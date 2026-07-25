@@ -69,6 +69,7 @@ export function WorldIdentityControl({
   const [message, setMessage] = useState('Checking canonical World AgentBook…');
   const [connectorUri, setConnectorUri] = useState<string>();
   const [qrCode, setQrCode] = useState<string>();
+  const [copiedId, setCopiedId] = useState(false);
   const activeRun = useRef(0);
 
   const refreshStatus = useCallback(async () => {
@@ -91,6 +92,7 @@ export function WorldIdentityControl({
     setStatus(undefined);
     setConnectorUri(undefined);
     setQrCode(undefined);
+    setCopiedId(false);
     setPhase('idle');
     void refreshStatus().catch((error: unknown) => {
       setPhase('error');
@@ -213,10 +215,22 @@ export function WorldIdentityControl({
       </header>
       <p>{message}</p>
       {status?.worldRegistered && (
-        <small>
-          AgentBook humanId {status.humanId.slice(0, 12)}… · World block{' '}
-          {status.worldBlock}
-        </small>
+        <div className="world-id-record">
+          <span>Your World ID pseudonymous identifier</span>
+          <button
+            onClick={() => {
+              void navigator.clipboard.writeText(status.humanId);
+              setCopiedId(true);
+              window.setTimeout(() => setCopiedId(false), 1_500);
+            }}
+            title={status.humanId}
+            type="button"
+          >
+            {status.humanId.slice(0, 14)}…{status.humanId.slice(-10)}
+            <b>{copiedId ? 'Copied' : 'Copy'}</b>
+          </button>
+          <small>AgentBook humanId · verified at World block {status.worldBlock}</small>
+        </div>
       )}
       {phase === 'awaiting-world' && connectorUri && qrCode && (
         <div className="world-verify-prompt">

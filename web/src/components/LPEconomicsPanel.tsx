@@ -48,7 +48,7 @@ export function LPEconomicsPanel({
           </strong>
         </div>
         <div>
-          <span>Realized / target</span>
+          <span>Realized / configured target</span>
           <strong>{bpsLabel(economics.realizedBlendedFeeBps)} / {state.feeController.targetFeeBps} bps</strong>
         </div>
         <b className="lp-disclosure-toggle">
