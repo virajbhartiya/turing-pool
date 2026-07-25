@@ -8,11 +8,14 @@
       "maxDuration": 60
     }
   },
-  "rewrites": [
+  "redirects": [
     {
       "source": "/",
-      "destination": "/index.html"
-    },
+      "destination": "/index.html",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
     {
       "source": "/health",
       "destination": "/"
