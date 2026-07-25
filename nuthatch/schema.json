@@ -1,5 +1,5 @@
 {
-  "registry_hash": "0x120172c56ffdedb1c9398c3e1680c762332dd9495cf9841e5985c845ae43c767",
+  "registry_hash": "0x25edc244335760baa6be07e8b9b1b96942012c43ce48fdd803267817d477d1f4",
   "tables": [
     {
       "alias": "aqua",
@@ -142,6 +142,80 @@
       "event": "Shipped(address,address,bytes32,bytes)",
       "table": "aqua__shipped",
       "topic0": "0xdc3622e06fb145651f567d421c9ef261d71d43e3778b761907bc0d70d42e52b0"
+    },
+    {
+      "alias": "faucet",
+      "columns": [
+        {
+          "indexed": false,
+          "name": "block_number",
+          "sol_type": "implicit",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "block_hash",
+          "sol_type": "implicit",
+          "storage": "bytes32"
+        },
+        {
+          "indexed": false,
+          "name": "block_timestamp",
+          "sol_type": "implicit",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "tx_hash",
+          "sol_type": "implicit",
+          "storage": "bytes32"
+        },
+        {
+          "indexed": false,
+          "name": "log_index",
+          "sol_type": "implicit",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "address",
+          "sol_type": "implicit",
+          "storage": "address"
+        },
+        {
+          "indexed": false,
+          "name": "_seq",
+          "sol_type": "implicit",
+          "storage": "u64"
+        },
+        {
+          "indexed": true,
+          "name": "account",
+          "sol_type": "address",
+          "storage": "address"
+        },
+        {
+          "indexed": false,
+          "name": "amount0",
+          "sol_type": "uint256",
+          "storage": "word32"
+        },
+        {
+          "indexed": false,
+          "name": "amount1",
+          "sol_type": "uint256",
+          "storage": "word32"
+        },
+        {
+          "indexed": false,
+          "name": "nextClaimAt",
+          "sol_type": "uint256",
+          "storage": "word32"
+        }
+      ],
+      "event": "Claimed(address,uint256,uint256,uint256)",
+      "table": "faucet__claimed",
+      "topic0": "0x9cdcf2f7714cca3508c7f0110b04a90a80a3a8dd0e35de99689db74d28c5383e"
     },
     {
       "alias": "identity_mirror",

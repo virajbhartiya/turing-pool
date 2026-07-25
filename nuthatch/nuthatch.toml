@@ -46,3 +46,10 @@ address = "0x70b9FE7Bd162B0014df1E1f435dB47765Db62455"
 start_block = 44605233
 abi = "abis/mirror.json"
 events = ["HumanMirrored"]
+
+[[contracts]]
+alias = "faucet"
+address = "0x1aA651B3fd14F8242b13759c56d73E48800fEF2a"
+start_block = 44614019
+abi = "abis/faucet.json"
+events = ["Claimed"]

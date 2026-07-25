@@ -26,6 +26,28 @@ maker = "The `maker` address parameter. (seeded from the ABI - edit semantic.tom
 strategy = "The `strategy` bytes parameter. (seeded from the ABI - edit semantic.toml to improve this)"
 strategyHash = "The `strategyHash` bytes32 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
 
+[table.faucet__claimed]
+description = "Confirmed public test-asset claims from the inventory-backed Turing Pool faucet."
+grain = "one row per wallet claim"
+
+[table.faucet__claimed.columns]
+account = "Wallet that received the test assets."
+amount0 = "Raw tETH amount transferred, using the token's on-chain decimals."
+amount1 = "Raw tUSD amount transferred, using the token's on-chain decimals."
+nextClaimAt = "Unix timestamp after which this wallet may claim again."
+
+[table.faucet__claimed.footguns]
+big_ints = [
+    "amount0",
+    "amount1",
+    "nextClaimAt",
+]
+overflows_dec = [
+    "amount0",
+    "amount1",
+    "nextClaimAt",
+]
+
 [table.identity_mirror__human_mirrored]
 description = "`HumanMirrored(address,uint256,uint256,bytes32)` events emitted by the `identity_mirror` contract. (seeded from the ABI - edit semantic.toml to improve this)"
 grain = "one row per HumanMirrored(address,uint256,uint256,bytes32) event"
