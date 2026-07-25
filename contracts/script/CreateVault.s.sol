@@ -41,6 +41,14 @@ contract CreateVault is Script {
 
         vm.startBroadcast(deployerPk);
         (vault, quota) = factory.createVault(config);
+        if (vm.envExists("POLICY_UPDATER")) {
+            require(manager == vm.addr(deployerPk), "policy config requires manager key");
+            address policyUpdater = vm.envAddress("POLICY_UPDATER");
+            uint32 maxPolicyStepBps = _fee("MAX_POLICY_STEP_BPS", 10);
+            uint64 maxPolicyLagBlocks = uint64(vm.envOr("MAX_POLICY_LAG_BLOCKS", uint256(300)));
+            quota.configurePolicyUpdater(address(config.token0), policyUpdater, maxPolicyStepBps, maxPolicyLagBlocks);
+            quota.configurePolicyUpdater(address(config.token1), policyUpdater, maxPolicyStepBps, maxPolicyLagBlocks);
+        }
         vm.stopBroadcast();
 
         string memory json = "vault";

@@ -15,6 +15,14 @@ contract HumanQuota {
     error NotAuthorizedApp();
     error InvalidFeeConfiguration();
     error FeeVolumeOverflow();
+    error NotPolicyUpdater();
+    error PolicyNotConfigured();
+    error InvalidPolicyConfiguration();
+    error InvalidDecisionHash();
+    error StalePolicyBlock(uint256 currentBlock, uint256 proposedBlock);
+    error FuturePolicyBlock(uint256 proposedBlock, uint256 currentBlock);
+    error PolicyDataTooOld(uint256 indexedBlock, uint256 currentBlock, uint256 maxLagBlocks);
+    error PolicyStepTooLarge(uint256 previousValue, uint256 proposedValue, uint256 maxStep);
 
     event AppAuthorized(address indexed app, bool authorized);
     event OrderRegistrarAuthorized(address indexed registrar, bool authorized);
@@ -39,6 +47,18 @@ contract HumanQuota {
         uint256 tightVolume,
         uint256 wideVolume,
         uint256 humanShareBps
+    );
+    event PolicyUpdaterConfigured(
+        address indexed token, address indexed updater, uint256 maxFeeStepBps, uint256 maxDataLagBlocks
+    );
+    event RiskPolicyApplied(
+        address indexed token,
+        uint256 indexed indexedThroughBlock,
+        bytes32 indexed decisionHash,
+        uint256 desiredTightFeeBps,
+        uint256 riskSpreadBps,
+        uint256 tightFeeBps,
+        uint256 wideFeeBps
     );
 
     address public owner;
@@ -67,8 +87,18 @@ contract HumanQuota {
         bool enabled;
     }
 
+    struct PolicyGuard {
+        address updater;
+        uint64 indexedThroughBlock;
+        uint64 maxDataLagBlocks;
+        uint32 maxFeeStepBps;
+        bytes32 decisionHash;
+    }
+
     /// @notice Activity-priced schedule for each fixed-amount token.
     mapping(address token => FeeController) private _feeControllers;
+    /// @notice Guardrails for Nuthatch-indexed risk-policy updates.
+    mapping(address token => PolicyGuard) private _policyGuards;
 
     modifier onlyOwner() {
         require(msg.sender == owner, NotOwner());
@@ -152,6 +182,81 @@ contract HumanQuota {
         );
     }
 
+    /// @notice Authorizes a bounded risk-policy updater for one token.
+    /// @dev The updater may move only the desired tight fee and risk spread. It
+    ///      cannot change the LP target, wide-fee ceiling, recorded volume,
+    ///      application authorization, quota usage, or token balances.
+    function configurePolicyUpdater(address token, address updater, uint32 maxFeeStepBps, uint64 maxDataLagBlocks)
+        external
+        onlyOwner
+    {
+        if (!_feeControllers[token].enabled || updater == address(0) || maxFeeStepBps == 0 || maxDataLagBlocks == 0) {
+            revert InvalidPolicyConfiguration();
+        }
+        PolicyGuard storage guard = _policyGuards[token];
+        guard.updater = updater;
+        guard.maxFeeStepBps = maxFeeStepBps;
+        guard.maxDataLagBlocks = maxDataLagBlocks;
+        emit PolicyUpdaterConfigured(token, updater, maxFeeStepBps, maxDataLagBlocks);
+    }
+
+    /// @notice Applies a policy derived from a fresh Nuthatch indexed window.
+    /// @dev Every decision is monotonic in indexed block, bounded in magnitude,
+    ///      and passed back through the on-chain revenue-neutral solver.
+    function applyRiskPolicy(
+        address token,
+        uint32 desiredTightFeeBps,
+        uint32 riskSpreadBps,
+        uint64 indexedThroughBlock,
+        bytes32 decisionHash
+    ) external {
+        PolicyGuard storage guard = _policyGuards[token];
+        if (guard.updater == address(0)) revert PolicyNotConfigured();
+        if (msg.sender != guard.updater) revert NotPolicyUpdater();
+        if (decisionHash == bytes32(0)) revert InvalidDecisionHash();
+
+        uint256 currentBlock = block.number;
+        if (indexedThroughBlock > currentBlock) {
+            revert FuturePolicyBlock(indexedThroughBlock, currentBlock);
+        }
+        if (indexedThroughBlock <= guard.indexedThroughBlock) {
+            revert StalePolicyBlock(guard.indexedThroughBlock, indexedThroughBlock);
+        }
+        if (currentBlock - indexedThroughBlock > guard.maxDataLagBlocks) {
+            revert PolicyDataTooOld(indexedThroughBlock, currentBlock, guard.maxDataLagBlocks);
+        }
+
+        FeeController storage controller = _feeControllers[token];
+        if (
+            !controller.enabled || desiredTightFeeBps > controller.targetFeeBps
+                || riskSpreadBps > controller.maxWideFeeBps
+        ) {
+            revert InvalidPolicyConfiguration();
+        }
+        if (_absoluteDifference(controller.desiredTightFeeBps, desiredTightFeeBps) > guard.maxFeeStepBps) {
+            revert PolicyStepTooLarge(controller.desiredTightFeeBps, desiredTightFeeBps, guard.maxFeeStepBps);
+        }
+        if (_absoluteDifference(controller.riskSpreadBps, riskSpreadBps) > guard.maxFeeStepBps) {
+            revert PolicyStepTooLarge(controller.riskSpreadBps, riskSpreadBps, guard.maxFeeStepBps);
+        }
+
+        controller.desiredTightFeeBps = desiredTightFeeBps;
+        controller.riskSpreadBps = riskSpreadBps;
+        guard.indexedThroughBlock = indexedThroughBlock;
+        guard.decisionHash = decisionHash;
+        _reprice(token);
+
+        emit RiskPolicyApplied(
+            token,
+            indexedThroughBlock,
+            decisionHash,
+            desiredTightFeeBps,
+            riskSpreadBps,
+            controller.tightFeeBps,
+            controller.wideFeeBps
+        );
+    }
+
     function feeSchedule(address token)
         external
         view
@@ -172,6 +277,30 @@ contract HumanQuota {
         wideVolume = controller.wideVolume;
         uint256 totalVolume = tightVolume + wideVolume;
         humanShareBps = totalVolume == 0 ? 0 : tightVolume * 10_000 / totalVolume;
+    }
+
+    function policyState(address token)
+        external
+        view
+        returns (
+            address updater,
+            uint256 maxFeeStepBps,
+            uint256 maxDataLagBlocks,
+            uint256 indexedThroughBlock,
+            bytes32 decisionHash,
+            uint256 desiredTightFeeBps,
+            uint256 riskSpreadBps
+        )
+    {
+        PolicyGuard storage guard = _policyGuards[token];
+        FeeController storage controller = _feeControllers[token];
+        updater = guard.updater;
+        maxFeeStepBps = guard.maxFeeStepBps;
+        maxDataLagBlocks = guard.maxDataLagBlocks;
+        indexedThroughBlock = guard.indexedThroughBlock;
+        decisionHash = guard.decisionHash;
+        desiredTightFeeBps = controller.desiredTightFeeBps;
+        riskSpreadBps = controller.riskSpreadBps;
     }
 
     function currentDay() public view returns (uint256) {
@@ -311,5 +440,9 @@ contract HumanQuota {
         if (cappedTightFeeBps > controller.targetFeeBps) cappedTightFeeBps = controller.targetFeeBps;
         controller.tightFeeBps = uint32(cappedTightFeeBps);
         controller.wideFeeBps = uint32(nextWideFeeBps);
+    }
+
+    function _absoluteDifference(uint256 left, uint256 right) private pure returns (uint256) {
+        return left >= right ? left - right : right - left;
     }
 }

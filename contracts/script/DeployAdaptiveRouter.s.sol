@@ -38,6 +38,9 @@ contract DeployAdaptiveRouter is Script {
         bytes32 oldOrderHash = vm.envBytes32("OLD_ORDER_HASH");
         address token0 = vm.envAddress("TOKEN0");
         address token1 = vm.envAddress("TOKEN1");
+        address policyUpdater = vm.envOr("POLICY_UPDATER", maker);
+        uint32 maxPolicyStepBps = uint32(vm.envOr("MAX_POLICY_STEP_BPS", uint256(10)));
+        uint64 maxPolicyLagBlocks = uint64(vm.envOr("MAX_POLICY_LAG_BLOCKS", uint256(300)));
         uint128 seedToken0TightVolume = uint128(
             vm.envExists("SEED_TOKEN0_TIGHT_VOLUME")
                 ? vm.envUint("SEED_TOKEN0_TIGHT_VOLUME")
@@ -80,6 +83,8 @@ contract DeployAdaptiveRouter is Script {
             seedToken1TightVolume,
             seedToken1WideVolume
         );
+        quota.configurePolicyUpdater(token0, policyUpdater, maxPolicyStepBps, maxPolicyLagBlocks);
+        quota.configurePolicyUpdater(token1, policyUpdater, maxPolicyStepBps, maxPolicyLagBlocks);
 
         TuringPoolRouter router = new TuringPoolRouter(address(aqua), address(0), maker, "TuringPool", "2");
         quota.setAppAuthorization(address(router), true);
@@ -145,6 +150,9 @@ contract DeployAdaptiveRouter is Script {
         vm.serializeUint(json, "tightFeeBps", INITIAL_TIGHT_FEE_BPS);
         vm.serializeUint(json, "wideFeeBps", INITIAL_WIDE_FEE_BPS);
         vm.serializeUint(json, "targetFeeBps", TARGET_FEE_BPS);
+        vm.serializeAddress(json, "policyUpdater", policyUpdater);
+        vm.serializeUint(json, "maxPolicyStepBps", maxPolicyStepBps);
+        vm.serializeUint(json, "maxPolicyLagBlocks", maxPolicyLagBlocks);
         vm.serializeUint(json, "seedToken0TightVolume", seedToken0TightVolume);
         vm.serializeUint(json, "seedToken0WideVolume", seedToken0WideVolume);
         vm.serializeUint(json, "seedToken1TightVolume", seedToken1TightVolume);
