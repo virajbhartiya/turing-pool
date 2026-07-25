@@ -1,75 +1,62 @@
 # Turing Pool — three-minute judge demo
 
-## 75-second public-testnet proof
+## 75-second World Chain proof
 
 This is the fastest way to prove the product is executing rather than showing
-mocked UI. It runs real transactions on Base Sepolia against the checked-in
-deployment. The actors are encrypted Foundry keystores; no private key is in the
-repository or printed to the terminal.
+mocked UI. It runs real transactions through SwapVM and Aqua on World Chain
+mainnet. The actor keys stay server-side; no private key is in the repository,
+browser bundle, or terminal output.
 
 Terminal one:
 
 ```bash
-RPC_URL=https://base-sepolia.drpc.org \
-CHAIN_ID=84532 \
-DEPLOYMENTS_PATH="$PWD/contracts/deployments/base-sepolia.json" \
+RPC_URL=https://worldchain-mainnet.g.alchemy.com/public \
+CHAIN_ID=480 \
+DEPLOYMENTS_PATH="$PWD/contracts/deployments/world-mainnet.json" \
+DEMO_TRADES_ENABLED=1 \
+DEMO_TRADE_ORIGIN=http://localhost:4021 \
+DEMO_TRADE_MAX_AMOUNT_IN=1000000000000000000 \
+BOT_PRIVATE_KEY=… \
+HUMAN_AGENT_PRIVATE_KEY=… \
 PORT=4021 \
 pnpm --filter @turing-pool/server start
 ```
 
 The dashboard scans contract events from the deployment block, so its RPC must
-support historical log reads. The executable agents use their own public
-Base Sepolia RPC by default.
+support historical log reads. Scans are automatically split into the public
+RPC's 100-block maximum.
 
 Open [http://localhost:4021](http://localhost:4021), then run in terminal two:
 
 ```bash
-pnpm demo:sepolia
+pnpm demo:world
 ```
 
-The command asserts all five claims and prints BaseScan transaction links:
+The command asserts the execution claims and prints Worldscan transaction links:
 
-1. An unauthenticated agent receives the AgentKit 402 challenge, selects the
-   current wide lane, and settles on-chain.
-2. The human-backed agent signs the SIWE proof, resolves through the test
-   AgentBook, selects the current tight lane, and settles from the same pool.
-3. A second wallet with the same `humanId` asks for shared remaining quota plus
-   one wei and is placed in the wide lane.
-4. The custom SwapVM router executes `_humanGate` at opcode 34 and the receipt
-   contains `HumanGated`.
-5. The activity controller lowers the human-backed fee, solves the compensating
-   anonymous fee, and docks + re-ships an Aqua strategy whose projected blended
-   LP fee remains within 0.5 bps of the 19 bps target.
+1. The anonymous wallet resolves to zero in the canonical AgentBook,
+   `_humanGate` selects the wide lane, and Aqua settles the trade.
+2. The World-verified wallet resolves to its canonical `humanId`,
+   `_humanGate` selects the tight lane, and the same Aqua order settles.
+3. Both receipts contain `HumanGated` from opcode 34 and the SwapVM `Swapped`
+   event; `/state` independently re-indexes both.
+4. `HumanQuota` records each executed input amount on-chain and recomputes the
+   next revenue-neutral fee pair. Quotes and failed transactions add no volume.
 
 Narrate it in one sentence per terminal beat, then return to the dashboard and
-point at the quote difference, quota meter, tier counts, and decoded swap feed.
-The truthful label is “public Base Sepolia with test Aqua and test AgentBook
-contracts”; do not describe these test contracts as the canonical mainnet
-deployments.
+point at the size selector, quote difference, notional mix, and decoded swap feed.
+Truthful label: “World Chain mainnet; canonical AgentBook; Turing Pool-deployed
+Aqua implementation; custom SwapVM router; maker-owned demo ERC-20 assets.”
 
 ## Preflight
 
 - `pnpm check`
-- `pnpm e2e:fork`
+- `pnpm demo:world`
 - App, router, quota, Aqua, and AgentBook addresses are in the submission.
-- `SUBGRAPH_URL` points to a synced, live Graph provider.
+- `/state.feeController.source` is `on-chain-volume-controller`.
 - Dashboard identifies local, fork, or live mode truthfully.
 - Browser zoom is 100%; terminal font is readable from several metres away.
 - Record a backup 2–4 minute video using the same sequence.
-
-## Start
-
-Terminal one:
-
-```bash
-pnpm demo:fork
-```
-
-Terminal two:
-
-```bash
-SUBGRAPH_URL=https://… pnpm demo:beats
-```
 
 ## Narration
 
@@ -104,21 +91,22 @@ Wallet one consumes quota. Wallet two has a different address but the same
 `humanId`; it attempts `remaining + 1` and is sent to the wide lane. Point to
 the shared quota meter.
 
-### 2:10–2:45 — Graph-grounded autonomous repricing
+### 2:10–2:45 — executed-volume repricing
 
-Show the live Graph endpoint and sync status. The strategist reads indexed
-tight/wide flow and Aqua balances. Point to the controller equation:
+Select 1.0 tETH for the verified lane and execute it. Point to the on-chain
+notional moving by exactly 1.0 tETH and to the next anonymous fee changing.
+Then contrast it with a 0.1 tETH fill. Point to the controller equation:
 `human share × tight fee + bot share × wide fee ≈ 19bps`. It lowers the
-human-backed lane toward 5bps, raises the anonymous lane enough to preserve the
-LP target, then docks the old strategy and ships the new fee pair.
+human-backed lane toward 5bps and raises or lowers the anonymous lane enough to
+preserve the LP target. Counts remain visible, but never enter the formula.
 
 ### 2:45–3:00 — close the loop
 
 Show the next human quote improving and finish with:
 
-“World bounds identity risk, The Graph measures the activity, the controller
-keeps LP fee economics neutral, and Aqua makes the new price executable without
-moving the LP’s funds into another pool.”
+“World bounds identity risk, HumanQuota prices executed volume, and Aqua plus
+SwapVM make the next revenue-neutral price executable without moving the LP’s
+funds into another pool.”
 
 ## Truthful fallback language
 
@@ -126,5 +114,5 @@ moving the LP’s funds into another pool.”
   only into fork state.”
 - Local: “local Aqua and mock AgentBook.”
 - Never label a fork-injected identity as a production AgentBook registration.
-- The Graph fallback is for local rehearsal only and must not be used for the
-  judged Graph submission.
+- If no Graph endpoint is configured, describe it as optional analytics rather
+  than part of the authoritative execution path.

@@ -4,11 +4,11 @@
 
 On-chain market makers can't tell retail flow from toxic arb-bot flow, so every taker pays the worst-case spread. TradFi solved this decades ago — brokers segment retail flow and it gets price improvement. Turing Pool brings that to DeFi with cryptography instead of brokers: World's **AgentBook** registry maps agent wallets to a persistent, sybil-resistant `humanId` (a World ID nullifier), and our pool reads it **on-chain, at quote time** to price personhood.
 
-- **Human-backed agents** (within a per-human daily quota): tight spread (e.g. 8bps → controller-tuned to 5bps)
-- **Anonymous bots**: activity-priced surcharge (e.g. 30bps → 33bps at a 50/50 flow mix)
+- **Human-backed agents** (within a per-human daily quota): dynamically priced tight fee
+- **Anonymous bots**: the compensating activity-priced surcharge
 - **Sybil wallets**: same human ⇒ same `humanId` ⇒ same shared quota. A fresh wallet buys you nothing.
 
-The per-human cap is what makes this economically sound rather than a generic identity discount: bounded per-human volume ⇒ bounded adverse selection per human ⇒ LPs can rationally quote the tight tier. One human cannot reset that risk limit by creating another wallet. A revenue-neutral controller observes the human/bot notional mix and solves the bot fee so the LP keeps a 19bps blended target:
+The per-human cap is what makes this economically sound rather than a generic identity discount: bounded per-human volume ⇒ bounded adverse selection per human ⇒ LPs can rationally quote the tight tier. One human cannot reset that risk limit by creating another wallet. An on-chain revenue-neutral controller records the executed human/bot input notional after every mined fill and solves the next fee pair so the LP keeps a 19bps blended target. Trade count never enters the equation:
 
 `human volume × tight fee + bot volume × wide fee ≈ total volume × 19bps`
 
@@ -16,14 +16,28 @@ Built at **ETHGlobal Lisbon 2026** for the World AgentKit, 1inch Aqua, and The G
 
 ## What's real
 
-Verified by `pnpm e2e:fork` on an **Anvil fork of Base mainnet**:
+The executable demo is deployed on **World Chain mainnet (chain 480)**:
 
 | Piece | Address |
 |---|---|
-| 1inch Aqua (real deployment) | `0x499943E74FB0cE105688beeE8Ef2ABec5D936d31` |
-| World AgentBook (real deployment) | `0xE1D1D3526A6FAa37eb36bD10B933C1b77f4561a4` |
+| Aqua protocol deployment | `0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec` |
+| Canonical World AgentBook | `0xA23aB2712eA7BBa896930544C7d6636a96b944dA` |
+| TuringPoolApp | `0xA4CECe31cA7A7fb79f4A0ffCfd219d1BF92fD46b` |
+| Adaptive SwapVM + `_humanGate` router | `0x0492E6325Aa7d26592444F0dAaF0AF9E6aA188C0` |
+| Volume controller + shared HumanQuota | `0x0D0B45E2dC957EAe99AbdcEFC5B9D311DB63701d` |
 
-The fork demo runs against the deployed Aqua and AgentBook bytecode. It injects demo registrations into the forked AgentBook storage (`lookupHuman` mapping at slot 4, validated against deployed bytecode in `TuringPoolFork.t.sol`); it does **not** claim those registrations exist in production state. Off-chain, the quote API runs the official `@worldcoin/agentkit` SDK end to end: 402 challenge → CAIP-122/SIWE signature → `parseAgentkitHeader`/`validateAgentkitMessage`/`verifyAgentkitSignature` → on-chain `lookupHuman`.
+The Aqua contract is the actual 1inch Aqua implementation compiled from the
+project dependency and deployed on World Chain; it is not a mocked registry or
+an HTML simulation. The router executes the actual SwapVM program shipped into
+Aqua. Its first instruction is `_humanGate` at opcode 34, which reads the
+canonical AgentBook during the transaction.
+
+Two World-verified wallets resolve to the same canonical `humanId`; the bot
+wallet resolves to zero. The deployment script refuses mainnet deployment
+unless those invariants hold. Example public receipts:
+
+- [1.0 tETH World-verified fill · 5 bps](https://worldscan.org/tx/0x3ac295603a541e1b7cb74e13f25175e25f04b152148e7114295ee719c7af8ce4)
+- [Next anonymous fill · automatically repriced to 68 bps](https://worldscan.org/tx/0x59ce1c66e1d081c2a6488de13388407218b87594fb467ab3cbffe4f19498118f)
 
 ## Architecture
 
@@ -34,24 +48,23 @@ Agent (@worldcoin/agentkit client)          Anonymous bot
 Quote API (Hono + viem) ──────────── eth_call quotes per taker
    │
    ▼ swaps hit the chain directly
-┌───────────────────────── Base (fork for demo) ──────────────────────────┐
+┌──────────────────────────── World Chain ─────────────────────────────────┐
 │                                                                          │
 │  TuringPoolApp (custom Aqua app) ──reads──► AgentBook (World)            │
-│      │ pull / push                          HumanQuota (per-humanId cap) │
+│      │ pull / push                          HumanQuota (cap + fee state)│
 │      ▼                                                                   │
 │  Aqua (1inch) — LP funds never leave the maker's wallet                  │
 │                                                                          │
 │  TuringPoolRouter = SwapVM + one new opcode: _humanGate (0x22)           │
 │      continuation-style instruction: resolves taker's humanity + quota,  │
-│      applies tight/wide fee to the rest of the program, records usage    │
+│      applies live fees, records executed notional, reprices the next fill │
 │      (swap ctx only — quotes are static & honest by construction)        │
 └──────────────────────────────────────────────────────────────────────────┘
    ▲ Swapped events (tier + humanId)
    │
-Subgraph (The Graph) ◄─── Strategist: measures per-tier activity + toxicity.
-                          A deterministic controller preserves the LP's blended
-                          fee target while shifting cost from bounded human flow
-                          to anonymous flow, then DOCKS + re-SHIPS on Aqua.
+Subgraph (The Graph) ◄─── indexes fills and controller evidence for analytics.
+HumanQuota              ◄── stores the authoritative notional mix and updates
+                            the next schedule inside every SwapVM transaction.
 ```
 
 Two independent on-chain implementations:
@@ -70,33 +83,28 @@ pnpm check
 # fork tests vs REAL Base mainnet deployments (3 tests)
 cd contracts && RUN_FORK_TESTS=1 forge test --match-contract Fork -vv && cd ..
 
-# asserted end-to-end demo
+# asserted end-to-end demos
 pnpm e2e               # local Aqua + mock AgentBook
 pnpm e2e:fork          # deployed Aqua + AgentBook bytecode on a Base fork
+pnpm demo:world         # two new World Chain trades through the website API
 
-# persistent judge demo
-pnpm demo:fork         # terminal 1: chain + deploy + API + dashboard
-SUBGRAPH_URL=https://… pnpm demo:beats  # terminal 2: narrated four-beat flow
+# optional local/fork rehearsals
+pnpm demo:fork
+SUBGRAPH_URL=https://… pnpm demo:beats
 ```
 
-Copy `.env.example` for runtime configuration. `SUBGRAPH_URL` is mandatory for
-the judged strategist flow; the chain-log fallback is deliberately limited to
-local chain 31337 and labels itself as non-judged.
+Copy `.env.example` for runtime configuration. `SUBGRAPH_URL` is optional for
+analytics; the executable fee controller reads its authoritative state from
+`HumanQuota` and does not depend on an off-chain indexer.
 
 ## Deployment readiness
 
-The full stack is deployed on **Base Sepolia** and can be served locally with
-live RPC reads using `contracts/deployments/base-sepolia.json`. The deployment
-uses public-testnet Aqua and AgentBook test contracts, while preserving the same
-app, router, quota, pricing, and strategy lifecycle exercised by the fork demo.
-Addresses and the server command are in
-[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md).
-
-The private repository is linked to Vercel. Its judge-facing preview serves the
-Vite/React trading terminal built from `web/` and a real Hono Function at
-`/health`, `/state`, `/demo/quotes`, and `/quote`. Because the Turing Pool
-contracts are not deployed on Base mainnet, this hosted mode is deliberately labeled as a deterministic,
-non-executable snapshot; it never presents fork-only addresses as live state.
+The full mock-free stack is deployed on World Chain. Its checked-in deployment
+manifest is `contracts/deployments/world-mainnet.json`. The private repository
+is linked to Vercel; the Vite/React terminal and Hono backend share one origin.
+`/state` reads World Chain, `/demo/quotes` performs live calls, and
+`POST /demo/trade` signs a tightly capped transaction from a disposable human
+or bot demo wallet. Signing keys remain server-side.
 
 The live-chain production shape remains a single container: the Hono API serves
 the dashboard at `/`, exposes `/health` for the host, and uses same-origin
@@ -105,19 +113,17 @@ CI before automatic deploys, and the [Dockerfile](./Dockerfile) runs the
 compiled server as an unprivileged user.
 
 Production deliberately refuses to start without `DEPLOYMENTS_JSON`, preventing
-the local or Base-fork demo addresses from being published accidentally. Deploy
-the contracts on Base, deploy the subgraph, then provide `RPC_URL`,
-`SUBGRAPH_URL`, and the resulting deployment JSON through the host's secret
-store. See [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for the release order and
-container command.
+local or fork-only addresses from being published accidentally. See
+[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) for the World Chain inputs and
+release checks.
 
 ## Track integration map
 
 **World — AgentKit New Use Cases.** Human backing changes risk limits and execution terms in an adversarial market. The lower spread is justified by a sybil-resistant, per-human exposure cap; it is not an arbitrary identity benefit. AgentKit runs off-chain through the full 402→SIWE→verify loop and on-chain through `AgentBook.lookupHuman`. Integration feedback is in [FEEDBACK.md](./FEEDBACK.md).
 
-**1inch — Build an Aqua App.** A custom dual-tier Aqua app plus a modified SwapVM router with `_humanGate` at opcode 34. The E2E executes the custom router, verifies its `HumanGated` event, and executes token transfers on the fork. Settlement uses `ship/dock/pull/push`; the strategist demonstrates dock+re-ship as live re-pricing.
+**1inch — Build an Aqua App.** A custom dual-tier Aqua app plus a modified SwapVM router with `_humanGate` at opcode 34. The live receipts execute the custom router and verify its `HumanGated` event. Aqua owns the strategy namespace and virtual balances; SwapVM executes the fill while the maker retains asset ownership.
 
-**The Graph — Best AI Use Case.** The strategist consumes live per-tier swaps and Aqua balances from the custom subgraph, reasons over execution edge, and feeds a deterministic revenue-neutral controller. The controller solves tight/wide fees from the observed activity mix while holding a 19bps blended LP target, then the agent docks and ships the re-priced strategy. Graph errors, missing strategies, and invalid balances fail loudly. Configure and deploy from `subgraph/` with `pnpm configure <app> <aqua> <block> base && pnpm deploy`; the judged demo requires the resulting `SUBGRAPH_URL`.
+**The Graph — analytics extension.** The repository includes a subgraph and strategist agent for indexed activity analysis and historical experiments. The live execution path deliberately keeps the safety-critical fee state on-chain; Graph data is not required to quote or settle a trade.
 
 ## Repo layout
 
@@ -136,6 +142,6 @@ docs/        design and deployment runbooks
 1. Bot asks for a quote → **402: prove human backing** → the current anonymous lane.
 2. `_humanGate` executes inside SwapVM as opcode 34 and emits `HumanGated`.
 3. AgentKit auto-signs SIWE → verified on-chain → the current tight lane. A second wallet attempts `remaining quota + 1` and is demoted to wide because it shares the same `humanId`.
-4. The strategist reads live activity, targets a lower human fee when risk is bounded, solves the compensating bot fee, proves the blended LP target remains ≈19bps, then docks + re-ships.
+4. Pick 0.1, 0.5, or 1.0 tETH and mine a fill. HumanQuota adds that exact executed notional and immediately solves the next tight/wide pair. A 1.0 tETH fill has 10× the influence of a 0.1 tETH fill while the LP blend stays ≈19bps.
 
 The exact stage narration and preflight checklist are in [docs/DEMO.md](./docs/DEMO.md).
