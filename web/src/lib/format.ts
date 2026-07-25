@@ -44,3 +44,11 @@ export function transactionExplorer(chainId: number, transactionHash?: string): 
   if (chainId === 480) return `https://worldscan.org/tx/${transactionHash}`;
   return undefined;
 }
+
+export function addressExplorer(chainId: number, address?: string): string | undefined {
+  if (!address) return undefined;
+  if (chainId === 84532) return `https://sepolia.basescan.org/address/${address}`;
+  if (chainId === 8453) return `https://basescan.org/address/${address}`;
+  if (chainId === 480) return `https://worldscan.org/address/${address}`;
+  return undefined;
+}

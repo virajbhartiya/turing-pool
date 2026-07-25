@@ -249,6 +249,30 @@ export const vaultFactoryAbi = [
 
 export const vaultAbi = [
   {
+    type: 'event',
+    name: 'LiquidityAdded',
+    inputs: [
+      { name: 'provider', type: 'address', indexed: true },
+      { name: 'receiver', type: 'address', indexed: true },
+      { name: 'amount0', type: 'uint256', indexed: false },
+      { name: 'amount1', type: 'uint256', indexed: false },
+      { name: 'shares', type: 'uint256', indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'LiquidityRemoved',
+    inputs: [
+      { name: 'provider', type: 'address', indexed: true },
+      { name: 'receiver', type: 'address', indexed: true },
+      { name: 'amount0', type: 'uint256', indexed: false },
+      { name: 'amount1', type: 'uint256', indexed: false },
+      { name: 'shares', type: 'uint256', indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
     type: 'function',
     name: 'TOKEN0',
     stateMutability: 'view',

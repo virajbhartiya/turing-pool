@@ -82,6 +82,20 @@ export async function sendWalletTransaction(
   return hash;
 }
 
+export async function addTokenToWallet(
+  provider: Eip1193Provider,
+  token: { address: string; symbol: string; decimals: number },
+): Promise<boolean> {
+  const result = await provider.request({
+    method: 'wallet_watchAsset',
+    params: {
+      type: 'ERC20',
+      options: token,
+    },
+  });
+  return result === true;
+}
+
 export async function waitForWalletReceipt(
   provider: Eip1193Provider,
   transactionHash: string,

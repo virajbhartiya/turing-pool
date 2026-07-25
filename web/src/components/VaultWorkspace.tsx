@@ -2,8 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { apiBase } from '../hooks/useProtocol';
 import { responseJson } from '../lib/apiResponse';
-import { formatUnits, parseUnits, shortAddress, transactionExplorer } from '../lib/format';
 import {
+  addressExplorer,
+  formatUnits,
+  parseUnits,
+  shortAddress,
+  transactionExplorer,
+  unitsAsNumber,
+} from '../lib/format';
+import {
+  addTokenToWallet,
   ensureExecutionChain,
   sendWalletTransaction,
   waitForWalletReceipt,
@@ -41,11 +49,6 @@ const IDLE_STATUS: ActionStatus = {
 
 const ACTIONS = ['trade', 'deposit', 'redeem', 'create'] as const;
 
-function proRataClaim(reserve: string, shares: string, totalSupply: string): bigint {
-  const supply = BigInt(totalSupply);
-  return supply === 0n ? 0n : (BigInt(reserve) * BigInt(shares)) / supply;
-}
-
 function waitForRpcVisibility(milliseconds = 650): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
@@ -71,6 +74,7 @@ export function VaultWorkspace({
   const [deposit0, setDeposit0] = useState('1');
   const [deposit1, setDeposit1] = useState('1');
   const [redeemPercent, setRedeemPercent] = useState(100);
+  const [lpTokenAdded, setLpTokenAdded] = useState(false);
   const [createForm, setCreateForm] = useState({
     token0: '',
     token1: '',
@@ -191,9 +195,39 @@ export function VaultWorkspace({
     };
   }, [account, action, direction, tradeAmount, vault]);
 
-  const ownershipBps = useMemo(() => {
-    if (!vault || BigInt(vault.totalSupply) === 0n) return 0;
-    return Number((BigInt(vault.position.shares) * 10_000n) / BigInt(vault.totalSupply));
+  const ownershipPercent = useMemo(
+    () => (vault ? Number(vault.position.ownershipPpb) / 10_000_000 : 0),
+    [vault],
+  );
+  const ownershipLabel =
+    ownershipPercent > 0 && ownershipPercent < 0.01
+      ? `${ownershipPercent.toFixed(6)}%`
+      : `${ownershipPercent.toFixed(2)}%`;
+  const lpEconomics = useMemo(() => {
+    if (!vault || !vault.position.accounting.available) return undefined;
+    const reserve0 = unitsAsNumber(vault.reserves.token0, vault.token0.decimals);
+    const reserve1 = unitsAsNumber(vault.reserves.token1, vault.token1.decimals);
+    const token0Price = reserve0 > 0 ? reserve1 / reserve0 : 0;
+    const claim0 = unitsAsNumber(vault.position.claimToken0, vault.token0.decimals);
+    const claim1 = unitsAsNumber(vault.position.claimToken1, vault.token1.decimals);
+    const contributed0 = unitsAsNumber(
+      vault.position.accounting.netContributedToken0,
+      vault.token0.decimals,
+    );
+    const contributed1 = unitsAsNumber(
+      vault.position.accounting.netContributedToken1,
+      vault.token1.decimals,
+    );
+    const currentValue = claim0 * token0Price + claim1;
+    const contributedValue = contributed0 * token0Price + contributed1;
+    const pnl = currentValue - contributedValue;
+    return {
+      currentValue,
+      contributedValue,
+      pnl,
+      pnlPercent: contributedValue > 0 ? (pnl / contributedValue) * 100 : undefined,
+      token0Price,
+    };
   }, [vault]);
   const actionPending = ['preparing', 'wallet', 'mining'].includes(status.state);
 
@@ -343,6 +377,24 @@ export function VaultWorkspace({
     await submitPrepared('/vaults/create/prepare', createForm, ['create']);
   }
 
+  async function watchLpToken() {
+    try {
+      if (!provider || !vault) {
+        await onConnectWallet(false);
+        return;
+      }
+      await ensureExecutionChain(provider);
+      const added = await addTokenToWallet(provider, vault.shareToken);
+      setLpTokenAdded(added);
+    } catch (error) {
+      setStatus({
+        state: 'error',
+        title: 'LP token was not added',
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   const explorerUrl = status.transactionHash
     ? transactionExplorer(registry?.chainId ?? 480, status.transactionHash)
     : undefined;
@@ -355,6 +407,9 @@ export function VaultWorkspace({
     ? direction === 'token0-to-token1'
       ? vault.token1
       : vault.token0
+    : undefined;
+  const lpTokenUrl = vault
+    ? addressExplorer(registry?.chainId ?? 84532, vault.shareToken.address)
     : undefined;
 
   return (
@@ -448,7 +503,7 @@ export function VaultWorkspace({
                 <div><span>Market</span><strong>{vault.token0.symbol} / {vault.token1.symbol}</strong><small>Aqua order {vault.strategyActive ? 'active' : 'inactive'}</small></div>
                 <div><span>Live fees</span><strong>{vault.feeSchedules.token0.tightFeeBps} / {vault.feeSchedules.token0.wideFeeBps} bps</strong><small>human / bot · {vault.feeSchedules.token0.targetFeeBps} bps target</small></div>
                 <div><span>Pool inventory</span><strong>{formatUnits(vault.reserves.token0, vault.token0.decimals, 4)} {vault.token0.symbol}</strong><small>{formatUnits(vault.reserves.token1, vault.token1.decimals, 4)} {vault.token1.symbol}</small></div>
-                <div><span>Your ownership</span><strong>{(ownershipBps / 100).toFixed(2)}%</strong><small>{formatUnits(vault.position.shares, 18, 4)} {vault.shareToken.symbol}</small></div>
+                <div><span>Your LP position</span><strong>{ownershipLabel}</strong><small>{formatUnits(vault.position.shares, 18, 4)} {vault.shareToken.symbol} · ERC-20 on Base Sepolia</small></div>
               </div>
 
               <div className="vault-grid">
@@ -508,7 +563,7 @@ export function VaultWorkspace({
                       <div className="vault-redemption">
                         <span>Shares to burn</span>
                         <strong>{formatUnits((BigInt(vault.position.shares) * BigInt(redeemPercent)) / 100n, 18, 6)} {vault.shareToken.symbol}</strong>
-                        <small>≈ {(ownershipBps * redeemPercent / 100 / 100).toFixed(2)}% of pool inventory</small>
+                        <small>≈ {(ownershipPercent * redeemPercent / 100).toFixed(6)}% of pool inventory</small>
                       </div>
                       <button className="vault-primary" disabled={actionPending} onClick={() => void redeemLiquidity()} type="button">
                         {!account ? 'Connect LP wallet to withdraw' : 'Redeem through MetaMask'}
@@ -519,15 +574,39 @@ export function VaultWorkspace({
 
                 <article className="vault-card vault-position">
                   <span>LP position</span>
-                  <h3>{account ? 'Connected position' : 'Wallet not connected'}</h3>
+                  <h3>{account ? `${vault.shareToken.symbol} earnings` : 'Wallet not connected'}</h3>
+                  {account && lpEconomics && (
+                    <div className={`vault-pnl ${lpEconomics.pnl >= 0 ? 'positive' : 'negative'}`}>
+                      <span>Mark-to-pool P&amp;L</span>
+                      <strong>
+                        {lpEconomics.pnl >= 0 ? '+' : ''}
+                        {lpEconomics.pnl.toLocaleString('en-US', { maximumFractionDigits: 4 })}{' '}
+                        {vault.token1.symbol}
+                      </strong>
+                      <small>
+                        {lpEconomics.pnlPercent === undefined
+                          ? 'No contribution basis yet'
+                          : `${lpEconomics.pnlPercent >= 0 ? '+' : ''}${lpEconomics.pnlPercent.toFixed(3)}%`}
+                        {' · '}fees and inventory marked at the current pool price
+                      </small>
+                    </div>
+                  )}
                   <dl>
                     <div><dt>LP shares</dt><dd>{formatUnits(vault.position.shares, 18, 6)} {vault.shareToken.symbol}</dd></div>
-                    <div><dt>Pool ownership</dt><dd>{(ownershipBps / 100).toFixed(2)}%</dd></div>
-                    <div><dt>Token 0 claim</dt><dd>{formatUnits(proRataClaim(vault.reserves.token0, vault.position.shares, vault.totalSupply), vault.token0.decimals, 5)} {vault.token0.symbol}</dd></div>
-                    <div><dt>Token 1 claim</dt><dd>{formatUnits(proRataClaim(vault.reserves.token1, vault.position.shares, vault.totalSupply), vault.token1.decimals, 5)} {vault.token1.symbol}</dd></div>
+                    <div><dt>Pool ownership</dt><dd>{ownershipLabel}</dd></div>
+                    <div><dt>Redeemable now</dt><dd>{formatUnits(vault.position.claimToken0, vault.token0.decimals, 5)} {vault.token0.symbol} + {formatUnits(vault.position.claimToken1, vault.token1.decimals, 5)} {vault.token1.symbol}</dd></div>
+                    <div><dt>Net contributed</dt><dd>{formatUnits(vault.position.accounting.netContributedToken0, vault.token0.decimals, 5)} {vault.token0.symbol} + {formatUnits(vault.position.accounting.netContributedToken1, vault.token1.decimals, 5)} {vault.token1.symbol}</dd></div>
+                    <div><dt>Position value</dt><dd>{lpEconomics ? `${lpEconomics.currentValue.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${vault.token1.symbol}` : '—'}</dd></div>
+                    <div><dt>LP token contract</dt><dd>{lpTokenUrl ? <a href={lpTokenUrl} rel="noreferrer" target="_blank">{shortAddress(vault.shareToken.address)} ↗</a> : shortAddress(vault.shareToken.address)}</dd></div>
                     <div><dt>Aqua order</dt><dd>{vault.strategyActive ? 'ACTIVE' : vault.paused ? 'PAUSED' : 'UNSEEDED'}</dd></div>
                   </dl>
-                  <small>Shares own the vault’s actual maker-wallet inventory after every Aqua fill.</small>
+                  <button className="vault-token-button" onClick={() => void watchLpToken()} type="button">
+                    {lpTokenAdded ? `${vault.shareToken.symbol} added to MetaMask` : `Add ${vault.shareToken.symbol} to MetaMask`}
+                  </button>
+                  <small>
+                    The vault contract mints these transferable shares in <code>deposit()</code>.
+                    P&amp;L uses on-chain deposit/withdrawal events and your live redeemable claim.
+                  </small>
                 </article>
 
                 <VaultStatus status={status} explorerUrl={explorerUrl} />

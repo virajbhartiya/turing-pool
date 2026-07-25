@@ -82,6 +82,34 @@ test('Base vault rate limits never blame the World identity chain', () => {
   });
 });
 
+test('wallet approvals are scoped to the exact trade or deposit amount', async () => {
+  const [routerDemo, vaults] = await Promise.all([
+    readFile(new URL('../src/router-demo.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/vaults.ts', import.meta.url), 'utf8'),
+  ]);
+
+  assert.doesNotMatch(
+    routerDemo,
+    /functionName:\s*'approve',\s*args:\s*\[[^\]]*,\s*maxUint256\]/s,
+    'connected-wallet and demo-trade approvals must not grant unlimited router access',
+  );
+  assert.doesNotMatch(
+    vaults,
+    /functionName:\s*'approve',\s*args:\s*\[[^\]]*,\s*maxUint256\]/s,
+    'vault trade and liquidity approvals must not grant unlimited access',
+  );
+  assert.match(
+    routerDemo,
+    /functionName:\s*'approve',\s*args:\s*\[deployments\.router,\s*(?:quote\.)?amountIn\]/s,
+    'router approval calldata must use the exact input amount',
+  );
+  assert.match(
+    vaults,
+    /functionName:\s*'approve',\s*args:\s*\[quote\.router,\s*BigInt\(quote\.amountIn\)\]/s,
+    'vault trade approval calldata must use the exact quoted input amount',
+  );
+});
+
 test('anonymous live quotes use the configured bot wallet instead of a zero-address sentinel', async () => {
   const app = await readFile(new URL('../src/app.ts', import.meta.url), 'utf8');
   assert.match(app, /quoteRouterFor\(\s*deployments\.bot,/s);

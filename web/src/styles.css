@@ -1104,6 +1104,33 @@ td a:hover { color: var(--accent); }
 .vault-position dl div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border); padding: 9px 0; font: 11px var(--mono); }
 .vault-position dt { color: var(--muted); }
 .vault-position dd { margin: 0; color: var(--text-2); text-align: right; }
+.vault-position dd a { color: var(--human); text-decoration: none; }
+.vault-pnl {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--muted);
+  padding: 11px;
+  background: #0b0d10;
+}
+.vault-pnl.positive { border-left-color: var(--human); }
+.vault-pnl.negative { border-left-color: var(--bot); }
+.vault-pnl > span { display: block; color: var(--muted); font: 750 11px var(--mono); text-transform: uppercase; }
+.vault-pnl > strong { display: block; margin-top: 6px; font: 650 22px var(--mono); }
+.vault-pnl.positive > strong { color: var(--human); }
+.vault-pnl.negative > strong { color: var(--bot); }
+.vault-pnl > small { display: block; margin-top: 5px; color: var(--muted); font: 10px/1.45 var(--mono); }
+.vault-token-button {
+  width: 100%;
+  margin-top: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  padding: 9px 10px;
+  background: #0b0d10;
+  color: var(--text-2);
+  cursor: pointer;
+  font: 750 11px var(--mono);
+}
+.vault-token-button:hover { border-color: var(--human); color: var(--human); }
 .vault-position > small, .vault-redemption small { display: block; margin-top: 10px; color: var(--muted); font: 11px/1.5 var(--mono); }
 .vault-redemption { margin-top: 14px; border: 1px solid var(--border); padding: 12px; background: #0b0d10; }
 .vault-redemption span { display: block; color: var(--muted); font: 11px var(--mono); }

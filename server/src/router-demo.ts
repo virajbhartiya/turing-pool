@@ -6,7 +6,6 @@ import {
   getAddress,
   http,
   isAddress,
-  maxUint256,
   padHex,
   toHex,
   type Address,
@@ -678,7 +677,7 @@ export async function prepareConnectedWalletTrade(
         data: encodeFunctionData({
           abi: erc20Abi,
           functionName: 'approve',
-          args: [deployments.router, maxUint256],
+          args: [deployments.router, amountIn],
         }),
         value: '0x0',
       },
@@ -851,7 +850,7 @@ export async function executeDemoTrade(
         address: route.tokenIn,
         abi: erc20Abi,
         functionName: 'approve',
-        args: [deployments.router, maxUint256],
+        args: [deployments.router, amountIn],
         chain: null,
       });
       const approval = await client.waitForTransactionReceipt({ hash: approvalTransactionHash });

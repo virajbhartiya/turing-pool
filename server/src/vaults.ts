@@ -1,8 +1,9 @@
 import {
+  createPublicClient,
   encodeFunctionData,
   getAddress,
+  http,
   isAddress,
-  maxUint256,
   type Address,
   type Hex,
 } from 'viem';
@@ -16,6 +17,7 @@ import {
   vaultFactoryAbi,
 } from './abi.js';
 import { client, deployments } from './chain.js';
+import { CHAIN_ID, RPC_URL } from './config.js';
 import {
   applyFeeSchedule,
   buildTakerTraits,
@@ -57,6 +59,17 @@ interface TokenMetadata {
 const ZERO_HASH = `0x${'00'.repeat(32)}` as Hex;
 const ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 const tokenMetadataCache = new Map<string, Promise<TokenMetadata>>();
+const historyClient = createPublicClient({
+  transport: http(
+    process.env.HISTORY_RPC_URL ??
+      (CHAIN_ID === 84532 ? 'https://base-sepolia.drpc.org' : RPC_URL),
+  ),
+});
+const liquidityAccountingCache = new Map<
+  string,
+  { loadedAt: number; value: Awaited<ReturnType<typeof loadLiquidityAccounting>> }
+>();
+const LIQUIDITY_ACCOUNTING_TTL_MS = 15_000;
 
 function configuredFactory(): Address | undefined {
   const value = process.env.VAULT_FACTORY ?? deployments.vaultFactory;
@@ -157,6 +170,63 @@ async function assertRegisteredVault(vault: Address): Promise<void> {
     args: [vault],
   });
   if (!registered) throw new Error('vault is not registered by the configured factory');
+}
+
+async function loadLiquidityAccounting(vault: Address, wallet: Address) {
+  const fromBlock = BigInt(deployments.deployBlock ?? 0);
+  const [deposits, withdrawals] = await Promise.all([
+    historyClient.getLogs({
+      address: vault,
+      event: vaultAbi[0],
+      args: { receiver: wallet },
+      fromBlock,
+      toBlock: 'latest',
+    }),
+    historyClient.getLogs({
+      address: vault,
+      event: vaultAbi[1],
+      args: { provider: wallet },
+      fromBlock,
+      toBlock: 'latest',
+    }),
+  ]);
+  const deposited = { token0: 0n, token1: 0n, shares: 0n };
+  for (const event of deposits) {
+    const { amount0, amount1, shares } = event.args;
+    if (amount0 === undefined || amount1 === undefined || shares === undefined) {
+      throw new Error('LiquidityAdded log is missing decoded amounts');
+    }
+    deposited.token0 += amount0;
+    deposited.token1 += amount1;
+    deposited.shares += shares;
+  }
+  const withdrawn = { token0: 0n, token1: 0n, shares: 0n };
+  for (const event of withdrawals) {
+    const { amount0, amount1, shares } = event.args;
+    if (amount0 === undefined || amount1 === undefined || shares === undefined) {
+      throw new Error('LiquidityRemoved log is missing decoded amounts');
+    }
+    withdrawn.token0 += amount0;
+    withdrawn.token1 += amount1;
+    withdrawn.shares += shares;
+  }
+  return {
+    deposited,
+    withdrawn,
+    depositCount: deposits.length,
+    withdrawalCount: withdrawals.length,
+  };
+}
+
+async function liquidityAccounting(vault: Address, wallet: Address) {
+  const key = `${vault.toLowerCase()}:${wallet.toLowerCase()}`;
+  const cached = liquidityAccountingCache.get(key);
+  if (cached && Date.now() - cached.loadedAt < LIQUIDITY_ACCOUNTING_TTL_MS) {
+    return cached.value;
+  }
+  const value = await loadLiquidityAccounting(vault, wallet);
+  liquidityAccountingCache.set(key, { loadedAt: Date.now(), value });
+  return value;
 }
 
 async function readFeeSchedule(quota: Address, token: Address): Promise<OnChainFeeSchedule> {
@@ -299,6 +369,24 @@ export async function vaultState(vaultInput: unknown, walletInput?: unknown) {
         }),
       ])
     : ([0n, 0n, 0n, 0n, 0n] as const);
+  const claim0 = totalSupply === 0n ? 0n : (reserves[0] * shares) / totalSupply;
+  const claim1 = totalSupply === 0n ? 0n : (reserves[1] * shares) / totalSupply;
+  let accounting:
+    | Awaited<ReturnType<typeof liquidityAccounting>>
+    | undefined;
+  let accountingError: string | undefined;
+  if (wallet) {
+    try {
+      accounting = await liquidityAccounting(vault, wallet);
+    } catch (error) {
+      accountingError =
+        error instanceof Error ? error.message : 'liquidity history is temporarily unavailable';
+    }
+  }
+  const deposited0 = accounting?.deposited.token0 ?? 0n;
+  const deposited1 = accounting?.deposited.token1 ?? 0n;
+  const withdrawn0 = accounting?.withdrawn.token0 ?? 0n;
+  const withdrawn1 = accounting?.withdrawn.token1 ?? 0n;
   return {
     vault,
     factory: requireFactory(),
@@ -320,10 +408,30 @@ export async function vaultState(vaultInput: unknown, walletInput?: unknown) {
     position: {
       wallet: wallet ?? null,
       shares: shares.toString(),
+      ownershipPpb:
+        totalSupply === 0n ? '0' : ((shares * 1_000_000_000n) / totalSupply).toString(),
+      claimToken0: claim0.toString(),
+      claimToken1: claim1.toString(),
       token0Balance: token0Balance.toString(),
       token1Balance: token1Balance.toString(),
       token0Allowance: token0Allowance.toString(),
       token1Allowance: token1Allowance.toString(),
+      accounting: {
+        available: wallet !== undefined && accounting !== undefined,
+        depositedToken0: deposited0.toString(),
+        depositedToken1: deposited1.toString(),
+        withdrawnToken0: withdrawn0.toString(),
+        withdrawnToken1: withdrawn1.toString(),
+        netContributedToken0: (deposited0 - withdrawn0).toString(),
+        netContributedToken1: (deposited1 - withdrawn1).toString(),
+        pnlToken0: (claim0 + withdrawn0 - deposited0).toString(),
+        pnlToken1: (claim1 + withdrawn1 - deposited1).toString(),
+        mintedShares: (accounting?.deposited.shares ?? 0n).toString(),
+        burnedShares: (accounting?.withdrawn.shares ?? 0n).toString(),
+        depositCount: accounting?.depositCount ?? 0,
+        withdrawalCount: accounting?.withdrawalCount ?? 0,
+        error: accountingError ?? null,
+      },
     },
   };
 }
@@ -445,7 +553,7 @@ export async function prepareVaultTrade(
         data: encodeFunctionData({
           abi: erc20Abi,
           functionName: 'approve',
-          args: [quote.router, maxUint256],
+          args: [quote.router, BigInt(quote.amountIn)],
         }),
         value: '0x0',
       },
@@ -524,8 +632,12 @@ export async function prepareVaultLiquidity(
     if (balance0 < preview[1] || balance1 < preview[2]) {
       throw new Error('insufficient token balance for the proportional deposit');
     }
-    if (allowance0 < preview[1]) return approval(wallet, token0, vault, 'approve-token0', preview);
-    if (allowance1 < preview[2]) return approval(wallet, token1, vault, 'approve-token1', preview);
+    if (allowance0 < preview[1]) {
+      return approval(wallet, token0, vault, 'approve-token0', preview[1], preview);
+    }
+    if (allowance1 < preview[2]) {
+      return approval(wallet, token1, vault, 'approve-token1', preview[2], preview);
+    }
     const minShares = (preview[0] * (10_000n - slippageBps())) / 10_000n;
     const args = [maxAmount0, maxAmount1, minShares, wallet] as const;
     await client.simulateContract({
@@ -595,6 +707,7 @@ function approval(
   token: Address,
   spender: Address,
   action: 'approve-token0' | 'approve-token1',
+  amount: bigint,
   preview: readonly [bigint, bigint, bigint],
 ): PreparedVaultTransaction {
   return {
@@ -605,7 +718,7 @@ function approval(
       data: encodeFunctionData({
         abi: erc20Abi,
         functionName: 'approve',
-        args: [spender, maxUint256],
+        args: [spender, amount],
       }),
       value: '0x0',
     },

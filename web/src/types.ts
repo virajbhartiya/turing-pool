@@ -357,10 +357,29 @@ export interface VaultState {
   position: {
     wallet: string | null;
     shares: string;
+    ownershipPpb: string;
+    claimToken0: string;
+    claimToken1: string;
     token0Balance: string;
     token1Balance: string;
     token0Allowance: string;
     token1Allowance: string;
+    accounting: {
+      available: boolean;
+      depositedToken0: string;
+      depositedToken1: string;
+      withdrawnToken0: string;
+      withdrawnToken1: string;
+      netContributedToken0: string;
+      netContributedToken1: string;
+      pnlToken0: string;
+      pnlToken1: string;
+      mintedShares: string;
+      burnedShares: string;
+      depositCount: number;
+      withdrawalCount: number;
+      error: string | null;
+    };
   };
 }
 
