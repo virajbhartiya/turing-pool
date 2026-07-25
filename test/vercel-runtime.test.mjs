@@ -26,6 +26,24 @@ test('the Vercel route manifest sends dashboard API paths to the Hono function',
   }
 });
 
+test('the Vercel route manifest serves the dashboard at the production root', async () => {
+  const config = JSON.parse(await readFile(routeManifest, 'utf8'));
+  const static404Index = config.routes.findIndex((route) => route.status === 404);
+  const rootRoute = config.routes
+    .slice(0, static404Index)
+    .find(
+      (route) =>
+        route.dest === '/index.html' &&
+        typeof route.src === 'string' &&
+        new RegExp(route.src).test('/'),
+    );
+
+  assert.ok(
+    rootRoute,
+    'GET / must resolve to the built index.html before Vercel reaches its static 404 route',
+  );
+});
+
 test('the built Vercel output initializes and serves every hosted route', async () => {
   await Promise.all([access(functionEntry), access(dashboardEntry)]);
 
