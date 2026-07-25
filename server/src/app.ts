@@ -52,6 +52,13 @@ import {
   vaultRegistry,
   vaultState,
 } from './vaults.js';
+import {
+  parseIdentityAddress,
+  relayAgentBookRegistration,
+  syncWorldIdentity,
+  worldIdentityStatus,
+  type AgentBookRegistration,
+} from './world-identity.js';
 
 const app = new Hono();
 app.use('*', cors());
@@ -560,6 +567,77 @@ app.get('/wallet/quote', async (c) => {
       );
     }
     return liveReadErrorResponse(c, error);
+  }
+});
+
+app.get('/identity/status', async (c) => {
+  try {
+    return c.json(await worldIdentityStatus(c.req.query('address')));
+  } catch (error) {
+    if (/wallet address|not configured/i.test(errorDescription(error))) {
+      return c.json(
+        {
+          code: 'invalid_identity_request',
+          error: error instanceof Error ? error.message : 'invalid identity request',
+          retryable: false,
+          status: 400,
+        },
+        400,
+      );
+    }
+    return liveReadErrorResponse(c, error);
+  }
+});
+
+app.post('/identity/register', async (c) => {
+  try {
+    const body = (await c.req.json()) as AgentBookRegistration;
+    parseIdentityAddress(body.agent);
+    return c.json(await relayAgentBookRegistration(body));
+  } catch (error) {
+    const description = errorDescription(error);
+    const status = /malformed|different AgentBook|wallet address/i.test(description) ? 400 : 502;
+    return c.json(
+      {
+        code: 'world_registration_failed',
+        error: error instanceof Error ? error.message : 'World registration failed',
+        retryable: status === 502,
+        status,
+      },
+      status,
+    );
+  }
+});
+
+app.post('/identity/sync', async (c) => {
+  if (!vaultOriginAllowed(c)) {
+    return c.json(
+      {
+        code: 'identity_sync_forbidden',
+        error: 'identity synchronization must be requested from the configured dashboard',
+        retryable: false,
+        status: 403,
+      },
+      403,
+    );
+  }
+  try {
+    const body = (await c.req.json()) as { address?: unknown };
+    return c.json(await syncWorldIdentity(body.address));
+  } catch (error) {
+    const description = errorDescription(error);
+    const status = /not registered|not enabled|wallet address|not configured/i.test(description)
+      ? 400
+      : 503;
+    return c.json(
+      {
+        code: 'identity_sync_failed',
+        error: error instanceof Error ? error.message : 'identity synchronization failed',
+        retryable: status === 503,
+        status,
+      },
+      status,
+    );
   }
 });
 

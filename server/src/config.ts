@@ -52,6 +52,8 @@ export function loadDeployments(): Deployments {
 }
 
 export const RPC_URL = process.env.RPC_URL ?? 'http://127.0.0.1:8545';
+export const WORLD_RPC_URL =
+  process.env.WORLD_RPC_URL ?? 'https://worldchain-mainnet.g.alchemy.com/public';
 export const PORT = Number(process.env.PORT ?? 4021);
 export const CHAIN_ID = Number(process.env.CHAIN_ID ?? 31337);
 // NOTE: @worldcoin/agentkit's validateAgentkitMessage derives the expected SIWE

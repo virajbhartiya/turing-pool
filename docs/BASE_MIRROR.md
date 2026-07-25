@@ -59,4 +59,11 @@ MIRROR_RELAYER_PRIVATE_KEY=... \
 pnpm identity:sync
 ```
 
+The terminal's self-service World verification control uses the same relay when
+`WORLD_RPC_URL` and `MIRROR_RELAYER_PRIVATE_KEY` are configured server-side. It
+generates World's official `agentbook-registration` request, waits for the
+canonical World AgentBook registration, and then publishes that result to Base.
+The sync endpoint cannot invent a human ID: it reads the canonical contract and
+skips records that are already synchronized.
+
 Never commit RPC credentials or relayer keys.

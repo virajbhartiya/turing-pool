@@ -82,6 +82,13 @@ supports create, proportional deposits, transferable LP positions, pro-rata
 withdrawals, and identity-priced SwapVM trades from MetaMask.
 See [docs/VAULTS.md](./docs/VAULTS.md).
 
+An unregistered account can choose **Connect wallet to World ID** inside the
+trade ticket. The browser binds World's AgentKit proof to that wallet and its
+canonical AgentBook nonce, submits it through World's registration relay, then
+publishes the confirmed human ID to the Base mirror. The quote changes lanes
+only after both on-chain stages complete; the app never handles the wallet's
+private key.
+
 ## Run it
 
 ```bash

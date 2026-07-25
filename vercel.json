@@ -45,6 +45,10 @@
       "destination": "/"
     },
     {
+      "source": "/identity/:path*",
+      "destination": "/"
+    },
+    {
       "source": "/vaults/:path*",
       "destination": "/"
     },

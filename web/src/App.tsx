@@ -464,6 +464,9 @@ export function App() {
         walletQuoteError={walletQuoteError ?? wallet.error}
         onConnectWallet={wallet.connect}
         onSelectWalletAccount={wallet.selectAccount}
+        onIdentityReady={async () => {
+          await Promise.all([refresh(), refreshWalletQuote()]);
+        }}
         tradeError={tradeError}
         tradeLane={tradeLane}
         tradeProgress={tradeProgress}

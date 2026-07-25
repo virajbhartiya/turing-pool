@@ -14,6 +14,7 @@ import type {
 } from '../types';
 import { BrandLogo } from './BrandLogo';
 import { FeeChart } from './FeeChart';
+import { WorldIdentityControl } from './WorldIdentityControl';
 
 type Lane = 'human' | 'bot';
 
@@ -65,6 +66,7 @@ interface TradingTerminalProps {
   walletQuoteError?: string;
   onConnectWallet: (requestAccountSelection?: boolean) => Promise<void>;
   onSelectWalletAccount: (account: string) => void;
+  onIdentityReady: () => Promise<void>;
   tradeLane?: DemoTradeLane;
   tradeError?: DemoTradeError;
   tradeProgress: DemoTradeProgress[];
@@ -223,6 +225,7 @@ export function TradingTerminal({
   walletQuoteError,
   onConnectWallet,
   onSelectWalletAccount,
+  onIdentityReady,
   tradeLane,
   tradeError,
   tradeProgress,
@@ -233,6 +236,7 @@ export function TradingTerminal({
   onDirectionChange,
   children,
 }: TradingTerminalProps) {
+  const [slippageBps, setSlippageBps] = useState(50);
   const lane: Lane = walletQuote ? (walletQuote.tight ? 'human' : 'bot') : 'human';
   const selected = walletQuote ?? quotes[lane];
   const outputDelta = BigInt(quotes.human.amountOut) - BigInt(quotes.bot.amountOut);
@@ -249,6 +253,17 @@ export function TradingTerminal({
     connectedChainId === state.runtime.chainId;
   const companionUrl = new URL(window.location.href);
   companionUrl.searchParams.delete('account');
+  const minimumReceived =
+    (BigInt(selected.amountOut) * BigInt(10_000 - slippageBps)) / 10_000n;
+  const displayAmount = formatUnits(selected.amountIn, 18, 6);
+
+  function updateDisplayAmount(value: string) {
+    if (!/^\d*(?:\.\d{0,18})?$/.test(value) || value === '') return;
+    const [whole = '0', fraction = ''] = value.split('.');
+    const units = BigInt(whole || '0') * 10n ** 18n +
+      BigInt((fraction + '0'.repeat(18)).slice(0, 18));
+    if (units > 0n) onAmountChange(units.toString());
+  }
 
   useEffect(() => {
     const accountLabel = connectedAccount
@@ -388,6 +403,11 @@ export function TradingTerminal({
                       : `World mirror returned humanId 0 · ${formatUnits(walletQuote.balance)} ${walletQuote.tokenInSymbol} available`
                     : walletQuoteError ?? 'Reading wallet balance, allowance, and identity…'}
                 </small>
+                <WorldIdentityControl
+                  account={connectedAccount}
+                  quotedAsHuman={walletQuote?.humanBacked === true}
+                  onIdentityReady={onIdentityReady}
+                />
                 <a href={companionUrl.toString()} rel="noreferrer" target="_blank">
                   Open second wallet tab ↗
                 </a>
@@ -416,6 +436,24 @@ export function TradingTerminal({
               <small>Receive tUSD</small>
             </button>
           </div>
+          <div className="order-controls">
+            <label>
+              Order type
+              <strong>Market</strong>
+            </label>
+            <label>
+              Slippage
+              <select
+                aria-label="Maximum slippage"
+                onChange={(event) => setSlippageBps(Number(event.target.value))}
+                value={slippageBps}
+              >
+                <option value={10}>0.10%</option>
+                <option value={50}>0.50%</option>
+                <option value={100}>1.00%</option>
+              </select>
+            </label>
+          </div>
           <div className="size-selector">
             <span>Trade size · {tokenInSymbol} input · volume drives repricing</span>
             <div>
@@ -434,8 +472,22 @@ export function TradingTerminal({
             </div>
           </div>
           <div className="token-field">
-            <label>Pay <span>Demo balance</span></label>
-            <div><strong>{formatUnits(selected.amountIn)}</strong><b>{tokenInSymbol}</b></div>
+            <label>
+              Pay
+              <span>
+                Balance{' '}
+                {walletQuote ? formatUnits(walletQuote.balance, 18, 4) : '—'}
+              </span>
+            </label>
+            <div>
+              <input
+                aria-label={`Amount of ${tokenInSymbol} to pay`}
+                inputMode="decimal"
+                onChange={(event) => updateDisplayAmount(event.target.value)}
+                value={displayAmount}
+              />
+              <b>{tokenInSymbol}</b>
+            </div>
           </div>
           <div className="swap-arrow">↓</div>
           <div className="token-field">
@@ -458,7 +510,16 @@ export function TradingTerminal({
               </dd>
             </div>
             <div><dt>Live LP rate</dt><dd>{selected.feeBps} bps</dd></div>
-            <div><dt>Settlement</dt><dd>Aqua · maker inventory</dd></div>
+            <div><dt>Price impact</dt><dd>{(selected.feeBps / 100).toFixed(2)}%</dd></div>
+            <div>
+              <dt>Minimum received</dt>
+              <dd>
+                {formatUnits(minimumReceived, 18, tokenOutSymbol === 'tETH' ? 6 : 2)}{' '}
+                {tokenOutSymbol}
+              </dd>
+            </div>
+            <div><dt>Route</dt><dd>{tokenInSymbol} → SwapVM #34 → Aqua → {tokenOutSymbol}</dd></div>
+            <div><dt>Network</dt><dd>Base Sepolia · gas shown in MetaMask</dd></div>
             <div>
               <dt>Verified price edge</dt>
               <dd className={lane === 'human' ? 'positive' : 'negative'}>
