@@ -30,10 +30,13 @@ import { hostedDemoQuotes, hostedState } from './hosted-snapshot.js';
 import { loadNuthatchActivity, type NuthatchActivity } from './nuthatch.js';
 import {
   demoTradesEnabled,
+  directionFromZeroForOne,
   executeDemoTrade,
+  parseDemoTradeDirection,
   quoteRouterFor,
   routerOpcode,
   routerPoolState,
+  type DemoTradeDirection,
   type DemoTradeLane,
 } from './router-demo.js';
 
@@ -257,6 +260,7 @@ app.get('/quote', async (c) => {
     return c.json({ error: error instanceof Error ? error.message : 'invalid amountIn' }, 400);
   }
   const zeroForOne = (c.req.query('zeroForOne') ?? 'true') === 'true';
+  const direction = directionFromZeroForOne(zeroForOne);
   const anonymous = c.req.query('anonymous') === '1';
   const resourceUri = `${BASE_URL}/quote`;
   const header = c.req.header('agentkit');
@@ -265,13 +269,18 @@ app.get('/quote', async (c) => {
     if (!header && !anonymous) {
       return c.json(agentkitChallenge(resourceUri), 402);
     }
-    const preview = hostedDemoQuotes(amountIn);
+    const preview = hostedDemoQuotes(amountIn, direction);
     const quote = header ? preview.human : preview.bot;
     return c.json({
       pool: 'tETH/tUSD',
       mode: preview.mode,
       amountIn: amountIn.toString(),
-      zeroForOne,
+      direction: preview.direction,
+      zeroForOne: preview.zeroForOne,
+      tokenIn: preview.tokenIn,
+      tokenOut: preview.tokenOut,
+      tokenInSymbol: preview.tokenInSymbol,
+      tokenOutSymbol: preview.tokenOutSymbol,
       identity: {
         verified: false,
         simulated: true,
@@ -283,6 +292,7 @@ app.get('/quote', async (c) => {
       wideAmountOut: preview.bot.amountOut,
       improvementBps: preview.improvementBps,
       quotaRemainingTokenIn: preview.sybil.sharedQuotaRemaining,
+      feeSchedule: preview.feeSchedule,
       execute: {
         available: false,
         note: 'Snapshot quotes are not executable; use pnpm demo:fork for live execution',
@@ -310,10 +320,10 @@ app.get('/quote', async (c) => {
     return c.json(agentkitChallenge(resourceUri), 402);
   }
 
-  const q = await quoteRouterFor(taker, amountIn, undefined, zeroForOne);
-  const wide = await quoteRouterFor(deployments.bot, amountIn, undefined, zeroForOne);
+  const q = await quoteRouterFor(taker, amountIn, undefined, direction);
+  const wide = await quoteRouterFor(deployments.bot, amountIn, undefined, direction);
 
-  const tokenIn = zeroForOne ? q.strategy.token0 : q.strategy.token1;
+  const tokenIn = q.tokenIn;
   const quotaLeft =
     q.humanId !== 0n ? await quotaRemaining(q.humanId, tokenIn) : 0n;
 
@@ -323,7 +333,12 @@ app.get('/quote', async (c) => {
   return c.json({
     pool: 'tETH/tUSD',
     amountIn: amountIn.toString(),
-    zeroForOne,
+    direction: q.direction,
+    zeroForOne: q.zeroForOne,
+    tokenIn: q.tokenIn,
+    tokenOut: q.tokenOut,
+    tokenInSymbol: q.tokenInSymbol,
+    tokenOutSymbol: q.tokenOutSymbol,
     identity,
     tier: q.tight ? 'tight' : 'wide',
     feeBps: q.feeBps.toString(),
@@ -331,6 +346,14 @@ app.get('/quote', async (c) => {
     wideAmountOut: wide.amountOut.toString(),
     improvementBps,
     quotaRemainingTokenIn: quotaLeft.toString(),
+    feeSchedule: {
+      tightFeeBps: q.feeSchedule.tightFeeBps.toString(),
+      wideFeeBps: q.feeSchedule.wideFeeBps.toString(),
+      targetFeeBps: q.feeSchedule.targetFeeBps.toString(),
+      humanShareBps: q.feeSchedule.humanShareBps.toString(),
+      tightVolume: q.feeSchedule.tightVolume.toString(),
+      wideVolume: q.feeSchedule.wideVolume.toString(),
+    },
     execute: {
       to: deployments.router,
       function: 'swap((address,uint256,bytes),address,address,uint256,bytes)',
@@ -344,22 +367,32 @@ app.get('/quote', async (c) => {
 /// the tier shown is exactly what each taker would receive on-chain right now).
 app.get('/demo/quotes', async (c) => {
   let amountIn: bigint;
+  let direction: DemoTradeDirection;
   try {
     amountIn = parseQuoteAmount(c.req.query('amountIn'));
+    direction = parseDemoTradeDirection(c.req.query('direction'));
   } catch (error) {
-    return c.json({ error: error instanceof Error ? error.message : 'invalid amountIn' }, 400);
+    return c.json(
+      {
+        code: 'invalid_trade_request',
+        error: error instanceof Error ? error.message : 'invalid demo quote request',
+        retryable: false,
+        status: 400,
+      },
+      400,
+    );
   }
   if (SNAPSHOT_MODE) {
-    return c.json(hostedDemoQuotes(amountIn));
+    return c.json(hostedDemoQuotes(amountIn, direction));
   }
   const [human, bot] = await Promise.all([
-    quoteRouterFor(deployments.humanAgent, amountIn),
-    quoteRouterFor(deployments.bot, amountIn),
+    quoteRouterFor(deployments.humanAgent, amountIn, undefined, direction),
+    quoteRouterFor(deployments.bot, amountIn, undefined, direction),
   ]);
   const sharedHumanId = human.humanId || BigInt(deployments.humanId);
-  const remaining = await quotaRemaining(sharedHumanId, human.strategy.token0);
+  const remaining = await quotaRemaining(sharedHumanId, human.tokenIn);
   const sybilAmountIn = amountForOverQuotaQuote(remaining);
-  const sybil = await quoteRouterFor(deployments.sybilAgent, sybilAmountIn);
+  const sybil = await quoteRouterFor(deployments.sybilAgent, sybilAmountIn, undefined, direction);
   const row = (
     label: string,
     q: Awaited<ReturnType<typeof quoteRouterFor>>,
@@ -373,12 +406,32 @@ app.get('/demo/quotes', async (c) => {
     feeBps: q.feeBps.toString(),
     amountOut: q.amountOut.toString(),
     humanId: q.humanId === 0n ? null : q.humanId.toString(),
+    direction: q.direction,
+    zeroForOne: q.zeroForOne,
+    tokenIn: q.tokenIn,
+    tokenOut: q.tokenOut,
+    tokenInSymbol: q.tokenInSymbol,
+    tokenOutSymbol: q.tokenOutSymbol,
   });
   const improvementBps =
     bot.amountOut > 0n ? Number(((human.amountOut - bot.amountOut) * 10_000n) / bot.amountOut) : 0;
   return c.json({
     amountIn: amountIn.toString(),
     comparisonAmountIn: amountIn.toString(),
+    direction: human.direction,
+    zeroForOne: human.zeroForOne,
+    tokenIn: human.tokenIn,
+    tokenOut: human.tokenOut,
+    tokenInSymbol: human.tokenInSymbol,
+    tokenOutSymbol: human.tokenOutSymbol,
+    feeSchedule: {
+      tightFeeBps: human.feeSchedule.tightFeeBps.toString(),
+      wideFeeBps: human.feeSchedule.wideFeeBps.toString(),
+      targetFeeBps: human.feeSchedule.targetFeeBps.toString(),
+      humanShareBps: human.feeSchedule.humanShareBps.toString(),
+      tightVolume: human.feeSchedule.tightVolume.toString(),
+      wideVolume: human.feeSchedule.wideVolume.toString(),
+    },
     human: row('Human-backed agent', human, deployments.humanAgent, amountIn),
     bot: row('Anonymous bot', bot, deployments.bot, amountIn),
     sybil: {
@@ -402,27 +455,61 @@ app.post('/demo/trade', async (c) => {
   const allowedOrigin = process.env.DEMO_TRADE_ORIGIN;
   const requestOrigin = c.req.header('origin');
   if (allowedOrigin && requestOrigin !== allowedOrigin) {
-    return c.json({ error: 'demo trades must be submitted from the configured dashboard' }, 403);
+    return c.json(
+      {
+        code: 'trade_forbidden',
+        error: 'demo trades must be submitted from the configured dashboard',
+        retryable: false,
+        status: 403,
+      },
+      403,
+    );
   }
 
-  let body: { lane?: unknown; amountIn?: unknown };
+  let body: { lane?: unknown; amountIn?: unknown; direction?: unknown };
   try {
     body = await c.req.json();
   } catch {
-    return c.json({ error: 'request body must be JSON' }, 400);
+    return c.json(
+      {
+        code: 'invalid_trade_request',
+        error: 'request body must be JSON',
+        retryable: false,
+        status: 400,
+      },
+      400,
+    );
   }
   if (body.lane !== 'human' && body.lane !== 'bot') {
-    return c.json({ error: 'lane must be "human" or "bot"' }, 400);
+    return c.json(
+      {
+        code: 'invalid_trade_request',
+        error: 'lane must be "human" or "bot"',
+        retryable: false,
+        status: 400,
+      },
+      400,
+    );
   }
   let amountIn: bigint;
+  let direction: DemoTradeDirection;
   try {
     amountIn = parseQuoteAmount(typeof body.amountIn === 'string' ? body.amountIn : undefined);
+    direction = parseDemoTradeDirection(body.direction);
   } catch (error) {
-    return c.json({ error: error instanceof Error ? error.message : 'invalid amountIn' }, 400);
+    return c.json(
+      {
+        code: 'invalid_trade_request',
+        error: error instanceof Error ? error.message : 'invalid trade request',
+        retryable: false,
+        status: 400,
+      },
+      400,
+    );
   }
 
   try {
-    return c.json(await executeDemoTrade(body.lane as DemoTradeLane, amountIn));
+    return c.json(await executeDemoTrade(body.lane as DemoTradeLane, amountIn, direction));
   } catch (error) {
     const safeError = describeTradeError(error);
     if (safeError.retryAfterSeconds !== undefined) {

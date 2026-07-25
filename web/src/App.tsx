@@ -3,11 +3,18 @@ import { useEffect, useState } from 'react';
 import { EvidenceLedger } from './components/EvidenceLedger';
 import { FeeControllerPanel } from './components/FeeControllerPanel';
 import { IntegrationFlow } from './components/IntegrationFlow';
+import { LPEconomicsPanel } from './components/LPEconomicsPanel';
 import { MarketHeader } from './components/MarketHeader';
 import { ProtocolDetails } from './components/ProtocolDetails';
 import { TradingTerminal } from './components/TradingTerminal';
-import { apiBase, demoTradeAmountIn, useProtocol } from './hooks/useProtocol';
-import type { DemoTradeError, DemoTradeLane, DemoTradeResult } from './types';
+import { apiBase, demoTradeAmounts, useProtocol } from './hooks/useProtocol';
+import { unitsAsNumber } from './lib/format';
+import type {
+  DemoTradeDirection,
+  DemoTradeError,
+  DemoTradeLane,
+  DemoTradeResult,
+} from './types';
 
 function LoadingTerminal() {
   return (
@@ -39,8 +46,13 @@ function isDemoTradeResult(value: unknown): value is DemoTradeResult {
 }
 
 export function App() {
-  const [amountIn, setAmountIn] = useState(demoTradeAmountIn);
-  const { snapshot, error, refreshing, refresh } = useProtocol(amountIn);
+  const initialDirection: DemoTradeDirection =
+    new URLSearchParams(window.location.search).get('side') === 'buy'
+      ? 'tUSD-to-tETH'
+      : 'tETH-to-tUSD';
+  const [direction, setDirection] = useState<DemoTradeDirection>(initialDirection);
+  const [amountIn, setAmountIn] = useState(demoTradeAmounts[initialDirection][0]);
+  const { snapshot, error, refreshing, refresh } = useProtocol(amountIn, direction);
   const [copied, setCopied] = useState(false);
   const [tradeLane, setTradeLane] = useState<DemoTradeLane>();
   const [tradeError, setTradeError] = useState<DemoTradeError>();
@@ -61,14 +73,26 @@ export function App() {
     }
   }
 
-  async function executeTrade(lane: DemoTradeLane, amountIn: string) {
+  function selectDirection(nextDirection: DemoTradeDirection) {
+    setDirection(nextDirection);
+    setAmountIn(demoTradeAmounts[nextDirection][0]);
+    const url = new URL(window.location.href);
+    url.searchParams.set('side', nextDirection === 'tUSD-to-tETH' ? 'buy' : 'sell');
+    window.history.replaceState({}, '', url);
+  }
+
+  async function executeTrade(
+    lane: DemoTradeLane,
+    amountIn: string,
+    tradeDirection: DemoTradeDirection,
+  ) {
     setTradeLane(lane);
     setTradeError(undefined);
     try {
       const response = await fetch(`${apiBase()}/demo/trade`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ lane, amountIn }),
+        body: JSON.stringify({ lane, amountIn, direction: tradeDirection }),
       });
       const body: unknown = await response.json();
       if (!response.ok || !isDemoTradeResult(body)) {
@@ -111,6 +135,12 @@ export function App() {
 
   const { state, quotes } = snapshot;
   const isSnapshot = state.runtime.mode === 'hosted-preview';
+  const humanAmountIn = unitsAsNumber(quotes.human.amountIn);
+  const humanAmountOut = unitsAsNumber(quotes.human.amountOut);
+  const token0PriceInToken1 =
+    direction === 'tETH-to-tUSD'
+      ? humanAmountOut / humanAmountIn
+      : humanAmountIn / humanAmountOut;
 
   return (
     <main className="app-shell">
@@ -126,6 +156,14 @@ export function App() {
         lastTrade={lastTrade}
         amountIn={amountIn}
         onAmountChange={setAmountIn}
+        direction={direction}
+        onDirectionChange={selectDirection}
+      />
+      <LPEconomicsPanel
+        state={state}
+        token0PriceInToken1={token0PriceInToken1}
+        activeFeeSchedule={quotes.feeSchedule}
+        activeTokenInSymbol={quotes.tokenInSymbol}
       />
       <IntegrationFlow state={state} lastTrade={lastTrade} />
       <FeeControllerPanel controller={state.feeController} copied={copied} onReplay={copyReplayCommand} />

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
-import { parseQuoteAmount } from './demo.js';
+import { parseDemoTradeDirection, parseQuoteAmount } from './demo.js';
 import { hostedDemoQuotes, hostedState } from './hosted-snapshot.js';
 
 const app = new Hono();
@@ -30,7 +30,8 @@ app.get('/state', (c) => c.json(hostedState()));
 app.get('/demo/quotes', (c) => {
   try {
     const amountIn = parseQuoteAmount(c.req.query('amountIn'));
-    return c.json(hostedDemoQuotes(amountIn));
+    const direction = parseDemoTradeDirection(c.req.query('direction'));
+    return c.json(hostedDemoQuotes(amountIn, direction));
   } catch (error) {
     return c.json({ error: error instanceof Error ? error.message : 'invalid amountIn' }, 400);
   }
@@ -38,8 +39,10 @@ app.get('/demo/quotes', (c) => {
 
 app.get('/quote', (c) => {
   let amountIn: bigint;
+  let zeroForOne: boolean;
   try {
     amountIn = parseQuoteAmount(c.req.query('amountIn'));
+    zeroForOne = (c.req.query('zeroForOne') ?? 'true') === 'true';
   } catch (error) {
     return c.json({ error: error instanceof Error ? error.message : 'invalid amountIn' }, 400);
   }
@@ -55,12 +58,18 @@ app.get('/quote', (c) => {
     );
   }
 
-  const preview = hostedDemoQuotes(amountIn);
+  const direction = zeroForOne ? 'tETH-to-tUSD' : 'tUSD-to-tETH';
+  const preview = hostedDemoQuotes(amountIn, direction);
   return c.json({
     pool: 'tETH/tUSD',
     mode: preview.mode,
     amountIn: amountIn.toString(),
-    zeroForOne: (c.req.query('zeroForOne') ?? 'true') === 'true',
+    direction,
+    zeroForOne,
+    tokenIn: preview.tokenIn,
+    tokenOut: preview.tokenOut,
+    tokenInSymbol: preview.tokenInSymbol,
+    tokenOutSymbol: preview.tokenOutSymbol,
     identity: { verified: false, simulated: true },
     tier: preview.bot.tier,
     feeBps: preview.bot.feeBps,
@@ -68,6 +77,7 @@ app.get('/quote', (c) => {
     wideAmountOut: preview.bot.amountOut,
     improvementBps: 0,
     quotaRemainingTokenIn: '0',
+    feeSchedule: preview.feeSchedule,
     execute: {
       available: false,
       note: 'Snapshot quotes are not executable; use pnpm demo:fork for live execution',

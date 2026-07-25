@@ -1,4 +1,5 @@
 import { activityFeePolicy } from './fee-policy.js';
+import type { DemoTradeDirection } from './demo.js';
 
 const ADDRESSES = {
   aqua: '0x499943E74FB0cE105688beeE8Ef2ABec5D936d31',
@@ -20,22 +21,57 @@ const PRICE = 100n;
 const TIGHT_FEE_BPS = 5n;
 const WIDE_FEE_BPS = 30n;
 const QUOTA_REMAINING = 2n * TOKEN_SCALE;
+const QUOTA_REMAINING_TUSD = 20_000n * TOKEN_SCALE;
 const DAILY_CAP = 10n * TOKEN_SCALE;
 
-function amountOut(amountIn: bigint, feeBps: bigint): bigint {
-  return (amountIn * PRICE * (10_000n - feeBps)) / 10_000n;
+function amountOut(
+  amountIn: bigint,
+  feeBps: bigint,
+  direction: DemoTradeDirection = 'tETH-to-tUSD',
+): bigint {
+  const amountAfterFee = amountIn * (10_000n - feeBps);
+  return direction === 'tETH-to-tUSD'
+    ? (amountAfterFee * PRICE) / 10_000n
+    : amountAfterFee / (10_000n * PRICE);
 }
 
-export function hostedDemoQuotes(amountIn: bigint) {
-  const humanOut = amountOut(amountIn, TIGHT_FEE_BPS);
-  const botOut = amountOut(amountIn, WIDE_FEE_BPS);
-  const sybilAmount = QUOTA_REMAINING + 1n;
+export function hostedDemoQuotes(
+  amountIn: bigint,
+  direction: DemoTradeDirection = 'tETH-to-tUSD',
+) {
+  const zeroForOne = direction === 'tETH-to-tUSD';
+  const tokenIn = zeroForOne ? ADDRESSES.token0 : ADDRESSES.token1;
+  const tokenOut = zeroForOne ? ADDRESSES.token1 : ADDRESSES.token0;
+  const tokenInSymbol = zeroForOne ? 'tETH' : 'tUSD';
+  const tokenOutSymbol = zeroForOne ? 'tUSD' : 'tETH';
+  const quotaRemaining = zeroForOne ? QUOTA_REMAINING : QUOTA_REMAINING_TUSD;
+  const humanOut = amountOut(amountIn, TIGHT_FEE_BPS, direction);
+  const botOut = amountOut(amountIn, WIDE_FEE_BPS, direction);
+  const sybilAmount = quotaRemaining + 1n;
+  const route = {
+    direction,
+    zeroForOne,
+    tokenIn,
+    tokenOut,
+    tokenInSymbol,
+    tokenOutSymbol,
+  };
 
   return {
     mode: 'hosted-preview-snapshot',
+    ...route,
     amountIn: amountIn.toString(),
     comparisonAmountIn: amountIn.toString(),
+    feeSchedule: {
+      tightFeeBps: TIGHT_FEE_BPS.toString(),
+      wideFeeBps: WIDE_FEE_BPS.toString(),
+      targetFeeBps: '19',
+      humanShareBps: '6666',
+      tightVolume: '0',
+      wideVolume: '0',
+    },
     human: {
+      ...route,
       label: 'Human-backed agent',
       address: ADDRESSES.human,
       amountIn: amountIn.toString(),
@@ -45,6 +81,7 @@ export function hostedDemoQuotes(amountIn: bigint) {
       humanId: HUMAN_ID,
     },
     bot: {
+      ...route,
       label: 'Anonymous bot',
       address: ADDRESSES.bot,
       amountIn: amountIn.toString(),
@@ -54,14 +91,15 @@ export function hostedDemoQuotes(amountIn: bigint) {
       humanId: null,
     },
     sybil: {
+      ...route,
       label: 'Sybil twin (same human)',
       address: ADDRESSES.sybil,
       amountIn: sybilAmount.toString(),
       tier: 'wide',
       feeBps: WIDE_FEE_BPS.toString(),
-      amountOut: amountOut(sybilAmount, WIDE_FEE_BPS).toString(),
+      amountOut: amountOut(sybilAmount, WIDE_FEE_BPS, direction).toString(),
       humanId: HUMAN_ID,
-      sharedQuotaRemaining: QUOTA_REMAINING.toString(),
+      sharedQuotaRemaining: quotaRemaining.toString(),
       proof: 'snapshot models an amount exactly one wei above the shared per-human quota',
     },
     improvementBps:

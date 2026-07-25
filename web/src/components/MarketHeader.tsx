@@ -28,8 +28,16 @@ function Metric({
 }
 
 export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
-  const humanPrice = unitsAsNumber(quotes.human.amountOut) / unitsAsNumber(quotes.human.amountIn);
-  const botPrice = unitsAsNumber(quotes.bot.amountOut) / unitsAsNumber(quotes.bot.amountIn);
+  const reverse = quotes.direction === 'tUSD-to-tETH';
+  const humanPrice = reverse
+    ? unitsAsNumber(quotes.human.amountIn) / unitsAsNumber(quotes.human.amountOut)
+    : unitsAsNumber(quotes.human.amountOut) / unitsAsNumber(quotes.human.amountIn);
+  const identityEdgeBps =
+    quotes.improvementBps ??
+    Number(
+      ((BigInt(quotes.human.amountOut) - BigInt(quotes.bot.amountOut)) * 10_000n) /
+        BigInt(quotes.bot.amountOut),
+    );
   const poolToken0 = unitsAsNumber(state.pool.balance0);
   const poolToken1 = unitsAsNumber(state.pool.balance1);
   const poolNotional = poolToken1 + poolToken0 * humanPrice;
@@ -66,7 +74,8 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
           <nav className="primary-nav" aria-label="Primary navigation">
             <a className="active" href="#market"><kbd>F1</kbd> Market</a>
             <a href="#activity"><kbd>F2</kbd> Execution</a>
-            <a href="#risk"><kbd>F3</kbd> Risk</a>
+            <a href="#lp"><kbd>F3</kbd> LP book</a>
+            <a href="#risk"><kbd>F4</kbd> Risk</a>
           </nav>
         </div>
         <div className="topbar-status">
@@ -93,7 +102,7 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
           <span>Verified executable quote</span>
           <strong>{humanPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
           <small>tUSD / tETH</small>
-          <em>+{(humanPrice - botPrice).toFixed(2)} IDENTITY EDGE</em>
+          <em>+{identityEdgeBps} BPS IDENTITY EDGE</em>
         </div>
       </section>
 

@@ -80,17 +80,18 @@ test('anonymous live quotes use the configured bot wallet instead of a zero-addr
 });
 
 test('Vite dashboard exposes judge-facing provenance and trading-terminal structure', async () => {
-  const [app, marketHeader, terminal, controller, evidence, integration, styles, viteConfig] = await Promise.all([
+  const [app, marketHeader, terminal, controller, evidence, integration, lpEconomics, styles, viteConfig] = await Promise.all([
     readFile(new URL('../../web/src/App.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../../web/src/components/MarketHeader.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../../web/src/components/TradingTerminal.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../../web/src/components/FeeControllerPanel.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../../web/src/components/EvidenceLedger.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../../web/src/components/IntegrationFlow.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../web/src/components/LPEconomicsPanel.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../../web/src/styles.css', import.meta.url), 'utf8'),
     readFile(new URL('../../web/vite.config.ts', import.meta.url), 'utf8'),
   ]);
-  const source = [app, marketHeader, terminal, controller, evidence, integration].join('\n');
+  const source = [app, marketHeader, terminal, controller, evidence, integration, lpEconomics].join('\n');
   assert.match(
     styles,
     /:root\s*\{[^}]*color-scheme:\s*dark;[^}]*--bg:/s,
@@ -107,8 +108,31 @@ test('Vite dashboard exposes judge-facing provenance and trading-terminal struct
   assert.match(source, /On-chain receipts/);
   assert.match(source, /Three systems, one receipt/);
   assert.match(source, /Nuthatch indexes activity/);
+  assert.match(source, /Open .* trader tab/);
+  assert.match(source, /Buy tETH/);
+  assert.match(source, /Sell tETH/);
+  assert.match(source, /LP economics · executed fee ledger/);
+  assert.match(source, /Cumulative implied fees/);
   assert.match(viteConfig, /outDir:\s*'\.\.\/public'/);
   assert.doesNotMatch(source, /price improvement for being human/i);
+});
+
+test('demo terminal never renders essential copy below a readable 10px floor', async () => {
+  const styles = await readFile(new URL('../../web/src/styles.css', import.meta.url), 'utf8');
+  const tinyFontDeclarations = [
+    ...styles.matchAll(/font-size:\s*([0-9.]+)px/g),
+    ...styles.matchAll(/font:\s*[^;{}]*?\s([0-9.]+)px(?:\/[0-9.]+)?\s/g),
+  ]
+    .map((match) => ({ declaration: match[0].trim(), size: Number(match[1]) }))
+    .filter(({ size }) => size < 10);
+
+  assert.deepEqual(
+    tinyFontDeclarations,
+    [],
+    `demo copy is unreadable at presentation distance:\n${tinyFontDeclarations
+      .map(({ declaration }) => declaration)
+      .join('\n')}`,
+  );
 });
 
 test('repository includes a guarded single-service deployment definition', async () => {
@@ -131,12 +155,19 @@ test('repository includes a guarded single-service deployment definition', async
 
 test('hosted preview snapshot stays truthful and preserves all three pricing lanes', () => {
   const quotes = hostedDemoQuotes(10n ** 18n);
+  const reverse = hostedDemoQuotes(100n * 10n ** 18n, 'tUSD-to-tETH');
   const state = hostedState();
 
   assert.equal(quotes.human.tier, 'tight');
   assert.equal(quotes.bot.tier, 'wide');
   assert.equal(quotes.sybil.tier, 'wide');
   assert.ok(BigInt(quotes.human.amountOut) > BigInt(quotes.bot.amountOut));
+  assert.equal(reverse.direction, 'tUSD-to-tETH');
+  assert.equal(reverse.zeroForOne, false);
+  assert.equal(reverse.tokenInSymbol, 'tUSD');
+  assert.equal(reverse.tokenOutSymbol, 'tETH');
+  assert.ok(BigInt(reverse.human.amountOut) > BigInt(reverse.bot.amountOut));
+  assert.ok(BigInt(reverse.bot.amountOut) > 0n);
   assert.equal(state.runtime.mode, 'hosted-preview');
   assert.match(state.runtime.label, /snapshot/i);
   assert.equal(state.runtime.rpcStatus, 'not-used');
@@ -144,12 +175,13 @@ test('hosted preview snapshot stays truthful and preserves all three pricing lan
   assert.ok(Math.abs(state.feeController.revenueDeltaBps) <= 0.5);
 });
 
-test('Vercel backend serves health, state, quotes, and an explicit non-executable quote', async () => {
-  const [dashboard, health, state, quotes, anonymousQuote] = await Promise.all([
+test('Vercel backend serves health, state, direction-aware quotes, and an explicit non-executable quote', async () => {
+  const [dashboard, health, state, quotes, reverseQuotes, anonymousQuote] = await Promise.all([
     vercelApp.request('/'),
     vercelApp.request('/health'),
     vercelApp.request('/state'),
     vercelApp.request('/demo/quotes'),
+    vercelApp.request('/demo/quotes?amountIn=100000000000000000000&direction=tUSD-to-tETH'),
     vercelApp.request('/quote?anonymous=1'),
   ]);
 
@@ -158,7 +190,9 @@ test('Vercel backend serves health, state, quotes, and an explicit non-executabl
   assert.equal(health.status, 200);
   assert.equal(state.status, 200);
   assert.equal(quotes.status, 200);
+  assert.equal(reverseQuotes.status, 200);
   assert.equal(anonymousQuote.status, 200);
   assert.equal((await state.clone().json()).feeController.targetFeeBps, 19);
+  assert.equal((await reverseQuotes.json()).direction, 'tUSD-to-tETH');
   assert.equal((await anonymousQuote.json()).execute.available, false);
 });

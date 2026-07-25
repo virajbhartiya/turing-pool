@@ -4,12 +4,45 @@ import test from 'node:test';
 import {
   applyFeeSchedule,
   buildTakerTraits,
+  parseDemoTradeDirection,
   parseHumanGateProgram,
   resolveHumanGateTier,
+  selectDemoTradeRoute,
 } from '../src/router-demo.js';
 
 const BASE_SEPOLIA_PROGRAM =
   '0x2230265f638eb93314ad0e0471e3cc2c97565e75d6e6a4cece31ca7a7fb79f4a0ffcfd219d1bf92fd46b002dc6c0000c3500110014080000000000000001';
+const TOKEN0 = '0x0000000000000000000000000000000000000001' as const;
+const TOKEN1 = '0x0000000000000000000000000000000000000002' as const;
+
+test('demo trade direction parsing is explicit and defaults existing callers to tETH -> tUSD', () => {
+  assert.equal(parseDemoTradeDirection(undefined), 'tETH-to-tUSD');
+  assert.equal(parseDemoTradeDirection('tETH-to-tUSD'), 'tETH-to-tUSD');
+  assert.equal(parseDemoTradeDirection('tUSD-to-tETH'), 'tUSD-to-tETH');
+  for (const invalid of [true, false, 'reverse', '', 1]) {
+    assert.throws(() => parseDemoTradeDirection(invalid), /direction must be/);
+  }
+});
+
+test('both trade directions select the deployed order tokens in the correct order', () => {
+  const view = { token0: TOKEN0, token1: TOKEN1 };
+  assert.deepEqual(selectDemoTradeRoute(view, 'tETH-to-tUSD'), {
+    direction: 'tETH-to-tUSD',
+    zeroForOne: true,
+    tokenIn: TOKEN0,
+    tokenOut: TOKEN1,
+    tokenInSymbol: 'tETH',
+    tokenOutSymbol: 'tUSD',
+  });
+  assert.deepEqual(selectDemoTradeRoute(view, 'tUSD-to-tETH'), {
+    direction: 'tUSD-to-tETH',
+    zeroForOne: false,
+    tokenIn: TOKEN1,
+    tokenOut: TOKEN0,
+    tokenInSymbol: 'tUSD',
+    tokenOutSymbol: 'tETH',
+  });
+});
 
 test('the shipped SwapVM program starts with the real _humanGate opcode and identity contracts', () => {
   assert.deepEqual(parseHumanGateProgram(BASE_SEPOLIA_PROGRAM), {

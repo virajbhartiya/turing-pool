@@ -146,12 +146,16 @@ export interface ProtocolState {
 }
 
 export type DemoTradeLane = 'human' | 'bot';
+export type DemoTradeDirection = 'tETH-to-tUSD' | 'tUSD-to-tETH';
+export type DemoTokenSymbol = 'tETH' | 'tUSD';
 
 export type DemoTradeErrorCode =
   | 'rpc_rate_limited'
   | 'trade_busy'
   | 'execution_unavailable'
   | 'trade_failed'
+  | 'invalid_trade_request'
+  | 'trade_forbidden'
   | 'network_error';
 
 export interface DemoTradeError {
@@ -164,6 +168,12 @@ export interface DemoTradeError {
 
 export interface DemoTradeResult {
   lane: DemoTradeLane;
+  direction: DemoTradeDirection;
+  zeroForOne: boolean;
+  tokenIn: string;
+  tokenOut: string;
+  tokenInSymbol: DemoTokenSymbol;
+  tokenOutSymbol: DemoTokenSymbol;
   wallet: string;
   transactionHash: string;
   approvalTransactionHash?: string;
@@ -178,6 +188,14 @@ export interface DemoTradeResult {
   tight: boolean;
   tier: 'tight' | 'wide';
   feeBps: number;
+  quotedFeeSchedule: {
+    tightFeeBps: string;
+    wideFeeBps: string;
+    targetFeeBps: string;
+    humanShareBps: string;
+    tightVolume: string;
+    wideVolume: string;
+  };
   explorerUrl: string;
 }
 
@@ -186,10 +204,30 @@ export interface DemoQuote {
   amountOut: string;
   feeBps: number;
   tier: 'tight' | 'wide';
+  direction?: DemoTradeDirection;
+  zeroForOne?: boolean;
+  tokenIn?: string;
+  tokenOut?: string;
+  tokenInSymbol?: DemoTokenSymbol;
+  tokenOutSymbol?: DemoTokenSymbol;
 }
 
 export interface DemoQuotes {
   mode?: string;
+  direction?: DemoTradeDirection;
+  zeroForOne?: boolean;
+  tokenIn?: string;
+  tokenOut?: string;
+  tokenInSymbol?: DemoTokenSymbol;
+  tokenOutSymbol?: DemoTokenSymbol;
+  feeSchedule?: {
+    tightFeeBps: string;
+    wideFeeBps: string;
+    targetFeeBps: string;
+    humanShareBps: string;
+    tightVolume: string;
+    wideVolume: string;
+  };
   human: DemoQuote;
   bot: DemoQuote;
   sybil: DemoQuote & {

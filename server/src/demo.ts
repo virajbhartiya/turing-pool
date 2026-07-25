@@ -1,5 +1,6 @@
 export const DEFAULT_QUOTE_AMOUNT = 10n ** 18n;
 export const MAX_QUOTE_AMOUNT = 10n ** 36n;
+export type DemoTradeDirection = 'tETH-to-tUSD' | 'tUSD-to-tETH';
 
 export function parseQuoteAmount(value: string | undefined): bigint {
   if (value === undefined) return DEFAULT_QUOTE_AMOUNT;
@@ -18,10 +19,18 @@ export function amountForOverQuotaQuote(remaining: bigint): bigint {
   return remaining + 1n;
 }
 
+export function parseDemoTradeDirection(value: unknown): DemoTradeDirection {
+  if (value === undefined) return 'tETH-to-tUSD';
+  if (value === 'tETH-to-tUSD' || value === 'tUSD-to-tETH') return value;
+  throw new Error('direction must be "tETH-to-tUSD" or "tUSD-to-tETH"');
+}
+
 export type TradeErrorCode =
   | 'rpc_rate_limited'
   | 'trade_busy'
   | 'execution_unavailable'
+  | 'invalid_trade_request'
+  | 'trade_forbidden'
   | 'trade_failed';
 
 export interface TradeErrorDescription {
@@ -29,7 +38,7 @@ export interface TradeErrorDescription {
   error: string;
   retryable: boolean;
   retryAfterSeconds?: number;
-  status: 429 | 500 | 503;
+  status: 400 | 403 | 429 | 500 | 503;
 }
 
 function errorDescription(error: unknown): string {
@@ -87,6 +96,15 @@ export function describeTradeError(error: unknown): TradeErrorDescription {
       error: 'Interactive on-chain execution is not available for this demo runtime.',
       retryable: false,
       status: 503,
+    };
+  }
+
+  if (/amountIn must be between/i.test(description)) {
+    return {
+      code: 'invalid_trade_request',
+      error: 'amountIn exceeds the configured execution limit for this direction.',
+      retryable: false,
+      status: 400,
     };
   }
 

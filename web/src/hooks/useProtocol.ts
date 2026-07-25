@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { DemoQuotes, ProtocolState } from '../types';
+import type { DemoQuotes, DemoTradeDirection, ProtocolState } from '../types';
 
 interface ProtocolSnapshot {
   state: ProtocolState;
@@ -8,13 +8,29 @@ interface ProtocolSnapshot {
 }
 
 export const demoTradeAmountIn = '100000000000000000';
+export const demoTradeAmounts: Record<DemoTradeDirection, string[]> = {
+  'tETH-to-tUSD': [
+    '100000000000000000',
+    '500000000000000000',
+    '1000000000000000000',
+  ],
+  'tUSD-to-tETH': [
+    '100000000000000000000',
+    '500000000000000000000',
+    '1000000000000000000000',
+  ],
+};
 
 export function apiBase(): string {
   const override = window.location.hash.slice(1);
   return (override || window.location.origin).replace(/\/$/, '');
 }
 
-export function useProtocol(amountIn = demoTradeAmountIn, pollInterval = 2_500) {
+export function useProtocol(
+  amountIn = demoTradeAmountIn,
+  direction: DemoTradeDirection = 'tETH-to-tUSD',
+  pollInterval = 2_500,
+) {
   const [snapshot, setSnapshot] = useState<ProtocolSnapshot>();
   const [error, setError] = useState<string>();
   const [refreshing, setRefreshing] = useState(false);
@@ -25,7 +41,7 @@ export function useProtocol(amountIn = demoTradeAmountIn, pollInterval = 2_500) 
       const base = apiBase();
       const [stateResponse, quotesResponse] = await Promise.all([
         fetch(`${base}/state`, { signal }),
-        fetch(`${base}/demo/quotes?amountIn=${amountIn}`, { signal }),
+        fetch(`${base}/demo/quotes?amountIn=${amountIn}&direction=${direction}`, { signal }),
       ]);
 
       if (!stateResponse.ok || !quotesResponse.ok) {
@@ -45,7 +61,7 @@ export function useProtocol(amountIn = demoTradeAmountIn, pollInterval = 2_500) 
     } finally {
       setRefreshing(false);
     }
-  }, [amountIn]);
+  }, [amountIn, direction]);
 
   useEffect(() => {
     const controller = new AbortController();

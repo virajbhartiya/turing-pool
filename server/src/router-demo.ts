@@ -15,8 +15,20 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { agentBookAbi, aquaAbi, erc20Abi, quotaAbi, routerAbi } from './abi.js';
 import { client, deployments } from './chain.js';
 import { RPC_URL } from './config.js';
+import { parseDemoTradeDirection, type DemoTradeDirection } from './demo.js';
 
 export type DemoTradeLane = 'human' | 'bot';
+export { parseDemoTradeDirection };
+export type { DemoTradeDirection };
+
+export interface DemoTradeRoute {
+  direction: DemoTradeDirection;
+  zeroForOne: boolean;
+  tokenIn: Address;
+  tokenOut: Address;
+  tokenInSymbol: 'tETH' | 'tUSD';
+  tokenOutSymbol: 'tETH' | 'tUSD';
+}
 
 export interface HumanGateProgram {
   opcode: number;
@@ -28,6 +40,12 @@ export interface HumanGateProgram {
 
 export interface DemoTradeResult {
   lane: DemoTradeLane;
+  direction: DemoTradeDirection;
+  zeroForOne: boolean;
+  tokenIn: Address;
+  tokenOut: Address;
+  tokenInSymbol: 'tETH' | 'tUSD';
+  tokenOutSymbol: 'tETH' | 'tUSD';
   wallet: Address;
   transactionHash: Hex;
   approvalTransactionHash?: Hex;
@@ -42,6 +60,14 @@ export interface DemoTradeResult {
   tight: boolean;
   tier: 'tight' | 'wide';
   feeBps: number;
+  quotedFeeSchedule: {
+    tightFeeBps: string;
+    wideFeeBps: string;
+    targetFeeBps: string;
+    humanShareBps: string;
+    tightVolume: string;
+    wideVolume: string;
+  };
   explorerUrl: string;
 }
 
@@ -66,6 +92,12 @@ export interface RouterExecutionView {
 }
 
 export interface RouterQuote {
+  direction: DemoTradeDirection;
+  zeroForOne: boolean;
+  tokenIn: Address;
+  tokenOut: Address;
+  tokenInSymbol: 'tETH' | 'tUSD';
+  tokenOutSymbol: 'tETH' | 'tUSD';
   strategy: RouterExecutionView['strategy'];
   strategyHash: Hex;
   amountIn: bigint;
@@ -73,6 +105,7 @@ export interface RouterQuote {
   tight: boolean;
   feeBps: bigint;
   humanId: bigint;
+  feeSchedule: OnChainFeeSchedule;
 }
 
 export interface OnChainFeeSchedule {
@@ -86,7 +119,9 @@ export interface OnChainFeeSchedule {
 
 const FEE_E9_PER_BPS = 100_000n;
 const REQUIRED_OPCODE = 34;
-const DEFAULT_MAX_AMOUNT_IN = 10n ** 18n;
+const DEFAULT_MAX_TETH_IN = 10n ** 18n;
+const DEFAULT_MAX_TUSD_IN = 4_000n * 10n ** 18n;
+const ALLOWANCE_VISIBILITY_ATTEMPTS = 10;
 const tradeInFlight = new Set<DemoTradeLane>();
 const lastTradeAt = new Map<DemoTradeLane, number>();
 
@@ -140,6 +175,34 @@ export function buildTakerTraits(minAmountOut?: bigint): Hex {
     flags,
     padHex(toHex(minAmountOut), { size: 32 }),
   ]);
+}
+
+export function selectDemoTradeRoute(
+  view: Pick<RouterExecutionView, 'token0' | 'token1'>,
+  direction: DemoTradeDirection,
+): DemoTradeRoute {
+  if (direction === 'tETH-to-tUSD') {
+    return {
+      direction,
+      zeroForOne: true,
+      tokenIn: view.token0,
+      tokenOut: view.token1,
+      tokenInSymbol: 'tETH',
+      tokenOutSymbol: 'tUSD',
+    };
+  }
+  return {
+    direction,
+    zeroForOne: false,
+    tokenIn: view.token1,
+    tokenOut: view.token0,
+    tokenInSymbol: 'tUSD',
+    tokenOutSymbol: 'tETH',
+  };
+}
+
+export function directionFromZeroForOne(zeroForOne: boolean): DemoTradeDirection {
+  return zeroForOne ? 'tETH-to-tUSD' : 'tUSD-to-tETH';
 }
 
 /**
@@ -232,16 +295,15 @@ export async function quoteRouterFor(
   taker: Address,
   amountIn: bigint,
   view = routerExecutionView(),
-  zeroForOne = true,
+  direction: DemoTradeDirection = 'tETH-to-tUSD',
 ): Promise<RouterQuote> {
-  const tokenIn = zeroForOne ? view.token0 : view.token1;
-  const tokenOut = zeroForOne ? view.token1 : view.token0;
+  const route = selectDemoTradeRoute(view, direction);
   const [[quotedAmountIn, quotedAmountOut, orderHash], humanId, feeSchedule] = await Promise.all([
     client.readContract({
       address: deployments.router,
       abi: routerAbi,
       functionName: 'quote',
-      args: [view.order, tokenIn, tokenOut, amountIn, buildTakerTraits()],
+      args: [view.order, route.tokenIn, route.tokenOut, amountIn, buildTakerTraits()],
       account: taker,
     }),
     client.readContract({
@@ -250,7 +312,7 @@ export async function quoteRouterFor(
       functionName: 'lookupHuman',
       args: [taker],
     }),
-    readFeeSchedule(view, tokenIn),
+    readFeeSchedule(view, route.tokenIn),
   ]);
   if (
     quotedAmountIn !== amountIn ||
@@ -266,11 +328,12 @@ export async function quoteRouterFor(
           address: view.program.quota,
           abi: quotaAbi,
           functionName: 'remaining',
-          args: [humanId, tokenIn],
+          args: [humanId, route.tokenIn],
         });
   const effectiveProgram = applyFeeSchedule(view.program, feeSchedule);
   const tier = resolveHumanGateTier(effectiveProgram, humanId, remaining, amountIn);
   return {
+    ...route,
     strategy: {
       ...view.strategy,
       tightFeeBps: BigInt(effectiveProgram.tightFeeBps),
@@ -280,6 +343,11 @@ export async function quoteRouterFor(
     amountIn: quotedAmountIn,
     amountOut: quotedAmountOut,
     humanId,
+    feeSchedule: {
+      ...feeSchedule,
+      tightFeeBps: BigInt(effectiveProgram.tightFeeBps),
+      wideFeeBps: BigInt(effectiveProgram.wideFeeBps),
+    },
     ...tier,
   };
 }
@@ -343,7 +411,33 @@ function expectedAddress(lane: DemoTradeLane): Address {
   return lane === 'human' ? deployments.humanAgent : deployments.bot;
 }
 
-function decodeRouterReceipt(receipt: TransactionReceipt, wallet: Address) {
+async function waitForRouterAllowance(
+  token: Address,
+  owner: Address,
+  requiredAllowance: bigint,
+): Promise<void> {
+  for (let attempt = 0; attempt < ALLOWANCE_VISIBILITY_ATTEMPTS; attempt += 1) {
+    try {
+      const allowance = await client.readContract({
+        address: token,
+        abi: erc20Abi,
+        functionName: 'allowance',
+        args: [owner, deployments.router],
+      });
+      if (allowance >= requiredAllowance) return;
+    } catch {
+      // A load-balanced RPC can briefly fail or lag immediately after mining.
+      // Retry within the same finite visibility budget.
+    }
+    if (attempt + 1 < ALLOWANCE_VISIBILITY_ATTEMPTS) {
+      const delayMs = Math.min(100 * 2 ** attempt, 1_000);
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, delayMs));
+    }
+  }
+  throw new Error('the RPC did not observe the mined token approval before the retry limit');
+}
+
+function decodeRouterReceipt(receipt: TransactionReceipt, wallet: Address, route: DemoTradeRoute) {
   let gate: ReturnType<typeof decodeEventLog<typeof routerAbi>> | undefined;
   let swap: ReturnType<typeof decodeEventLog<typeof routerAbi>> | undefined;
 
@@ -368,9 +462,11 @@ function decodeRouterReceipt(receipt: TransactionReceipt, wallet: Address) {
     gate.args.orderHash.toLowerCase() !== deployments.orderHash.toLowerCase() ||
     gate.args.taker.toLowerCase() !== wallet.toLowerCase() ||
     swap.args.orderHash.toLowerCase() !== deployments.orderHash.toLowerCase() ||
-    swap.args.taker.toLowerCase() !== wallet.toLowerCase()
+    swap.args.taker.toLowerCase() !== wallet.toLowerCase() ||
+    swap.args.tokenIn.toLowerCase() !== route.tokenIn.toLowerCase() ||
+    swap.args.tokenOut.toLowerCase() !== route.tokenOut.toLowerCase()
   ) {
-    throw new Error('router receipt does not match the configured order and demo wallet');
+    throw new Error('router receipt does not match the configured order, route, and demo wallet');
   }
   return { gate, swap };
 }
@@ -394,9 +490,17 @@ export async function routerOpcode(): Promise<number> {
 export async function executeDemoTrade(
   lane: DemoTradeLane,
   amountIn: bigint,
+  direction: DemoTradeDirection = 'tETH-to-tUSD',
 ): Promise<DemoTradeResult> {
   if (!demoTradesEnabled()) throw new Error('interactive demo trades are disabled');
-  const maxAmountIn = BigInt(process.env.DEMO_TRADE_MAX_AMOUNT_IN ?? DEFAULT_MAX_AMOUNT_IN);
+  const view = routerExecutionView();
+  const route = selectDemoTradeRoute(view, direction);
+  const configuredMax =
+    direction === 'tETH-to-tUSD'
+      ? process.env.DEMO_TRADE_MAX_TETH_IN ?? process.env.DEMO_TRADE_MAX_AMOUNT_IN
+      : process.env.DEMO_TRADE_MAX_TUSD_IN;
+  const defaultMax = direction === 'tETH-to-tUSD' ? DEFAULT_MAX_TETH_IN : DEFAULT_MAX_TUSD_IN;
+  const maxAmountIn = BigInt(configuredMax ?? defaultMax);
   if (amountIn <= 0n || amountIn > maxAmountIn) {
     throw new Error(`amountIn must be between 1 and ${maxAmountIn}`);
   }
@@ -413,22 +517,21 @@ export async function executeDemoTrade(
       throw new Error(`${lane} signing key resolves to ${account.address}, expected ${expected}`);
     }
 
-    const view = routerExecutionView();
     const opcode = await routerOpcode();
     const transport = http(RPC_URL);
     const walletClient = createWalletClient({ account, transport });
-    const quote = await quoteRouterFor(account.address, amountIn, view);
+    const quote = await quoteRouterFor(account.address, amountIn, view, direction);
 
     let approvalTransactionHash: Hex | undefined;
     const allowance = await client.readContract({
-      address: deployments.tETH,
+      address: route.tokenIn,
       abi: erc20Abi,
       functionName: 'allowance',
       args: [account.address, deployments.router],
     });
     if (allowance < amountIn) {
       approvalTransactionHash = await walletClient.writeContract({
-        address: deployments.tETH,
+        address: route.tokenIn,
         abi: erc20Abi,
         functionName: 'approve',
         args: [deployments.router, maxUint256],
@@ -438,6 +541,7 @@ export async function executeDemoTrade(
       if (approval.status !== 'success') {
         throw new Error(`token approval reverted: ${approvalTransactionHash}`);
       }
+      await waitForRouterAllowance(route.tokenIn, account.address, amountIn);
     }
 
     const slippageBps = BigInt(process.env.SLIPPAGE_BPS ?? '50');
@@ -451,8 +555,8 @@ export async function executeDemoTrade(
       functionName: 'swap',
       args: [
         view.order,
-        view.token0,
-        view.token1,
+        route.tokenIn,
+        route.tokenOut,
         amountIn,
         buildTakerTraits(minimumAmountOut),
       ],
@@ -465,12 +569,13 @@ export async function executeDemoTrade(
     const receipt = await client.waitForTransactionReceipt({ hash: transactionHash });
     if (receipt.status !== 'success') throw new Error(`SwapVM trade reverted: ${transactionHash}`);
 
-    const { gate, swap } = decodeRouterReceipt(receipt, account.address);
+    const { gate, swap } = decodeRouterReceipt(receipt, account.address, route);
     const feeBps = Number(gate.args.feeE9 / FEE_E9_PER_BPS);
     const tight = gate.args.tight;
     lastTradeAt.set(lane, Date.now());
     return {
       lane,
+      ...route,
       wallet: account.address,
       transactionHash,
       approvalTransactionHash,
@@ -485,6 +590,14 @@ export async function executeDemoTrade(
       tight,
       tier: tight ? 'tight' : 'wide',
       feeBps,
+      quotedFeeSchedule: {
+        tightFeeBps: quote.feeSchedule.tightFeeBps.toString(),
+        wideFeeBps: quote.feeSchedule.wideFeeBps.toString(),
+        targetFeeBps: quote.feeSchedule.targetFeeBps.toString(),
+        humanShareBps: quote.feeSchedule.humanShareBps.toString(),
+        tightVolume: quote.feeSchedule.tightVolume.toString(),
+        wideVolume: quote.feeSchedule.wideVolume.toString(),
+      },
       explorerUrl: explorerTransactionUrl(await client.getChainId(), transactionHash),
     };
   } finally {
