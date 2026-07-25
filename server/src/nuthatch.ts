@@ -24,6 +24,21 @@ export interface NuthatchActivitySummary {
   indexedTradeBlock: string | null;
 }
 
+export interface NuthatchRiskWindow {
+  fills: number;
+  tightFills: number;
+  wideFills: number;
+  tightVolumeToken0: string;
+  wideVolumeToken0: string;
+  tightShareBps: number;
+  avgTightFeeBps: number;
+  avgWideFeeBps: number;
+  avgTightPrice: string;
+  avgWidePrice: string;
+  indexedTradeBlock: string;
+  windowStartBlock: string;
+}
+
 export interface NuthatchActivity {
   status: 'connected';
   indexedBlock: string;
@@ -33,6 +48,7 @@ export interface NuthatchActivity {
   provenance: string;
   swaps: IndexedSwap[];
   summary: NuthatchActivitySummary;
+  riskWindow: NuthatchRiskWindow;
 }
 
 interface NuthatchReady {
@@ -73,6 +89,7 @@ const TRADE_SQL = `
 `;
 
 const ACTIVITY_SQL = 'SELECT * FROM turing_activity_mix';
+const RISK_WINDOW_SQL = 'SELECT * FROM turing_risk_window';
 const HEX_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const HEX_HASH = /^0x[0-9a-fA-F]{64}$/;
 
@@ -107,6 +124,14 @@ function text(value: unknown, field: string): string {
 function integer(value: unknown, field: string): number {
   const parsed = Number(text(value, field));
   if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new Error(`Nuthatch row has invalid ${field}`);
+  }
+  return parsed;
+}
+
+function decimal(value: unknown, field: string): number {
+  const parsed = Number(text(value, field));
+  if (!Number.isFinite(parsed) || parsed < 0) {
     throw new Error(`Nuthatch row has invalid ${field}`);
   }
   return parsed;
@@ -171,6 +196,24 @@ function parseSummary(value: unknown): NuthatchActivitySummary {
   };
 }
 
+function parseRiskWindow(value: unknown): NuthatchRiskWindow {
+  const row = rowObject(value);
+  return {
+    fills: integer(row.fills, 'fills'),
+    tightFills: integer(row.tight_fills, 'tight_fills'),
+    wideFills: integer(row.wide_fills, 'wide_fills'),
+    tightVolumeToken0: text(row.tight_volume_token0, 'tight_volume_token0'),
+    wideVolumeToken0: text(row.wide_volume_token0, 'wide_volume_token0'),
+    tightShareBps: integer(row.tight_share_bps, 'tight_share_bps'),
+    avgTightFeeBps: decimal(row.avg_tight_fee_bps, 'avg_tight_fee_bps'),
+    avgWideFeeBps: decimal(row.avg_wide_fee_bps, 'avg_wide_fee_bps'),
+    avgTightPrice: text(row.avg_tight_price, 'avg_tight_price'),
+    avgWidePrice: text(row.avg_wide_price, 'avg_wide_price'),
+    indexedTradeBlock: text(row.indexed_trade_block, 'indexed_trade_block'),
+    windowStartBlock: text(row.window_start_block, 'window_start_block'),
+  };
+}
+
 export async function loadNuthatchActivity(
   endpoint: string,
   limit = 50,
@@ -179,7 +222,7 @@ export async function loadNuthatchActivity(
   const base = normalizeNuthatchUrl(endpoint);
   const rowLimit = Math.max(1, Math.min(100, Math.floor(limit)));
   const tradeQuery = `${TRADE_SQL} LIMIT ${rowLimit}`;
-  const [ready, trades, activity] = await Promise.all([
+  const [ready, trades, activity, riskWindowResponse] = await Promise.all([
     getJson<NuthatchReady>(`${base}/ready`, fetcher),
     getJson<SqlResponse>(
       `${base}/sql?q=${encodeURIComponent(tradeQuery)}&max_rows=${rowLimit}`,
@@ -189,11 +232,19 @@ export async function loadNuthatchActivity(
       `${base}/sql?q=${encodeURIComponent(ACTIVITY_SQL)}&max_rows=1`,
       fetcher,
     ),
+    getJson<SqlResponse>(
+      `${base}/sql?q=${encodeURIComponent(RISK_WINDOW_SQL)}&max_rows=1`,
+      fetcher,
+    ),
   ]);
   if (ready.ready !== true || ready.stalled === true) {
     throw new Error('Nuthatch is not ready or has stalled');
   }
-  if (!Array.isArray(trades.rows) || !Array.isArray(activity.rows)) {
+  if (
+    !Array.isArray(trades.rows) ||
+    !Array.isArray(activity.rows) ||
+    !Array.isArray(riskWindowResponse.rows)
+  ) {
     throw new Error('Nuthatch SQL response is missing rows');
   }
 
@@ -212,6 +263,10 @@ export async function loadNuthatchActivity(
         humanShareBps: 0,
         indexedTradeBlock: null,
       };
+  if (!riskWindowResponse.rows[0]) {
+    throw new Error('Nuthatch risk window has no indexed fills');
+  }
+  const riskWindow = parseRiskWindow(riskWindowResponse.rows[0]);
 
   return {
     status: 'connected',
@@ -226,5 +281,6 @@ export async function loadNuthatchActivity(
     provenance: trades.provenance?.source ?? 'hot+sealed',
     swaps: trades.rows.map(parseSwap).reverse(),
     summary,
+    riskWindow,
   };
 }

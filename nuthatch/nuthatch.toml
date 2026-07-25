@@ -17,7 +17,7 @@ alias = "quota"
 address = "0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B"
 start_block = 44605284
 abi = "abis/quota.json"
-events = ["UsageRecorded", "FeeScheduleUpdated"]
+events = ["UsageRecorded", "FeeScheduleUpdated", "RiskPolicyApplied"]
 
 [[contracts]]
 alias = "aqua"
@@ -38,7 +38,7 @@ alias = "vault_quota"
 address = "0xAe701d6FB0Bf32E7D50Ea0bbc37C3d02192BF495"
 start_block = 44605360
 abi = "abis/quota.json"
-events = ["UsageRecorded", "FeeScheduleUpdated"]
+events = ["UsageRecorded", "FeeScheduleUpdated", "RiskPolicyApplied"]
 
 [[contracts]]
 alias = "identity_mirror"

@@ -120,6 +120,20 @@ export interface ActivityDataSource extends DataSource {
     humanShareBps: number;
     indexedTradeBlock: string | null;
   };
+  riskWindow?: {
+    fills: number;
+    tightFills: number;
+    wideFills: number;
+    tightVolumeToken0: string;
+    wideVolumeToken0: string;
+    tightShareBps: number;
+    avgTightFeeBps: number;
+    avgWideFeeBps: number;
+    avgTightPrice: string;
+    avgWidePrice: string;
+    indexedTradeBlock: string;
+    windowStartBlock: string;
+  };
 }
 
 export interface ProtocolState {
@@ -128,6 +142,16 @@ export interface ProtocolState {
   execution?: Execution;
   pool: Pool;
   feeController: FeeController;
+  riskPolicy?: {
+    updater: string;
+    maxFeeStepBps: string;
+    maxDataLagBlocks: string;
+    indexedThroughBlock: string;
+    decisionHash: string;
+    desiredTightFeeBps: string;
+    riskSpreadBps: string;
+    source: string;
+  };
   stats: {
     totalSwaps: number;
     tightSwaps: number;

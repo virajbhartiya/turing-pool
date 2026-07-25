@@ -96,6 +96,35 @@ overflows_dec = [
     "humanShareBps",
 ]
 
+[table.quota__risk_policy_applied]
+description = "A fresh Nuthatch risk window was accepted by the guarded on-chain fee controller."
+grain = "one row per token policy update"
+
+[table.quota__risk_policy_applied.columns]
+decisionHash = "Commitment to the exact Nuthatch row, provenance, contract target, and proposed policy."
+desiredTightFeeBps = "Desired verified-retail floor after bounded policy movement."
+indexedThroughBlock = "Newest confirmed trade block included in the Nuthatch decision window."
+riskSpreadBps = "Risk separation supplied to the on-chain revenue-neutral solver."
+tightFeeBps = "Resulting verified-retail rate after the LP-target invariant is solved."
+token = "The `token` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+wideFeeBps = "Resulting searcher rate after the LP-target invariant is solved."
+
+[table.quota__risk_policy_applied.footguns]
+big_ints = [
+    "indexedThroughBlock",
+    "desiredTightFeeBps",
+    "riskSpreadBps",
+    "tightFeeBps",
+    "wideFeeBps",
+]
+overflows_dec = [
+    "indexedThroughBlock",
+    "desiredTightFeeBps",
+    "riskSpreadBps",
+    "tightFeeBps",
+    "wideFeeBps",
+]
+
 [table.quota__usage_recorded]
 description = "Verified-human notional consumed from a sybil-resistant quota shared across that human's wallets."
 grain = "one row per tight-lane fill"
@@ -190,6 +219,35 @@ overflows_dec = [
     "humanShareBps",
 ]
 
+[table.vault_quota__risk_policy_applied]
+description = "A fresh Nuthatch risk window was accepted by the vault's guarded on-chain fee controller."
+grain = "one row per vault-token policy update"
+
+[table.vault_quota__risk_policy_applied.columns]
+decisionHash = "The `decisionHash` bytes32 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+desiredTightFeeBps = "The `desiredTightFeeBps` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+indexedThroughBlock = "The `indexedThroughBlock` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+riskSpreadBps = "The `riskSpreadBps` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+tightFeeBps = "The `tightFeeBps` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+token = "The `token` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+wideFeeBps = "The `wideFeeBps` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+
+[table.vault_quota__risk_policy_applied.footguns]
+big_ints = [
+    "indexedThroughBlock",
+    "desiredTightFeeBps",
+    "riskSpreadBps",
+    "tightFeeBps",
+    "wideFeeBps",
+]
+overflows_dec = [
+    "indexedThroughBlock",
+    "desiredTightFeeBps",
+    "riskSpreadBps",
+    "tightFeeBps",
+    "wideFeeBps",
+]
+
 [table.vault_quota__usage_recorded]
 description = "`UsageRecorded(uint256,address,uint256,uint256)` events emitted by the `vault_quota` contract. (seeded from the ABI - edit semantic.toml to improve this)"
 grain = "one row per UsageRecorded(uint256,address,uint256,uint256) event"
@@ -258,6 +316,9 @@ overflows_dec = [
 
 [view.turing_activity_mix]
 description = "Volume-weighted human/bot activity derived from real SwapVM fills; trade count is diagnostic only."
+
+[view.turing_risk_window]
+description = "The latest 50 primary and vault fills normalized into token0 notional. The strategist consumes this view to update the guarded on-chain fee policy; without a fresh row, policy updates stop."
 
 [view.turing_trades]
 description = "HumanGated and Swapped events correlated by transaction and order hash, giving one auditable row per real trade."

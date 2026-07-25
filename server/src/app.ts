@@ -892,6 +892,7 @@ app.get('/state', async (c) => {
           registryHash: index.registryHash,
           provenance: index.provenance,
           summary: index.summary,
+          riskWindow: index.riskWindow,
         }
       : index;
   const humanId = BigInt(deployments.humanId);
@@ -1002,6 +1003,16 @@ app.get('/state', async (c) => {
       tightSwaps: tightSwaps.length,
       wideSwaps: wideSwaps.length,
     }),
+    riskPolicy: {
+      updater: state.riskPolicy.updater,
+      maxFeeStepBps: state.riskPolicy.maxFeeStepBps.toString(),
+      maxDataLagBlocks: state.riskPolicy.maxDataLagBlocks.toString(),
+      indexedThroughBlock: state.riskPolicy.indexedThroughBlock.toString(),
+      decisionHash: state.riskPolicy.decisionHash,
+      desiredTightFeeBps: state.riskPolicy.desiredTightFeeBps.toString(),
+      riskSpreadBps: state.riskPolicy.riskSpreadBps.toString(),
+      source: 'Nuthatch turing_risk_window',
+    },
     strategyHistory: strategies,
     swaps,
     });

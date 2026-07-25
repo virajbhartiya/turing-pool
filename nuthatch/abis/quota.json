@@ -22,5 +22,19 @@
       { "name": "wideVolume", "type": "uint256", "indexed": false },
       { "name": "humanShareBps", "type": "uint256", "indexed": false }
     ]
+  },
+  {
+    "type": "event",
+    "name": "RiskPolicyApplied",
+    "anonymous": false,
+    "inputs": [
+      { "name": "token", "type": "address", "indexed": true },
+      { "name": "indexedThroughBlock", "type": "uint256", "indexed": true },
+      { "name": "decisionHash", "type": "bytes32", "indexed": true },
+      { "name": "desiredTightFeeBps", "type": "uint256", "indexed": false },
+      { "name": "riskSpreadBps", "type": "uint256", "indexed": false },
+      { "name": "tightFeeBps", "type": "uint256", "indexed": false },
+      { "name": "wideFeeBps", "type": "uint256", "indexed": false }
+    ]
   }
 ]

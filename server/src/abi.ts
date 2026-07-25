@@ -109,6 +109,21 @@ export const quotaAbi = [
   },
   {
     type: 'function',
+    name: 'policyState',
+    stateMutability: 'view',
+    inputs: [{ name: 'token', type: 'address' }],
+    outputs: [
+      { name: 'updater', type: 'address' },
+      { name: 'maxFeeStepBps', type: 'uint256' },
+      { name: 'maxDataLagBlocks', type: 'uint256' },
+      { name: 'indexedThroughBlock', type: 'uint256' },
+      { name: 'decisionHash', type: 'bytes32' },
+      { name: 'desiredTightFeeBps', type: 'uint256' },
+      { name: 'riskSpreadBps', type: 'uint256' },
+    ],
+  },
+  {
+    type: 'function',
     name: 'remaining',
     stateMutability: 'view',
     inputs: [

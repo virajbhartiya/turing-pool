@@ -58,7 +58,7 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
       <header className="protocol-hero">
         <div>
           <span className="eyebrow">Protocol anatomy</span>
-          <h1>Human-backed agency becomes executable market structure.</h1>
+          <h1>Verified retail becomes executable market structure.</h1>
           <p>
             World AgentKit establishes accountable agency. The same custom SwapVM
             program prices every quote and fill, Aqua settles LP inventory, and
@@ -116,7 +116,7 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
           </header>
           <h2>Resolve the taker</h2>
           <p>
-            AgentKit verification registers a human-backed agent in World AgentBook.
+            World verification registers the trading wallet in AgentBook.
             The execution mirror returns only its canonical human ID; no proof or
             biometric data enters the swap.
           </p>
@@ -130,7 +130,7 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
                   ? `humanId ${latestHumanId.slice(0, 12)}…`
                   : latestHumanId === '0'
                     ? 'humanId 0 · searcher lane'
-                    : 'non-zero → human-backed · zero → searcher'}
+                    : 'non-zero → verified retail · zero → searcher'}
               </dd>
             </div>
           </dl>
@@ -154,8 +154,8 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
               <dt>SELECTS</dt>
               <dd className={latestTight ? 'positive' : 'negative'}>
                 {latestTight === undefined
-                  ? `${controller.tightFeeBps} bps human-backed / ${controller.wideFeeBps} bps searcher`
-                  : `${latestTight ? 'HUMAN-BACKED' : 'SEARCHER'} · ${latestFee} bps`}
+                  ? `${controller.tightFeeBps} bps verified retail / ${controller.wideFeeBps} bps searcher`
+                  : `${latestTight ? 'VERIFIED RETAIL' : 'SEARCHER'} · ${latestFee} bps`}
               </dd>
             </div>
           </dl>
@@ -174,7 +174,7 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
           </p>
           <dl>
             <div><dt>WRITE</dt><dd><code>recordTrade(orderHash, humanId, token, amount, lane)</code></dd></div>
-            <div><dt>VOLUME</dt><dd>{formatUnits(controller.tightVolume)} human-backed · {formatUnits(controller.wideVolume)} searcher</dd></div>
+            <div><dt>VOLUME</dt><dd>{formatUnits(controller.tightVolume)} verified retail · {formatUnits(controller.wideVolume)} searcher</dd></div>
             <div><dt>NEXT</dt><dd>{controller.tightFeeBps} / {controller.wideFeeBps} bps</dd></div>
           </dl>
         </article>
@@ -206,16 +206,16 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
             <BrandLogo brand="nuthatch" />
             <span>Indexed proof</span>
           </header>
-          <h2>Make every result queryable</h2>
+          <h2>Index activity and drive policy</h2>
           <p>
-            Nuthatch follows the protocol events and exposes decoded receipts through
-            SQL and MCP to the UI and pricing-agent workflow. It supplies live evidence;
-            it never sits in the safety-critical quote or settlement path.
+            Nuthatch joins confirmed gate and swap events into a normalized 50-fill
+            risk window. The strategist cannot update fees without this fresh SQL
+            result; settlement and the 30 bps invariant remain enforced on-chain.
           </p>
           <dl>
-            <div><dt>TABLES</dt><dd><code>router__human_gated + router__swapped</code></dd></div>
-            <div><dt>INDEXED</dt><dd>{indexer.indexedBlock ? `block ${indexer.indexedBlock}` : 'following chain head'}</dd></div>
-            <div><dt>LAG</dt><dd className={indexer.status === 'connected' ? 'positive' : undefined}>{indexer.lagBlocks ?? '—'} blocks</dd></div>
+            <div><dt>QUERY</dt><dd><code>SELECT * FROM turing_risk_window</code></dd></div>
+            <div><dt>POLICY BLOCK</dt><dd>{state.riskPolicy?.indexedThroughBlock && state.riskPolicy.indexedThroughBlock !== '0' ? state.riskPolicy.indexedThroughBlock : 'awaiting first decision'}</dd></div>
+            <div><dt>GUARD</dt><dd className={indexer.status === 'connected' ? 'positive' : undefined}>≤ {state.riskPolicy?.maxFeeStepBps ?? '—'} bps step · ≤ {state.riskPolicy?.maxDataLagBlocks ?? '—'} blocks old</dd></div>
           </dl>
         </article>
       </div>
@@ -234,7 +234,7 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
           </div>
           <div className="protocol-equation">
             <div>
-              <span>Human-backed</span>
+              <span>Verified retail</span>
               <strong>{controller.tightFeeBps}<small>bps</small></strong>
               <em>× {humanShare.toFixed(0)}%</em>
             </div>

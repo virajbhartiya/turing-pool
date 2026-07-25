@@ -432,7 +432,7 @@ export async function quoteRouterFor(
 }
 
 export async function routerPoolState(view = routerExecutionView()) {
-  const [computedOrderHash, feeController] = await Promise.all([
+  const [computedOrderHash, feeController, policyState] = await Promise.all([
     client.readContract({
       address: deployments.router,
       abi: routerAbi,
@@ -440,6 +440,12 @@ export async function routerPoolState(view = routerExecutionView()) {
       args: [view.order],
     }),
     readFeeSchedule(view),
+    client.readContract({
+      address: view.program.quota,
+      abi: quotaAbi,
+      functionName: 'policyState',
+      args: [view.token0],
+    }),
   ]);
   if (computedOrderHash.toLowerCase() !== view.orderHash.toLowerCase()) {
     throw new Error(
@@ -469,6 +475,15 @@ export async function routerPoolState(view = routerExecutionView()) {
     orderHash: computedOrderHash,
     program,
     feeController,
+    riskPolicy: {
+      updater: policyState[0],
+      maxFeeStepBps: policyState[1],
+      maxDataLagBlocks: policyState[2],
+      indexedThroughBlock: policyState[3],
+      decisionHash: policyState[4],
+      desiredTightFeeBps: policyState[5],
+      riskSpreadBps: policyState[6],
+    },
     balance0,
     balance1,
   };
