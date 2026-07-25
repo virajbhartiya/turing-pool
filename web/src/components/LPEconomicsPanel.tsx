@@ -69,7 +69,7 @@ export function LPEconomicsPanel({
           <div className="metric">
             <span>Settled fills</span>
             <strong>{economics.total.swapCount}</strong>
-            <small>{economics.human.swapCount} verified · {economics.bot.swapCount} anonymous</small>
+            <small>{economics.human.swapCount} retail · {economics.bot.swapCount} HFT / arb</small>
           </div>
         </div>
       </div>

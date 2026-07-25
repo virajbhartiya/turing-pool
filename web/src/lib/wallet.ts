@@ -58,7 +58,7 @@ export async function ensureExecutionChain(provider: Eip1193Provider): Promise<v
       params: [
         {
           chainId: EXECUTION_CHAIN_HEX,
-          chainName: 'Base Sepolia',
+          chainName: 'Turing Pool Testnet',
           nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
           rpcUrls: ['https://sepolia.base.org'],
           blockExplorerUrls: ['https://sepolia.basescan.org'],

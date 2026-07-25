@@ -82,7 +82,7 @@ export function hostedDemoQuotes(
     },
     bot: {
       ...route,
-      label: 'Anonymous bot',
+      label: 'HFT / arbitrage flow',
       address: ADDRESSES.bot,
       amountIn: amountIn.toString(),
       tier: 'wide',

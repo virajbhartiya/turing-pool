@@ -29,7 +29,7 @@ export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
   return (
     <section className="integration-section" aria-label="Live integration flow">
       <div className="panel-head protocol-panel-head">
-        <div><strong>Live execution stack</strong><span>Identity → settlement → indexed proof</span></div>
+        <div><strong>How each fill moves through the protocol</strong><span>The wallet signs once; every decision and balance movement is on-chain</span></div>
         <span className="live-tag">OP #34</span>
       </div>
       <div className="integration-flow compact">
@@ -43,7 +43,7 @@ export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
             {lastTrade
               ? lastTrade.humanBacked
                 ? `humanId ${lastTrade.humanId.slice(0, 10)}…`
-                : 'anonymous wallet · humanId 0'
+                : 'HFT / arbitrage wallet · humanId 0'
               : `${shortAddress(state.execution?.humanWallet ?? '')} is human-backed`}
           </p>
           <small>{mirroredIdentity ? 'Canonical identity mirrored to Base' : 'Canonical World lookup'}</small>
@@ -73,6 +73,12 @@ export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
           <small>{nuthatchConnected ? 'SQL + MCP' : activity.error ?? 'Chain fallback'}</small>
         </div>
       </div>
+      <ol className="protocol-fill-flow">
+        <li><b>01 · Request</b><span>The wallet chooses an exact input and asks SwapVM for an executable quote.</span></li>
+        <li><b>02 · Classify</b><span>HumanGate reads the World identity mirror and selects verified retail or the HFT / arbitrage lane.</span></li>
+        <li><b>03 · Settle</b><span>Opcode 34 enforces the quota and Aqua transfers inventory at the quoted rate.</span></li>
+        <li><b>04 · Reprice</b><span>Mined volume updates both next fees around the 30 bps LP target; Nuthatch indexes proof.</span></li>
+      </ol>
     </section>
   );
 }

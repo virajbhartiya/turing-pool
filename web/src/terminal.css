@@ -63,6 +63,10 @@ body::before {
   background: #080b0f;
 }
 
+.dex-header-actions {
+  margin-left: auto;
+}
+
 .dex-symbol {
   width: 36px;
   color: var(--accent);
@@ -593,6 +597,79 @@ body::before {
   color: var(--accent);
 }
 
+.math-solve {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  background: var(--border);
+}
+
+.math-solve div {
+  padding: 12px;
+  background: #070b0f;
+}
+
+.math-solve span,
+.math-solve code {
+  display: block;
+}
+
+.math-solve span {
+  color: var(--muted);
+  font: 700 10px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.math-solve code {
+  margin-top: 6px;
+  color: var(--text-2);
+  font: 650 13px/1.45 var(--mono);
+}
+
+.math-solve b {
+  color: var(--accent);
+}
+
+.math-definitions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin: 20px 0 0;
+  border: 1px solid var(--border);
+  background: var(--border);
+}
+
+.math-definitions div {
+  padding: 11px 12px;
+  background: #070b0f;
+}
+
+.math-definitions dt {
+  color: var(--accent);
+  font: 700 10px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.math-definitions dd {
+  margin: 5px 0 0;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.math-incentive {
+  margin: 14px 0 0;
+  border-left: 2px solid var(--accent);
+  padding-left: 12px;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .landing-flow {
   padding: 28px 0;
 }
@@ -730,6 +807,42 @@ body::before {
   background: #080c10;
 }
 
+.protocol-fill-flow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin: 1px 0 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: var(--border);
+  list-style: none;
+}
+
+.protocol-fill-flow li {
+  min-width: 0;
+  padding: 12px 14px;
+  background: #070b0f;
+}
+
+.protocol-fill-flow b,
+.protocol-fill-flow span {
+  display: block;
+}
+
+.protocol-fill-flow b {
+  color: var(--accent);
+  font: 750 10px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.protocol-fill-flow span {
+  margin-top: 6px;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .lean-controller {
   grid-template-columns: minmax(250px, 0.48fr) minmax(520px, 1.52fr);
   padding: 14px;
@@ -789,6 +902,10 @@ footer {
   .lean-controller {
     grid-template-columns: 1fr;
   }
+
+  .protocol-fill-flow {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 760px) {
@@ -817,5 +934,11 @@ footer {
 
   .landing-hero h1 {
     font-size: clamp(39px, 13vw, 56px);
+  }
+
+  .math-solve,
+  .math-definitions,
+  .protocol-fill-flow {
+    grid-template-columns: 1fr;
   }
 }

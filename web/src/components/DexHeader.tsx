@@ -10,14 +10,13 @@ interface DexHeaderProps {
   accounts: string[];
   quote?: ConnectedWalletQuote;
   connecting: boolean;
-  refreshing: boolean;
   onConnect: (requestAccountSelection?: boolean) => Promise<void>;
   onSelectAccount: (account: string) => void;
 }
 
 const NAVIGATION: Array<{ view: DexView; label: string; key: string }> = [
   { view: 'overview', label: 'Overview', key: 'F0' },
-  { view: 'trade', label: 'Trade', key: 'F1' },
+  { view: 'trade', label: 'Swap', key: 'F1' },
   { view: 'pool', label: 'Pool', key: 'F2' },
   { view: 'verify', label: 'Verify', key: 'F3' },
   { view: 'protocol', label: 'Protocol', key: 'F4' },
@@ -30,7 +29,6 @@ export function DexHeader({
   accounts,
   quote,
   connecting,
-  refreshing,
   onConnect,
   onSelectAccount,
 }: DexHeaderProps) {
@@ -38,11 +36,6 @@ export function DexHeader({
   return (
     <header className="dex-header">
       <div className="dex-statusbar">
-        <span className="dex-symbol">TP</span>
-        <div className="dex-network">
-          <i className={refreshing ? 'refreshing' : undefined} />
-          <strong>Base Sepolia</strong>
-        </div>
         <div className="dex-header-actions">
           {!account ? (
             <button
@@ -57,7 +50,7 @@ export function DexHeader({
             <div className={`header-wallet ${human ? 'human' : 'bot'}`}>
               <span>
                 <i />
-                {human ? 'Verified' : 'Anonymous'}
+                {human ? 'Verified retail' : 'HFT / arb'}
               </span>
               {accounts.length > 1 ? (
                 <select
@@ -106,11 +99,6 @@ export function DexHeader({
             </button>
           ))}
         </nav>
-        <div className="dex-live">
-          <i />
-          Live contracts
-          <span>OP #34</span>
-        </div>
       </div>
     </header>
   );

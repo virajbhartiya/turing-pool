@@ -20,7 +20,7 @@ export function ProtocolDetails({ state }: { state: ProtocolState }) {
         <article>
           <span>Active fee schedule</span>
           <strong>{state.pool.tightFeeBps}<small> / </small>{state.pool.wideFeeBps}<em>bps</em></strong>
-          <p>human-backed / anonymous</p>
+          <p>verified retail / HFT + arbitrage</p>
           <code>{shortAddress(state.pool.strategyHash)}</code>
         </article>
         <article>
@@ -40,7 +40,7 @@ export function ProtocolDetails({ state }: { state: ProtocolState }) {
           <div className="strategy-log">
             <div>
               <time>{formatUnits(state.feeController.tightVolume)} tETH verified</time>
-              <p>{formatUnits(state.feeController.wideVolume)} tETH anonymous · input notional</p>
+              <p>{formatUnits(state.feeController.wideVolume)} tETH HFT / arb · input notional</p>
             </div>
             <div>
               <time>{state.feeController.targetFeeBps} bps LP target</time>

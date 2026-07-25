@@ -81,7 +81,7 @@ function connectedWalletError(error: unknown): DemoTradeError {
   if (code === 4902) {
     return {
       code: 'wrong_network',
-      error: 'Base Sepolia could not be added to MetaMask.',
+      error: 'The execution network could not be added to MetaMask.',
       retryable: false,
       status: 400,
     };
@@ -234,7 +234,7 @@ export function App() {
         stage: 'wallet',
         status: 'active',
         title: 'Verify connected wallet',
-        detail: 'Checking MetaMask account and Base Sepolia network',
+        detail: 'Checking the MetaMask account and execution network',
       },
     ]);
     let approvalTransactionHash: string | undefined;
@@ -245,7 +245,7 @@ export function App() {
           stage: 'wallet',
           status: 'complete',
           title: 'MetaMask wallet connected',
-          detail: `${walletAccount.slice(0, 8)}…${walletAccount.slice(-6)} on Base Sepolia`,
+          detail: `${walletAccount.slice(0, 8)}…${walletAccount.slice(-6)} on the execution network`,
         }),
       );
       setTradeProgress((current) =>
@@ -285,7 +285,7 @@ export function App() {
           status: 'complete',
           title: prepared.quote.humanBacked
             ? 'World-verified human resolved'
-            : 'Anonymous wallet resolved',
+            : 'HFT / arbitrage wallet resolved',
           detail: prepared.quote.humanBacked
             ? `AgentBook humanId ${prepared.quote.humanId.slice(0, 12)}… · ${prepared.quote.tier.toUpperCase()} lane · ${prepared.quote.feeBps} bps`
             : `AgentBook returned humanId 0 · WIDE lane · ${prepared.quote.feeBps} bps`,
@@ -321,7 +321,7 @@ export function App() {
           await new Promise((resolve) => window.setTimeout(resolve, 500));
         }
         if (prepared.action !== 'swap') {
-          throw new Error('The Base Sepolia RPC has not observed the mined token approval yet.');
+          throw new Error('The execution RPC has not observed the mined token approval yet.');
         }
       }
 
@@ -350,7 +350,7 @@ export function App() {
           stage: 'submission',
           status: 'complete',
           title: 'Transaction broadcast',
-          detail: `${transactionHash.slice(0, 12)}… is pending on Base Sepolia`,
+          detail: `${transactionHash.slice(0, 12)}… is pending on the execution network`,
           transactionHash,
         }),
       );
@@ -369,7 +369,7 @@ export function App() {
           stage: 'settlement',
           status: 'complete',
           title: 'Aqua settlement mined',
-          detail: `Base Sepolia block ${BigInt(receipt.blockNumber)} confirmed the trade`,
+          detail: `Execution block ${BigInt(receipt.blockNumber)} confirmed the trade`,
           transactionHash,
         }),
       );
@@ -422,7 +422,7 @@ export function App() {
           stage: 'repricing',
           status: 'complete',
           title: 'Next fee pair is live',
-          detail: 'Executed volume has repriced the next human and bot quotes',
+          detail: 'Executed volume has repriced the next retail and HFT / arbitrage quotes',
           transactionHash,
         }),
       );
@@ -480,7 +480,6 @@ export function App() {
         onSelectAccount={wallet.selectAccount}
         onViewChange={selectView}
         quote={walletQuote}
-        refreshing={refreshing}
       />
 
       {activeView === 'overview' && (
@@ -558,7 +557,7 @@ export function App() {
 
       <footer>
         <span>Turing Pool · ETHGlobal Lisbon</span>
-        <p>{isSnapshot ? 'Hosted deterministic preview' : 'Testnet prototype · public on-chain receipts'}</p>
+        {isSnapshot && <p>Hosted deterministic preview</p>}
       </footer>
     </main>
   );

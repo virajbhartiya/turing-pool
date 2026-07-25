@@ -22,7 +22,7 @@ test('wallet account and chain parsing rejects malformed provider responses', ()
   assert.equal(parseChainId('480'), undefined);
 });
 
-test('Base Sepolia is added and selected when MetaMask does not know the network', async () => {
+test('the execution network is added and selected when MetaMask does not know it', async () => {
   const methods: string[] = [];
   const provider: Eip1193Provider = {
     async request({ method }) {

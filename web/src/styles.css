@@ -467,7 +467,7 @@ h1 span { margin-left: 9px; color: var(--muted); font-size: 0.58em; font-weight:
   border-radius: 2px;
   padding: 3px 5px;
   color: var(--human);
-  font: 800 9px var(--mono);
+  font: 800 10px var(--mono);
 }
 .world-identity-control > p { margin: 0; color: var(--text-2); font: 11px/1.45 var(--mono); }
 .world-identity-control > small { color: var(--human); font: 10px/1.4 var(--mono); overflow-wrap: anywhere; }
@@ -1331,7 +1331,7 @@ footer p { margin: 0; text-align: right; }
   font: 850 13px var(--mono);
 }
 .dex-brand strong { align-self: end; font-size: 13px; letter-spacing: 0.02em; text-transform: uppercase; }
-.dex-brand small { align-self: start; color: var(--muted); font: 9px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.dex-brand small { align-self: start; color: var(--muted); font: 10px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
 .dex-navbar nav { align-self: stretch; display: flex; }
 .dex-navbar nav button {
   min-width: 90px;
@@ -1622,7 +1622,7 @@ footer p { margin: 0; text-align: right; }
 }
 .identity-explainer > div { min-width: 0; padding: 18px; }
 .identity-explainer > i { display: grid; place-items: center; border-inline: 1px solid var(--border); color: var(--muted); font-style: normal; }
-.identity-explainer div > span { display: block; color: var(--human); font: 750 9px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.identity-explainer div > span { display: block; color: var(--human); font: 750 10px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
 .identity-explainer .brand-logo,
 .mirror-logo { width: 30px; height: 30px; display: grid; place-items: center; margin-top: 18px; }
 .mirror-logo { border: 1px solid var(--human); color: var(--human); font: 750 14px var(--mono); }
@@ -1661,7 +1661,7 @@ footer p { margin: 0; text-align: right; }
 }
 .ticket-route summary span { color: var(--muted); font-weight: 500; }
 .ticket-route p { margin: 0; padding: 4px 0; color: var(--text-2); font: 10px/1.5 var(--mono); }
-.ticket-route small { display: block; padding: 0 0 9px; color: var(--muted); font: 9px var(--mono); }
+.ticket-route small { display: block; padding: 0 0 9px; color: var(--muted); font: 10px var(--mono); }
 
 @media (max-width: 1120px) {
   .dex-brand { min-width: 180px; }

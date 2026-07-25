@@ -74,7 +74,7 @@ export function IdentityWorkspace({
           </div>
           <i>→</i>
           <div>
-            <span>03 · Base Sepolia</span>
+            <span>03 · Execution network</span>
             <b className="mirror-logo">↔</b>
             <strong>The identity mirror updates</strong>
             <p>The relayer copies the canonical humanId and source block—never the World proof.</p>
@@ -84,7 +84,7 @@ export function IdentityWorkspace({
             <span>04 · SwapVM</span>
             <BrandLogo brand="oneinch" />
             <strong>Opcode 34 selects the rate</strong>
-            <p>Verified flow receives the bounded lane; anonymous flow funds the discount.</p>
+            <p>Verified retail receives the bounded lane; HFT and arbitrage flow receives variable risk pricing.</p>
           </div>
         </aside>
       </div>

@@ -19,13 +19,11 @@ import {
 } from '../lib/wallet';
 import type {
   PreparedVaultAction,
-  VaultQuote,
   VaultRegistry,
   VaultState,
-  VaultTradeDirection,
 } from '../types';
 
-type WorkspaceAction = 'trade' | 'deposit' | 'redeem' | 'create';
+type WorkspaceAction = 'deposit' | 'redeem';
 
 interface VaultWorkspaceProps {
   account?: string;
@@ -47,7 +45,7 @@ const IDLE_STATUS: ActionStatus = {
   detail: 'Every state-changing action is simulated before MetaMask opens.',
 };
 
-const ACTIONS = ['trade', 'deposit', 'redeem', 'create'] as const;
+const ACTIONS = ['deposit', 'redeem'] as const;
 
 function waitForRpcVisibility(milliseconds = 650): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
@@ -62,28 +60,14 @@ export function VaultWorkspace({
   const [registry, setRegistry] = useState<VaultRegistry>();
   const [selectedVault, setSelectedVault] = useState<string>();
   const [vault, setVault] = useState<VaultState>();
-  const [action, setAction] = useState<WorkspaceAction>('trade');
+  const [action, setAction] = useState<WorkspaceAction>('deposit');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string>();
   const [status, setStatus] = useState<ActionStatus>(IDLE_STATUS);
-  const [direction, setDirection] = useState<VaultTradeDirection>('token0-to-token1');
-  const [tradeAmount, setTradeAmount] = useState('0.1');
-  const [quote, setQuote] = useState<VaultQuote>();
-  const [quoteError, setQuoteError] = useState<string>();
-  const [quoteLoading, setQuoteLoading] = useState(false);
   const [deposit0, setDeposit0] = useState('1');
   const [deposit1, setDeposit1] = useState('1');
   const [redeemPercent, setRedeemPercent] = useState(100);
   const [lpTokenAdded, setLpTokenAdded] = useState(false);
-  const [createForm, setCreateForm] = useState({
-    token0: '',
-    token1: '',
-    name: 'Turing Pool LP',
-    symbol: 'tpLP',
-    dailyCap0: '10',
-    dailyCap1: '40000',
-  });
-
   const refreshRegistry = useCallback(async () => {
     const params = account ? `?address=${encodeURIComponent(account)}` : '';
     const next = await responseJson<VaultRegistry>(
@@ -149,51 +133,6 @@ export function VaultWorkspace({
       setLoadError(error instanceof Error ? error.message : String(error)),
     );
   }, [refreshVault, selectedVault]);
-
-  useEffect(() => {
-    if (!account || !vault || !vault.strategyActive || action !== 'trade') {
-      setQuote(undefined);
-      setQuoteError(undefined);
-      return;
-    }
-    const controller = new AbortController();
-    let ignore = false;
-    const timeout = window.setTimeout(() => {
-      let amountIn: string;
-      try {
-        const tokenIn = direction === 'token0-to-token1' ? vault.token0 : vault.token1;
-        amountIn = parseUnits(tradeAmount, tokenIn.decimals);
-      } catch (error) {
-        setQuote(undefined);
-        setQuoteError(error instanceof Error ? error.message : String(error));
-        return;
-      }
-      setQuoteLoading(true);
-      const params = new URLSearchParams({ address: account, amountIn, direction });
-      void fetch(`${apiBase()}/vaults/${vault.vault}/quote?${params}`, {
-        signal: controller.signal,
-      })
-        .then(responseJson<VaultQuote>)
-        .then((next) => {
-          if (ignore) return;
-          setQuote(next);
-          setQuoteError(undefined);
-        })
-        .catch((error) => {
-          if (ignore || (error instanceof DOMException && error.name === 'AbortError')) return;
-          setQuote(undefined);
-          setQuoteError(error instanceof Error ? error.message : String(error));
-        })
-        .finally(() => {
-          if (!ignore) setQuoteLoading(false);
-        });
-    }, 300);
-    return () => {
-      ignore = true;
-      window.clearTimeout(timeout);
-      controller.abort();
-    };
-  }, [account, action, direction, tradeAmount, vault]);
 
   const ownershipPercent = useMemo(
     () => (vault ? Number(vault.position.ownershipPpb) / 10_000_000 : 0),
@@ -270,7 +209,7 @@ export function VaultWorkspace({
           title: approval ? 'Approve token in MetaMask' : 'Confirm action in MetaMask',
           detail: approval
             ? 'This one-time allowance is scoped to the selected vault or SwapVM router.'
-            : 'The simulated transaction is ready to broadcast on Base Sepolia.',
+            : 'The simulated transaction is ready to broadcast on the execution network.',
         });
         const transactionHash = await sendWalletTransaction(
           connected.provider,
@@ -279,7 +218,7 @@ export function VaultWorkspace({
         setStatus({
           state: 'mining',
           title: approval ? 'Mining token approval' : 'Mining on-chain action',
-          detail: `${transactionHash.slice(0, 12)}… is pending on Base Sepolia.`,
+          detail: `${transactionHash.slice(0, 12)}… is pending on the execution network.`,
           transactionHash,
         });
         const receipt = await waitForWalletReceipt(connected.provider, transactionHash);
@@ -293,16 +232,11 @@ export function VaultWorkspace({
                   ? 'Liquidity deposited and LP shares minted'
                   : prepared.action === 'redeem'
                     ? 'LP shares redeemed'
-                    : 'New vault created',
-            detail: `Confirmed in Base Sepolia block ${BigInt(receipt.blockNumber)}.`,
+                  : 'Liquidity action confirmed',
+            detail: `Confirmed in execution block ${BigInt(receipt.blockNumber)}.`,
             transactionHash,
           });
           await Promise.all([refreshAll(), onProtocolRefresh()]);
-          if (prepared.action === 'create') {
-            const next = await refreshRegistry();
-            setSelectedVault(next.vaults.at(-1));
-            setAction('deposit');
-          }
           return;
         }
         await waitForRpcVisibility();
@@ -315,22 +249,6 @@ export function VaultWorkspace({
         detail: error instanceof Error ? error.message : String(error),
       });
     }
-  }
-
-  async function executeTrade() {
-    if (!account || !provider) {
-      await onConnectWallet(false);
-      return;
-    }
-    if (!vault || !quote) return;
-    await submitPrepared(
-      `/vaults/${vault.vault}/trade/prepare`,
-      {
-        amountIn: quote.amountIn,
-        direction,
-      },
-      ['swap'],
-    );
   }
 
   async function addLiquidity() {
@@ -373,10 +291,6 @@ export function VaultWorkspace({
     );
   }
 
-  async function createVault() {
-    await submitPrepared('/vaults/create/prepare', createForm, ['create']);
-  }
-
   async function watchLpToken() {
     try {
       if (!provider || !vault) {
@@ -397,16 +311,6 @@ export function VaultWorkspace({
 
   const explorerUrl = status.transactionHash
     ? transactionExplorer(registry?.chainId ?? 480, status.transactionHash)
-    : undefined;
-  const inputToken = vault
-    ? direction === 'token0-to-token1'
-      ? vault.token0
-      : vault.token1
-    : undefined;
-  const outputToken = vault
-    ? direction === 'token0-to-token1'
-      ? vault.token1
-      : vault.token0
     : undefined;
   const lpTokenUrl = vault
     ? addressExplorer(registry?.chainId ?? 84532, vault.shareToken.address)
@@ -470,71 +374,22 @@ export function VaultWorkspace({
             </nav>
           </div>
 
-          {action === 'create' ? (
-            <div className="vault-create-grid">
-              <article className="vault-card">
-                <span>Create a market</span>
-                <h3>New isolated LP vault</h3>
-                <p>The connected wallet becomes manager. The pool receives its own quota and adaptive fee controller.</p>
-                <div className="vault-form-grid">
-                  <label>Token 0 address<input value={createForm.token0} onChange={(event) => setCreateForm((current) => ({ ...current, token0: event.target.value }))} /></label>
-                  <label>Token 1 address<input value={createForm.token1} onChange={(event) => setCreateForm((current) => ({ ...current, token1: event.target.value }))} /></label>
-                  <label>LP token name<input value={createForm.name} onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))} /></label>
-                  <label>LP symbol<input value={createForm.symbol} onChange={(event) => setCreateForm((current) => ({ ...current, symbol: event.target.value }))} /></label>
-                  <label>Human daily cap · token 0<input inputMode="decimal" value={createForm.dailyCap0} onChange={(event) => setCreateForm((current) => ({ ...current, dailyCap0: event.target.value }))} /></label>
-                  <label>Human daily cap · token 1<input inputMode="decimal" value={createForm.dailyCap1} onChange={(event) => setCreateForm((current) => ({ ...current, dailyCap1: event.target.value }))} /></label>
-                </div>
-                <button className="vault-primary" disabled={actionPending} onClick={() => void createVault()} type="button">
-                  {account ? 'Create vault with MetaMask' : 'Connect MetaMask to create'}
-                </button>
-              </article>
-              <VaultStatus status={status} explorerUrl={explorerUrl} />
-            </div>
-          ) : !vault ? (
+          {!vault ? (
             <div className="vault-empty">
-              <strong>No vault markets yet.</strong>
-              <p>Create the first pool, then seed both assets to ship its Aqua order.</p>
-              <button onClick={() => setAction('create')} type="button">Create first vault</button>
+              <strong>No liquidity market is available.</strong>
+              <p>The protocol has not configured an active pool for liquidity providers.</p>
             </div>
           ) : (
             <>
               <div className="vault-market-strip">
                 <div><span>Market</span><strong>{vault.token0.symbol} / {vault.token1.symbol}</strong><small>Aqua order {vault.strategyActive ? 'active' : 'inactive'}</small></div>
-                <div><span>Live fees</span><strong>{vault.feeSchedules.token0.tightFeeBps} / {vault.feeSchedules.token0.wideFeeBps} bps</strong><small>human / bot · {vault.feeSchedules.token0.targetFeeBps} bps target</small></div>
+                <div><span>Live fees</span><strong>{vault.feeSchedules.token0.tightFeeBps} / {vault.feeSchedules.token0.wideFeeBps} bps</strong><small>retail / HFT-arb · {vault.feeSchedules.token0.targetFeeBps} bps target</small></div>
                 <div><span>Pool inventory</span><strong>{formatUnits(vault.reserves.token0, vault.token0.decimals, 4)} {vault.token0.symbol}</strong><small>{formatUnits(vault.reserves.token1, vault.token1.decimals, 4)} {vault.token1.symbol}</small></div>
-                <div><span>Your LP position</span><strong>{ownershipLabel}</strong><small>{formatUnits(vault.position.shares, 18, 4)} {vault.shareToken.symbol} · ERC-20 on Base Sepolia</small></div>
+                <div><span>Your LP position</span><strong>{ownershipLabel}</strong><small>{formatUnits(vault.position.shares, 18, 4)} {vault.shareToken.symbol} · transferable ERC-20</small></div>
               </div>
 
               <div className="vault-grid">
                 <article className="vault-card vault-action-card">
-                  {action === 'trade' && (
-                    <>
-                      <span>Trade selected vault</span>
-                      <h3>{inputToken?.symbol} → {outputToken?.symbol}</h3>
-                      <div className="vault-direction">
-                        <button className={direction === 'token0-to-token1' ? 'active' : undefined} onClick={() => setDirection('token0-to-token1')} type="button">{vault.token0.symbol} → {vault.token1.symbol}</button>
-                        <button className={direction === 'token1-to-token0' ? 'active' : undefined} onClick={() => setDirection('token1-to-token0')} type="button">{vault.token1.symbol} → {vault.token0.symbol}</button>
-                      </div>
-                      <label className="vault-amount">Exact input<input inputMode="decimal" value={tradeAmount} onChange={(event) => setTradeAmount(event.target.value)} /><b>{inputToken?.symbol}</b></label>
-                      <div className={`vault-quote ${quote?.tight ? 'human' : 'bot'}`}>
-                        <span>{quoteLoading ? 'Quoting on-chain…' : quote ? `${quote.tier.toUpperCase()} · ${quote.feeBps} bps` : 'Connect wallet for identity-priced quote'}</span>
-                        <strong>{quote ? formatUnits(quote.amountOut, quote.tokenOut.decimals, 6) : '—'} <small>{outputToken?.symbol}</small></strong>
-                        <p>{quote?.humanBacked ? `World mirror humanId ${quote.humanId.slice(0, 12)}…` : quote ? 'World mirror returned humanId 0 · anonymous lane' : quoteError}</p>
-                      </div>
-                      <button
-                        className="vault-primary"
-                        disabled={
-                          actionPending ||
-                          Boolean(account && (quoteLoading || !quote || !quote.sufficientBalance))
-                        }
-                        onClick={() => void executeTrade()}
-                        type="button"
-                      >
-                        {!account ? 'Connect MetaMask to trade' : quote?.requiresApproval ? `Approve ${inputToken?.symbol} & trade` : 'Trade through Aqua'}
-                      </button>
-                    </>
-                  )}
-
                   {action === 'deposit' && (
                     <>
                       <span>Add liquidity</span>

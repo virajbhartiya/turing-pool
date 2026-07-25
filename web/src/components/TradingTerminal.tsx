@@ -63,7 +63,7 @@ function tradeErrorHeadline(error: DemoTradeError): string {
   if (error.code === 'insufficient_balance') return 'Insufficient demo asset balance';
   if (error.code === 'wallet_rejected') return 'MetaMask request cancelled';
   if (error.code === 'wallet_unavailable') return 'MetaMask unavailable';
-  if (error.code === 'wrong_network') return 'Base Sepolia required';
+  if (error.code === 'wrong_network') return 'Execution network required';
   if (error.code === 'network_error') return 'Network unavailable · status unknown';
   return 'Trade not completed';
 }
@@ -71,7 +71,7 @@ function tradeErrorHeadline(error: DemoTradeError): string {
 const EXECUTION_SERVICES = {
   wallet: { brand: 'turing', label: 'Turing Pool execution service' },
   identity: { brand: 'world', label: 'World → Base mirror' },
-  allowance: { brand: 'oneinch', label: '1inch SwapVM router' },
+  allowance: { brand: 'oneinch', label: '1inch SwapVM Router' },
   simulation: { brand: 'oneinch', label: '1inch SwapVM' },
   submission: { brand: 'oneinch', label: 'Base + SwapVM' },
   settlement: { brand: 'oneinch', label: '1inch Aqua settlement' },
@@ -226,7 +226,7 @@ export function TradingTerminal({
     const accountLabel = connectedAccount
       ? walletQuote?.humanBacked
         ? 'HUMAN'
-        : 'BOT'
+        : 'HFT / ARB'
       : 'MARKET';
     document.title = `${accountLabel} · Turing Pool`;
   }, [connectedAccount, walletQuote?.humanBacked]);
@@ -238,7 +238,7 @@ export function TradingTerminal({
           <div className="terminal-panel execution-panel">
             <div className="panel-head">
               <div>
-                <strong>{chartMode === 'price' ? 'tETH / tUSD price' : 'Adaptive fee market'}</strong>
+                <strong>{chartMode === 'price' ? 'tETH / tUSD price' : 'Live fee market'}</strong>
                 <span>
                   {chartMode === 'price'
                     ? 'Realized execution price from mined fills'
@@ -306,8 +306,8 @@ export function TradingTerminal({
               onClick={onOpenVerify}
               type="button"
             >
-              <span>Anonymous rate active</span>
-              Verify with World ID for the human rate →
+              <span>HFT / arbitrage rate active</span>
+              Verify with World ID for the retail rate →
             </button>
           ) : null}
           <div className="direction-tabs" aria-label="Trade direction">
@@ -402,7 +402,7 @@ export function TradingTerminal({
                   ? walletQuote.tight
                     ? 'human bounded'
                     : 'human quota exceeded'
-                  : 'anonymous'}
+                  : 'HFT / arbitrage flow'}
               </dd>
             </div>
             <div><dt>Live LP rate</dt><dd>{selected.feeBps} bps</dd></div>

@@ -15,13 +15,13 @@ export function FeeControllerPanel({ controller }: FeeControllerPanelProps) {
         <div className="controller-copy compact">
           <span>Activity-priced fee controller</span>
           <h2>Two live rates. One LP target.</h2>
-          <small>{formatUnits(controller.tightVolume)} tETH verified · {formatUnits(controller.wideVolume)} tETH anonymous</small>
+          <small>{formatUnits(controller.tightVolume)} tETH retail · {formatUnits(controller.wideVolume)} tETH HFT / arb</small>
         </div>
         <div className="fee-equation">
           <div className="fee-term human"><span>Retail</span><strong>{controller.tightFeeBps}</strong><small>bps</small></div>
           <b>× {humanShare.toFixed(0)}%</b>
           <i>+</i>
-          <div className="fee-term bot"><span>Bot</span><strong>{controller.wideFeeBps}</strong><small>bps</small></div>
+          <div className="fee-term bot"><span>HFT / arb</span><strong>{controller.wideFeeBps}</strong><small>bps</small></div>
           <b>× {botShare.toFixed(0)}%</b>
           <i>=</i>
           <div className="fee-term target"><span>LP blended</span><strong>{controller.projectedWeightedFeeBps.toFixed(1)}</strong><small>bps</small></div>

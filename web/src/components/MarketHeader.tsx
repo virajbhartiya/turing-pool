@@ -34,12 +34,12 @@ export function MarketHeader({
           <small>Bounded World-backed flow</small>
         </article>
         <article className="bot">
-          <span>Anonymous fee</span>
+          <span>HFT / arbitrage fee</span>
           <div>
-            <strong>Wide lane</strong>
+            <strong>Searcher lane</strong>
             <b>{quotes.bot.feeBps} bps</b>
           </div>
-          <small>Unbounded repeat-wallet flow</small>
+          <small>Variable pricing for automated order flow</small>
         </article>
         <article className="target">
           <span>LP blended fee</span>
