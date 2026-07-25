@@ -2,10 +2,13 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  concatHex,
   createPublicClient,
   createWalletClient,
   formatUnits,
   http,
+  padHex,
+  toHex,
   publicActions,
   type Hex,
 } from 'viem';
@@ -101,30 +104,31 @@ export const erc20Abi = [
   { type: 'function', name: 'balanceOf', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }], outputs: [{ type: 'uint256' }] },
 ] as const;
 
-export const appAbi = [
+export const routerAbi = [
   {
     type: 'function',
-    name: 'swapExactIn',
+    name: 'swap',
     stateMutability: 'nonpayable',
     inputs: [
       {
-        name: 'strategy',
+        name: 'order',
         type: 'tuple',
         components: [
           { name: 'maker', type: 'address' },
-          { name: 'token0', type: 'address' },
-          { name: 'token1', type: 'address' },
-          { name: 'wideFeeBps', type: 'uint256' },
-          { name: 'tightFeeBps', type: 'uint256' },
-          { name: 'salt', type: 'bytes32' },
+          { name: 'traits', type: 'uint256' },
+          { name: 'data', type: 'bytes' },
         ],
       },
-      { name: 'zeroForOne', type: 'bool' },
-      { name: 'amountIn', type: 'uint256' },
-      { name: 'amountOutMin', type: 'uint256' },
-      { name: 'to', type: 'address' },
+      { name: 'tokenIn', type: 'address' },
+      { name: 'tokenOut', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+      { name: 'takerTraitsAndData', type: 'bytes' },
     ],
-    outputs: [{ name: 'amountOut', type: 'uint256' }],
+    outputs: [
+      { name: 'amountIn', type: 'uint256' },
+      { name: 'amountOut', type: 'uint256' },
+      { name: 'orderHash', type: 'bytes32' },
+    ],
   },
 ] as const;
 
@@ -136,15 +140,14 @@ export interface QuoteResponse {
   wideAmountOut: string;
   improvementBps: number;
   quotaRemainingTokenIn: string;
+  tokenIn: `0x${string}`;
+  tokenOut: `0x${string}`;
   execute: {
     to: `0x${string}`;
-    strategy: {
+    order: {
       maker: `0x${string}`;
-      token0: `0x${string}`;
-      token1: `0x${string}`;
-      wideFeeBps: string;
-      tightFeeBps: string;
-      salt: `0x${string}`;
+      traits: string;
+      data: Hex;
     };
   };
 }
@@ -201,14 +204,10 @@ export async function executeSwap(
   tokenIn: `0x${string}`,
   amountIn: bigint,
 ): Promise<{ amountOut: bigint; txHash: `0x${string}` }> {
-  const s = quote.execute.strategy;
-  const strategy = {
-    maker: s.maker,
-    token0: s.token0,
-    token1: s.token1,
-    wideFeeBps: BigInt(s.wideFeeBps),
-    tightFeeBps: BigInt(s.tightFeeBps),
-    salt: s.salt,
+  const order = {
+    maker: quote.execute.order.maker,
+    traits: BigInt(quote.execute.order.traits),
+    data: quote.execute.order.data,
   };
 
   const approvalHash = await wallet.writeContract({
@@ -233,23 +232,35 @@ export async function executeSwap(
     throw new Error(`SLIPPAGE_BPS must be between 0 and 9999, got ${slippageBps}`);
   }
   const amountOutMin = (BigInt(quote.amountOut) * (10_000n - slippageBps)) / 10_000n;
+  const takerTraits = concatHex([
+    `0x${'0020'.repeat(10)}` as Hex,
+    '0x0041',
+    padHex(toHex(amountOutMin), { size: 32 }),
+  ]);
+  const args = [
+    order,
+    quote.tokenIn,
+    quote.tokenOut,
+    amountIn,
+    takerTraits,
+  ] as const;
 
   const { result } = await wallet.simulateContract({
     address: quote.execute.to,
-    abi: appAbi,
-    functionName: 'swapExactIn',
-    args: [strategy, true, amountIn, amountOutMin, wallet.account.address],
+    abi: routerAbi,
+    functionName: 'swap',
+    args,
     account: wallet.account,
   });
   const txHash = await wallet.writeContract({
     address: quote.execute.to,
-    abi: appAbi,
-    functionName: 'swapExactIn',
-    args: [strategy, true, amountIn, amountOutMin, wallet.account.address],
+    abi: routerAbi,
+    functionName: 'swap',
+    args,
     chain: null,
   });
   await wallet.waitForTransactionReceipt({ hash: txHash });
-  return { amountOut: result as bigint, txHash };
+  return { amountOut: result[1], txHash };
 }
 
 export function fmt(amount: string | bigint, decimals = 18, digits = 2): string {

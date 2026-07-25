@@ -48,7 +48,7 @@ export interface NuthatchActivity {
   provenance: string;
   swaps: IndexedSwap[];
   summary: NuthatchActivitySummary;
-  riskWindow: NuthatchRiskWindow;
+  riskWindow: NuthatchRiskWindow | null;
 }
 
 interface NuthatchReady {
@@ -222,21 +222,22 @@ export async function loadNuthatchActivity(
   const base = normalizeNuthatchUrl(endpoint);
   const rowLimit = Math.max(1, Math.min(100, Math.floor(limit)));
   const tradeQuery = `${TRADE_SQL} LIMIT ${rowLimit}`;
-  const [ready, trades, activity, riskWindowResponse] = await Promise.all([
-    getJson<NuthatchReady>(`${base}/ready`, fetcher),
-    getJson<SqlResponse>(
-      `${base}/sql?q=${encodeURIComponent(tradeQuery)}&max_rows=${rowLimit}`,
-      fetcher,
-    ),
-    getJson<SqlResponse>(
-      `${base}/sql?q=${encodeURIComponent(ACTIVITY_SQL)}&max_rows=1`,
-      fetcher,
-    ),
-    getJson<SqlResponse>(
-      `${base}/sql?q=${encodeURIComponent(RISK_WINDOW_SQL)}&max_rows=1`,
-      fetcher,
-    ),
-  ]);
+  // The public/free-tier Nuthatch server deliberately caps concurrent SQL
+  // work. Keep this read path serialized so one dashboard refresh cannot
+  // self-throttle with its own three queries.
+  const ready = await getJson<NuthatchReady>(`${base}/ready`, fetcher);
+  const trades = await getJson<SqlResponse>(
+    `${base}/sql?q=${encodeURIComponent(tradeQuery)}&max_rows=${rowLimit}`,
+    fetcher,
+  );
+  const activity = await getJson<SqlResponse>(
+    `${base}/sql?q=${encodeURIComponent(ACTIVITY_SQL)}&max_rows=1`,
+    fetcher,
+  );
+  const riskWindowResponse = await getJson<SqlResponse>(
+    `${base}/sql?q=${encodeURIComponent(RISK_WINDOW_SQL)}&max_rows=1`,
+    fetcher,
+  );
   if (ready.ready !== true || ready.stalled === true) {
     throw new Error('Nuthatch is not ready or has stalled');
   }
@@ -263,10 +264,13 @@ export async function loadNuthatchActivity(
         humanShareBps: 0,
         indexedTradeBlock: null,
       };
-  if (!riskWindowResponse.rows[0]) {
-    throw new Error('Nuthatch risk window has no indexed fills');
-  }
-  const riskWindow = parseRiskWindow(riskWindowResponse.rows[0]);
+  const riskWindowRow = riskWindowResponse.rows[0];
+  const riskWindow =
+    riskWindowRow &&
+    rowObject(riskWindowRow).indexed_trade_block !== null &&
+    rowObject(riskWindowRow).indexed_trade_block !== undefined
+      ? parseRiskWindow(riskWindowRow)
+      : null;
 
   return {
     status: 'connected',

@@ -466,6 +466,11 @@ app.get('/quote', async (c) => {
       to: deployments.router,
       function: 'swap((address,uint256,bytes),address,address,uint256,bytes)',
       orderHash: q.strategyHash,
+      order: {
+        maker: deployments.maker,
+        traits: deployments.orderTraits,
+        data: deployments.orderData,
+      },
       note: 'taker approves tokenIn to the SwapVM router; _humanGate re-resolves identity, quota, and the current volume-priced fee on-chain',
     },
   });

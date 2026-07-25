@@ -92,6 +92,10 @@ export function onChainFeePolicy(
   counts: { observedSwaps: number; tightSwaps: number; wideSwaps: number },
 ): ActivityFeePolicy {
   const totalVolume = schedule.tightVolume + schedule.wideVolume;
+  const riskSpread =
+    schedule.wideFeeBps >= schedule.tightFeeBps
+      ? schedule.wideFeeBps - schedule.tightFeeBps
+      : 0n;
   const realizedRevenue =
     schedule.tightVolume * schedule.tightFeeBps +
     schedule.wideVolume * schedule.wideFeeBps;
@@ -100,7 +104,7 @@ export function onChainFeePolicy(
     tightFeeBps: Number(schedule.tightFeeBps),
     wideFeeBps: Number(schedule.wideFeeBps),
     targetFeeBps: Number(schedule.targetFeeBps),
-    riskSpreadBps: DEFAULT_REVENUE_POLICY.riskSpreadBps,
+    riskSpreadBps: Number(riskSpread),
     projectedWeightedFeeBps: decimalRatio(realizedRevenue, totalVolume),
     revenueDeltaBps: decimalRatio(realizedRevenue - targetRevenue, totalVolume),
     humanShareBps: Number(schedule.humanShareBps),

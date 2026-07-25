@@ -21,15 +21,14 @@ const quote: QuoteResponse = {
   wideAmountOut: '3980000000000000000000',
   improvementBps: 22,
   quotaRemainingTokenIn: '10000000000000000000',
+  tokenIn: TOKEN,
+  tokenOut: '0x00000000000000000000000000000000000000ee',
   execute: {
     to: APP,
-    strategy: {
+    order: {
       maker: '0x00000000000000000000000000000000000000dd',
-      token0: TOKEN,
-      token1: '0x00000000000000000000000000000000000000ee',
-      wideFeeBps: '30',
-      tightFeeBps: '8',
-      salt: `0x${'00'.repeat(31)}01`,
+      traits: '1',
+      data: '0x1234',
     },
   },
 };
@@ -65,7 +64,7 @@ test('executeSwap mines approval before simulation and protects quoted output', 
         return APPROVAL_HASH;
       }
       events.push('swap:write');
-      amountOutMin = args.args[3];
+      amountOutMin = BigInt(`0x${args.args[4].slice(-64)}`);
       return SWAP_HASH;
     },
     async waitForTransactionReceipt({ hash }: { hash: string }) {
@@ -74,8 +73,8 @@ test('executeSwap mines approval before simulation and protects quoted output', 
     },
     async simulateContract(args: any) {
       events.push('swap:simulate');
-      amountOutMin = args.args[3];
-      return { result: BigInt(quote.amountOut) };
+      amountOutMin = BigInt(`0x${args.args[4].slice(-64)}`);
+      return { result: [1_000_000_000_000_000_000n, BigInt(quote.amountOut), `0x${'33'.repeat(32)}`] };
     },
   };
 
@@ -117,7 +116,7 @@ test('executeSwap waits until the RPC observes the mined allowance before simula
     },
     async simulateContract() {
       events.push('swap:simulate');
-      return { result: BigInt(quote.amountOut) };
+      return { result: [1_000_000_000_000_000_000n, BigInt(quote.amountOut), `0x${'33'.repeat(32)}`] };
     },
   };
 

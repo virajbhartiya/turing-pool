@@ -133,7 +133,7 @@ export interface ActivityDataSource extends DataSource {
     avgWidePrice: string;
     indexedTradeBlock: string;
     windowStartBlock: string;
-  };
+  } | null;
 }
 
 export interface ProtocolState {
