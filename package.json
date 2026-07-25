@@ -20,6 +20,7 @@
     "demo:beats": "bash scripts/demo-beats.sh",
     "nuthatch:dev": "bash scripts/nuthatch-dev.sh",
     "nuthatch:schema": "nuthatch schema --dir nuthatch",
+    "rpc-proxy": "node scripts/rpc-log-proxy.mjs",
     "dev:web": "pnpm --filter @turing-pool/web dev",
     "test:vercel-runtime": "vercel build --yes && node --test test/vercel-runtime.test.mjs"
   },

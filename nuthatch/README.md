@@ -26,6 +26,20 @@ judge demo, supply a private World Chain RPC:
 NUTHATCH_RPC_URL=https://your-world-rpc.example pnpm nuthatch:dev
 ```
 
+Alchemy Free limits `eth_getLogs` to ten blocks. Run the checked-in proxy when
+using that plan; it splits Nuthatch's adaptive ranges, spaces requests, and
+merges the responses:
+
+```bash
+RPC_UPSTREAM_URL=https://worldchain-mainnet.g.alchemy.com/v2/YOUR_KEY \
+RPC_PROXY_PORT=8547 \
+pnpm rpc-proxy
+
+NUTHATCH_RPC_URL=http://127.0.0.1:8547 \
+NUTHATCH_LOG_WINDOW=10 \
+pnpm nuthatch:dev
+```
+
 Nuthatch serves its admin UI at `http://127.0.0.1:8288/_admin/`. Start the
 Turing Pool API with `NUTHATCH_URL=http://127.0.0.1:8288`; the dashboard will
 then show Nuthatch's indexed block and use its correlated trade rows. If the
