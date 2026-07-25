@@ -401,10 +401,11 @@ function privateKeyForLane(lane: DemoTradeLane): Hex {
   if (!value) {
     throw new Error(`${environmentName} is not configured`);
   }
-  if (!/^0x[0-9a-fA-F]{64}$/.test(value)) {
-    throw new Error(`${environmentName} must be a 0x-prefixed 32-byte private key`);
+  const normalized = value.startsWith('0x') ? value : `0x${value}`;
+  if (!/^0x[0-9a-fA-F]{64}$/.test(normalized)) {
+    throw new Error(`${environmentName} must be a 32-byte private key`);
   }
-  return value as Hex;
+  return normalized as Hex;
 }
 
 function expectedAddress(lane: DemoTradeLane): Address {

@@ -556,6 +556,7 @@ app.post('/demo/trade', async (c) => {
   try {
     return c.json(await executeDemoTrade(body.lane as DemoTradeLane, amountIn, direction));
   } catch (error) {
+    console.error('[turing-pool] demo trade failed', error);
     const safeError = describeTradeError(error);
     if (safeError.retryAfterSeconds !== undefined) {
       c.header('Retry-After', safeError.retryAfterSeconds.toString());
