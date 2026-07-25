@@ -266,13 +266,14 @@ export function App() {
         onAmountChange={setAmountIn}
         direction={direction}
         onDirectionChange={selectDirection}
-      />
-      <LPEconomicsPanel
-        state={state}
-        token0PriceInToken1={token0PriceInToken1}
-        activeFeeSchedule={quotes.feeSchedule}
-        activeTokenInSymbol={quotes.tokenInSymbol}
-      />
+      >
+        <LPEconomicsPanel
+          state={state}
+          token0PriceInToken1={token0PriceInToken1}
+          activeFeeSchedule={quotes.feeSchedule}
+          activeTokenInSymbol={quotes.tokenInSymbol}
+        />
+      </TradingTerminal>
       <IntegrationFlow state={state} lastTrade={lastTrade} />
       <FeeControllerPanel controller={state.feeController} copied={copied} onReplay={copyReplayCommand} />
       <EvidenceLedger state={state} />

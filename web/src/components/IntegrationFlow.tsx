@@ -66,7 +66,7 @@ export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
         <div className="flow-arrow" aria-hidden="true">→</div>
         <div className={`integration-step nuthatch ${nuthatchConnected ? 'connected' : 'waiting'}`}>
           <div className="integration-brand">
-            <BrandLogo brand="thegraph" />
+            <BrandLogo brand="nuthatch" />
             <span><b>The Graph</b><small>Nuthatch</small></span>
             <i aria-hidden="true" className="status-dot" />
           </div>

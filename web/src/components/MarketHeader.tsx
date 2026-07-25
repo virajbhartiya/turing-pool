@@ -108,7 +108,7 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
               <span><b>1inch</b><small>Aqua + SwapVM</small></span>
             </a>
             <a href="https://thegraph.com/" rel="noreferrer" target="_blank">
-              <BrandLogo brand="thegraph" />
+              <BrandLogo brand="nuthatch" />
               <span><b>The Graph</b><small>Nuthatch indexer</small></span>
             </a>
           </div>

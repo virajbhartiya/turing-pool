@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import { formatUnits, shortAddress } from '../lib/format';
 import type {
@@ -11,6 +11,7 @@ import type {
   DemoTradeResult,
   ProtocolState,
 } from '../types';
+import { BrandLogo } from './BrandLogo';
 import { FeeChart } from './FeeChart';
 
 type Lane = 'human' | 'bot';
@@ -65,6 +66,7 @@ interface TradingTerminalProps {
   onAmountChange: (amountIn: string) => void;
   direction: DemoTradeDirection;
   onDirectionChange: (direction: DemoTradeDirection) => void;
+  children?: ReactNode;
 }
 
 const TRADE_SIZES = {
@@ -91,6 +93,18 @@ function tradeErrorHeadline(error: DemoTradeError): string {
   return 'Trade not completed';
 }
 
+const EXECUTION_SERVICES = {
+  wallet: { brand: 'turing', label: 'Turing Pool execution service' },
+  identity: { brand: 'world', label: 'World AgentBook' },
+  allowance: { brand: 'oneinch', label: '1inch SwapVM router' },
+  simulation: { brand: 'oneinch', label: '1inch SwapVM' },
+  submission: { brand: 'oneinch', label: 'World Chain + SwapVM' },
+  settlement: { brand: 'oneinch', label: '1inch Aqua settlement' },
+  receipt: { brand: 'oneinch', label: 'SwapVM receipt decoder' },
+  repricing: { brand: 'turing', label: 'Turing fee controller' },
+  refresh: { brand: 'nuthatch', label: 'Nuthatch indexer' },
+} as const;
+
 function ExecutionTrace({
   lane,
   pending,
@@ -104,13 +118,20 @@ function ExecutionTrace({
 
   const failed = progress.some((step) => step.status === 'error');
   const status = failed ? 'STOPPED' : pending ? 'EXECUTING' : 'CONFIRMED';
+  const currentStep =
+    progress.findLast((step) => step.status === 'active') ?? progress.at(-1);
+  const currentService = currentStep ? EXECUTION_SERVICES[currentStep.stage] : undefined;
 
   return (
     <section className={`execution-trace ${lane}`} aria-live="polite">
       <header>
         <div>
           <span>Live execution trace</span>
-          <small>Backend and chain events only</small>
+          <small>
+            {pending && currentService
+              ? `Using ${currentService.label}`
+              : 'Backend and chain events only'}
+          </small>
         </div>
         <b className={failed ? 'failed' : undefined}>{status}</b>
       </header>
@@ -124,9 +145,11 @@ function ExecutionTrace({
                   ? '!'
                   : String(index + 1).padStart(2, '0')}
             </i>
+            <BrandLogo brand={EXECUTION_SERVICES[step.stage].brand} />
             <div>
               <strong>{step.title}</strong>
               <small>{step.detail}</small>
+              <em>{EXECUTION_SERVICES[step.stage].label}</em>
             </div>
           </li>
         ))}
@@ -148,6 +171,7 @@ export function TradingTerminal({
   onAmountChange,
   direction,
   onDirectionChange,
+  children,
 }: TradingTerminalProps) {
   const initialLane =
     new URLSearchParams(window.location.search).get('account') === 'bot' ? 'bot' : 'human';
@@ -202,34 +226,40 @@ export function TradingTerminal({
       </div>
 
       <div className="trading-grid">
-        <div className="terminal-panel execution-panel">
-        <div className="panel-head">
-          <div>
-            <strong>Live fee market</strong>
-            <span>Every dot is a mined fill · dashed lines are the next executable rates</span>
+        <div className="trading-main">
+          <div className="terminal-panel execution-panel">
+            <div className="panel-head">
+              <div>
+                <strong>Live fee market</strong>
+                <span>Every dot is a mined fill · dashed lines are the next executable rates</span>
+              </div>
+              <div className="chart-controls" aria-label="Chart interval">
+                <span>1H</span>
+                <span className="active">ALL</span>
+              </div>
+            </div>
+            <FeeChart controller={state.feeController} swaps={state.swaps} />
+            <div className="quote-comparison">
+              <QuoteCard
+                lane="bot"
+                quote={quotes.bot}
+                tokenInSymbol={tokenInSymbol}
+                tokenOutSymbol={tokenOutSymbol}
+              />
+              <QuoteCard
+                lane="human"
+                quote={quotes.human}
+                improvement={`+${deltaLabel} ${tokenOutSymbol} on identical size`}
+                tokenInSymbol={tokenInSymbol}
+                tokenOutSymbol={tokenOutSymbol}
+              />
+            </div>
+            <div className="comparison-tape">
+              <strong>Verified execution edge <b>+{deltaLabel} {tokenOutSymbol}</b></strong>
+              <span>{quotes.human.feeBps} bps human / {quotes.bot.feeBps} bps bot · both move with mined volume</span>
+            </div>
           </div>
-          <div className="chart-controls" aria-label="Chart interval"><span>1H</span><span className="active">ALL</span></div>
-        </div>
-        <FeeChart controller={state.feeController} swaps={state.swaps} />
-        <div className="quote-comparison">
-          <QuoteCard
-            lane="bot"
-            quote={quotes.bot}
-            tokenInSymbol={tokenInSymbol}
-            tokenOutSymbol={tokenOutSymbol}
-          />
-          <QuoteCard
-            lane="human"
-            quote={quotes.human}
-            improvement={`+${deltaLabel} ${tokenOutSymbol} on identical size`}
-            tokenInSymbol={tokenInSymbol}
-            tokenOutSymbol={tokenOutSymbol}
-          />
-        </div>
-        <div className="comparison-tape">
-          <strong>Verified execution edge <b>+{deltaLabel} {tokenOutSymbol}</b></strong>
-          <span>{quotes.human.feeBps} bps human / {quotes.bot.feeBps} bps bot · both move with mined volume</span>
-        </div>
+          {children}
         </div>
 
         <aside className="terminal-panel quote-ticket" aria-label="Quote ticket">
