@@ -114,13 +114,39 @@ function ExecutionTrace({
   pending: boolean;
   progress: DemoTradeProgress[];
 }) {
-  if (progress.length === 0) return null;
+  const [expanded, setExpanded] = useState(pending);
 
   const failed = progress.some((step) => step.status === 'error');
+  const complete =
+    progress.length > 0 &&
+    !pending &&
+    !failed &&
+    progress.every((step) => step.status === 'complete');
+
+  useEffect(() => {
+    if (pending) {
+      setExpanded(true);
+    } else if (complete) {
+      setExpanded(false);
+    }
+  }, [complete, pending]);
+
+  if (progress.length === 0) return null;
+
   const status = failed ? 'STOPPED' : pending ? 'EXECUTING' : 'CONFIRMED';
   const currentStep =
     progress.findLast((step) => step.status === 'active') ?? progress.at(-1);
   const currentService = currentStep ? EXECUTION_SERVICES[currentStep.stage] : undefined;
+  const milestones = progress.filter((step) =>
+    ['identity', 'simulation', 'settlement', 'refresh'].includes(step.stage),
+  );
+  const visibleProgress = expanded
+    ? progress
+    : pending || failed
+      ? progress.slice(-3)
+      : milestones.length > 0
+        ? milestones
+        : progress.slice(-3);
 
   return (
     <section className={`execution-trace ${lane}`} aria-live="polite">
@@ -133,26 +159,39 @@ function ExecutionTrace({
               : 'Backend and chain events only'}
           </small>
         </div>
-        <b className={failed ? 'failed' : undefined}>{status}</b>
+        <div className="trace-actions">
+          <b className={failed ? 'failed' : undefined}>{status}</b>
+          <button
+            aria-controls="execution-trace-steps"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((current) => !current)}
+            type="button"
+          >
+            {expanded ? 'Condense' : `Show all ${progress.length} steps`}
+          </button>
+        </div>
       </header>
-      <ol>
-        {progress.map((step, index) => (
-          <li className={step.status} key={step.stage}>
-            <i aria-hidden="true">
-              {step.status === 'complete'
-                ? '✓'
-                : step.status === 'error'
-                  ? '!'
-                  : String(index + 1).padStart(2, '0')}
-            </i>
-            <BrandLogo brand={EXECUTION_SERVICES[step.stage].brand} />
-            <div>
-              <strong>{step.title}</strong>
-              <small>{step.detail}</small>
-              <em>{EXECUTION_SERVICES[step.stage].label}</em>
-            </div>
-          </li>
-        ))}
+      <ol id="execution-trace-steps">
+        {visibleProgress.map((step) => {
+          const index = progress.findIndex((item) => item.stage === step.stage);
+          return (
+            <li className={step.status} key={step.stage}>
+              <i aria-hidden="true">
+                {step.status === 'complete'
+                  ? '✓'
+                  : step.status === 'error'
+                    ? '!'
+                    : String(index + 1).padStart(2, '0')}
+              </i>
+              <BrandLogo brand={EXECUTION_SERVICES[step.stage].brand} />
+              <div>
+                <strong>{step.title}</strong>
+                <small>{step.detail}</small>
+                <em>{EXECUTION_SERVICES[step.stage].label}</em>
+              </div>
+            </li>
+          );
+        })}
       </ol>
     </section>
   );

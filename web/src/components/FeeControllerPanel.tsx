@@ -24,7 +24,13 @@ export function FeeControllerPanel({ controller, copied, onReplay }: FeeControll
             discount; human volume raises both lanes while the weighted LP rate stays
             at {controller.targetFeeBps} bps.
           </p>
-          <div className="controller-status"><i />on-chain · reprices after each fill</div>
+          <div className="controller-actions">
+            <div className="controller-status"><i />on-chain · reprices after each fill</div>
+            <button className="replay-button" onClick={onReplay} type="button">
+              <span>{copied ? 'Command copied' : 'Copy replay command'}</span>
+              <code>pnpm demo:world</code>
+            </button>
+          </div>
         </div>
         <div className="mix-visual">
           <div
@@ -52,15 +58,6 @@ export function FeeControllerPanel({ controller, copied, onReplay }: FeeControll
         </div>
       </div>
 
-      <div className="proof-rail" aria-label="Demo proof sequence">
-        <div><span>01</span><strong>Pick size</strong><small>0.1 / 0.5 / 1.0 tETH</small><b>✓</b></div>
-        <div><span>02</span><strong>Mine fill</strong><small>Aqua + SwapVM receipt</small><b>✓</b></div>
-        <div><span>03</span><strong>Watch next fee</strong><small>Notional mix reprices on-chain</small><b>↻</b></div>
-        <button onClick={onReplay} type="button">
-          <span>{copied ? 'Copied' : 'Replay proof'}</span>
-          <code>pnpm demo:world</code>
-        </button>
-      </div>
     </section>
   );
 }

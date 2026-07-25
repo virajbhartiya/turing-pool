@@ -7,6 +7,7 @@ interface EvidenceLedgerProps {
 
 export function EvidenceLedger({ state }: EvidenceLedgerProps) {
   const isSnapshot = state.runtime.mode === 'hosted-preview';
+  const latestSwap = state.swaps.at(-1);
 
   return (
     <section className="evidence-section">
@@ -15,11 +16,24 @@ export function EvidenceLedger({ state }: EvidenceLedgerProps) {
         <p>{isSnapshot ? 'Recorded lifecycle · run locally for live links' : 'Select a block to verify the fill independently'}</p>
       </div>
 
-      <div className="ledger-panel">
-        <div className="panel-head">
-          <div><strong>Settlement ledger</strong><span>Latest fills · newest first</span></div>
-          <span className="live-tag">{state.swaps.length} EVENTS</span>
-        </div>
+      <details className="ledger-panel">
+        <summary>
+          <span>
+            <strong>Settlement ledger</strong>
+            <small>
+              {latestSwap
+                ? `Latest receipt · block ${latestSwap.blockNumber} · ${latestSwap.tight ? 'verified human' : 'anonymous bot'} · ${latestSwap.feeBps} bps`
+                : 'No settlement receipts yet'}
+            </small>
+          </span>
+          <span className="ledger-summary-meta">
+            <b className="live-tag">{state.swaps.length} EVENTS</b>
+            <em>
+              <span className="ledger-open-label">Open ledger +</span>
+              <span className="ledger-close-label">Close ledger −</span>
+            </em>
+          </span>
+        </summary>
         <div className="table-scroll">
           <table>
             <thead>
@@ -46,7 +60,7 @@ export function EvidenceLedger({ state }: EvidenceLedgerProps) {
             </tbody>
           </table>
         </div>
-      </div>
+      </details>
     </section>
   );
 }
