@@ -1,0 +1,29 @@
+# nuthatch nest on worldchain
+
+A self-hosted blockchain index. Query it locally; there is no third-party API.
+
+## Contracts
+- `router` = 0x0492E6325Aa7d26592444F0dAaF0AF9E6aA188C0
+- `quota` = 0x0D0B45E2dC957EAe99AbdcEFC5B9D311DB63701d
+- `aqua` = 0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec
+
+## Tables (one per contract event)
+- `aqua__docked` - Docked(address,address,bytes32) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, maker, app, strategyHash)
+- `aqua__shipped` - Shipped(address,address,bytes32,bytes) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, maker, app, strategyHash, strategy)
+- `quota__fee_schedule_updated` - FeeScheduleUpdated(address,uint256,uint256,uint256,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, token, tightFeeBps, wideFeeBps, tightVolume, wideVolume, humanShareBps)
+- `quota__usage_recorded` - UsageRecorded(uint256,address,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, humanId, token, amount, day)
+- `router__human_gated` - HumanGated(bytes32,address,uint256,bool,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, orderHash, taker, humanId, tight, feeE9)
+- `router__swapped` - Swapped(bytes32,address,address,address,address,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, orderHash, maker, taker, tokenIn, tokenOut, amountIn, amountOut)
+
+## Live HTTP API (run `nuthatch dev`)
+- `GET /`                    index status
+- `GET /tables`              every table with its columns
+- `GET /table/{name}?limit=N` recent rows of one table (hot + sealed)
+- `GET /entity/{id}`         one row by id (`{block:012}-{logindex:06}`)
+- `GET /sql?q=SELECT...`     read-only SQL; each table is a view named `{alias}__{event}`
+- `GET /balances?limit=N`    top holder balances (when an ERC-20 Transfer table is present)
+- `GET /balance/{address}`   one address's derived balance
+
+## MCP (for coding agents)
+Run `nuthatch mcp` (stdio) to expose tools: status, schema, tables, table, sql, entity,
+balance, top_balances. Fully offline against the local instance; nothing phones home.

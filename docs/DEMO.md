@@ -1,13 +1,20 @@
 # Turing Pool — three-minute judge demo
 
-## 75-second World Chain proof
+## 90-second three-system proof
 
 This is the fastest way to prove the product is executing rather than showing
 mocked UI. It runs real transactions through SwapVM and Aqua on World Chain
 mainnet. The actor keys stay server-side; no private key is in the repository,
-browser bundle, or terminal output.
+browser bundle, or terminal output. Start Nuthatch before the API so the
+indexer observes every new judge-demo receipt.
 
 Terminal one:
+
+```bash
+pnpm nuthatch:dev
+```
+
+Terminal two:
 
 ```bash
 RPC_URL=https://worldchain-mainnet.g.alchemy.com/public \
@@ -18,15 +25,17 @@ DEMO_TRADE_ORIGIN=http://localhost:4021 \
 DEMO_TRADE_MAX_AMOUNT_IN=1000000000000000000 \
 BOT_PRIVATE_KEY=… \
 HUMAN_AGENT_PRIVATE_KEY=… \
+NUTHATCH_URL=http://127.0.0.1:8288 \
 PORT=4021 \
 pnpm --filter @turing-pool/server start
 ```
 
-The dashboard scans contract events from the deployment block, so its RPC must
-support historical log reads. Scans are automatically split into the public
-RPC's 100-block maximum.
+Nuthatch starts from the recent World Chain tip, follows the real router, quota,
+and Aqua contracts, and exposes correlated SwapVM trades through SQL and MCP.
+The API falls back to narrow direct event scans if the indexer is unavailable;
+settlement and fee enforcement never depend on the off-chain indexer.
 
-Open [http://localhost:4021](http://localhost:4021), then run in terminal two:
+Open [http://localhost:4021](http://localhost:4021), then run in terminal three:
 
 ```bash
 pnpm demo:world
@@ -39,7 +48,8 @@ The command asserts the execution claims and prints Worldscan transaction links:
 2. The World-verified wallet resolves to its canonical `humanId`,
    `_humanGate` selects the tight lane, and the same Aqua order settles.
 3. Both receipts contain `HumanGated` from opcode 34 and the SwapVM `Swapped`
-   event; `/state` independently re-indexes both.
+   event. Nuthatch correlates them by transaction and order hash, then exposes
+   the live rows through `turing_trades`.
 4. `HumanQuota` records each executed input amount on-chain and recomputes the
    next revenue-neutral fee pair. Quotes and failed transactions add no volume.
 
@@ -54,6 +64,8 @@ Aqua implementation; custom SwapVM router; maker-owned demo ERC-20 assets.”
 - `pnpm demo:world`
 - App, router, quota, Aqua, and AgentBook addresses are in the submission.
 - `/state.feeController.source` is `on-chain-volume-controller`.
+- `/state.dataSources.activity.name` is `Nuthatch · SQL + MCP`, its lag is zero
+  or near-zero, and its registry hash is visible.
 - Dashboard identifies local, fork, or live mode truthfully.
 - Browser zoom is 100%; terminal font is readable from several metres away.
 - Record a backup 2–4 minute video using the same sequence.
@@ -100,13 +112,15 @@ Then contrast it with a 0.1 tETH fill. Point to the controller equation:
 human-backed lane toward 5bps and raises or lowers the anonymous lane enough to
 preserve the LP target. Counts remain visible, but never enter the formula.
 
-### 2:45–3:00 — close the loop
+### 2:45–3:00 — index the evidence and close the loop
 
+Point to the three-system strip. Show the Nuthatch indexed block advancing past
+the receipt, then open its SQL/admin surface if a judge wants to inspect it.
 Show the next human quote improving and finish with:
 
-“World bounds identity risk, HumanQuota prices executed volume, and Aqua plus
-SwapVM make the next revenue-neutral price executable without moving the LP’s
-funds into another pool.”
+“World bounds identity risk, Aqua plus SwapVM execute the price, and Nuthatch
+makes the same receipts queryable for agents. HumanQuota keeps the safety-
+critical fee state on-chain.”
 
 ## Truthful fallback language
 
@@ -114,5 +128,5 @@ funds into another pool.”
   only into fork state.”
 - Local: “local Aqua and mock AgentBook.”
 - Never label a fork-injected identity as a production AgentBook registration.
-- If no Graph endpoint is configured, describe it as optional analytics rather
-  than part of the authoritative execution path.
+- Nuthatch is The Graph's self-hosted indexing path. Describe it as the live
+  activity and agent-query layer, not the authoritative settlement or fee store.

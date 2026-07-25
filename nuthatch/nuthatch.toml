@@ -1,0 +1,27 @@
+[nest]
+name = "turing-pool-world"
+chain = "worldchain"
+chain_id = 480
+rpc_urls = ["https://worldchain-mainnet.g.alchemy.com/public"]
+schema_version = 1
+
+[[contracts]]
+alias = "router"
+address = "0x0492E6325Aa7d26592444F0dAaF0AF9E6aA188C0"
+start_block = 32800812
+abi = "abis/router.json"
+events = ["HumanGated", "Swapped"]
+
+[[contracts]]
+alias = "quota"
+address = "0x0D0B45E2dC957EAe99AbdcEFC5B9D311DB63701d"
+start_block = 32800812
+abi = "abis/quota.json"
+events = ["UsageRecorded", "FeeScheduleUpdated"]
+
+[[contracts]]
+alias = "aqua"
+address = "0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec"
+start_block = 32800812
+abi = "abis/aqua.json"
+events = ["Shipped", "Docked"]

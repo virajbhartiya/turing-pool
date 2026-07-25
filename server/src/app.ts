@@ -27,6 +27,7 @@ import {
 } from './demo.js';
 import { onChainFeePolicy } from './fee-policy.js';
 import { hostedDemoQuotes, hostedState } from './hosted-snapshot.js';
+import { loadNuthatchActivity, type NuthatchActivity } from './nuthatch.js';
 import {
   demoTradesEnabled,
   executeDemoTrade,
@@ -46,6 +47,7 @@ const STATEMENT =
   'Prove you are an agent backed by a unique human so a shared quota can bound LP risk and safely unlock tight-spread pricing.';
 
 const SUBGRAPH_URL = process.env.SUBGRAPH_URL;
+const NUTHATCH_URL = process.env.NUTHATCH_URL;
 let graphStatusCache:
   | {
       checkedAt: number;
@@ -109,6 +111,84 @@ async function graphStatus() {
     graphStatusCache = { checkedAt: Date.now(), value };
     return value;
   }
+}
+
+type ActivityIndex =
+  | ({
+      configured: true;
+      name: 'Nuthatch';
+      endpoint: string;
+      status: 'connected';
+      mode: 'sql+mcp';
+    } & NuthatchActivity)
+  | {
+      configured: true;
+      name: 'Nuthatch';
+      endpoint: string;
+      status: 'error';
+      mode: 'sql+mcp';
+      error: string;
+    }
+  | {
+      configured: boolean;
+      name: string;
+      endpoint: string | null;
+      status: 'connected' | 'error' | 'not-configured';
+      mode: 'graphql' | 'chain-events';
+      indexedBlock: string | null;
+      error?: string;
+    };
+
+let activityIndexCache:
+  | {
+      checkedAt: number;
+      value: ActivityIndex;
+    }
+  | undefined;
+
+async function activityIndex(): Promise<ActivityIndex> {
+  if (activityIndexCache && Date.now() - activityIndexCache.checkedAt < 1_500) {
+    return activityIndexCache.value;
+  }
+  let value: ActivityIndex;
+  if (NUTHATCH_URL) {
+    try {
+      value = {
+        configured: true,
+        name: 'Nuthatch',
+        endpoint: NUTHATCH_URL,
+        mode: 'sql+mcp',
+        ...(await loadNuthatchActivity(NUTHATCH_URL)),
+      };
+    } catch (error) {
+      value = {
+        configured: true,
+        name: 'Nuthatch',
+        endpoint: NUTHATCH_URL,
+        status: 'error',
+        mode: 'sql+mcp',
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  } else {
+    const graph = await graphStatus();
+    value = graph.configured
+      ? {
+          ...graph,
+          name: 'The Graph',
+          mode: 'graphql',
+        }
+      : {
+          configured: false,
+          name: 'Direct chain events',
+          endpoint: null,
+          status: 'not-configured',
+          mode: 'chain-events',
+          indexedBlock: null,
+        };
+  }
+  activityIndexCache = { checkedAt: Date.now(), value };
+  return value;
 }
 
 /// x402-style 402 response carrying the AgentKit extension. The
@@ -356,15 +436,34 @@ app.get('/state', async (c) => {
   if (SNAPSHOT_MODE) {
     return c.json(hostedState());
   }
-  const [state, swaps, strategies, latestBlock, rpcChainId, graph, opcode] = await Promise.all([
+  const [state, strategies, latestBlock, rpcChainId, index, opcode] = await Promise.all([
     routerPoolState(),
-    recentSwaps(),
     strategyHistory(),
     client.getBlockNumber({ cacheTime: 0 }),
     client.getChainId(),
-    graphStatus(),
+    activityIndex(),
     routerOpcode(),
   ]);
+  const swaps =
+    index.mode === 'sql+mcp' && index.status === 'connected'
+      ? index.swaps
+      : await recentSwaps();
+  const indexMetadata =
+    index.mode === 'sql+mcp' && index.status === 'connected'
+      ? {
+          configured: index.configured,
+          name: index.name,
+          endpoint: index.endpoint,
+          status: index.status,
+          mode: index.mode,
+          indexedBlock: index.indexedBlock,
+          sealedThrough: index.sealedThrough,
+          lagBlocks: index.lagBlocks,
+          registryHash: index.registryHash,
+          provenance: index.provenance,
+          summary: index.summary,
+        }
+      : index;
   const humanId = BigInt(deployments.humanId);
   const [remEth, remUsd, cap0, cap1] = await Promise.all([
     quotaRemaining(humanId, state.strategy.token0),
@@ -414,9 +513,23 @@ app.get('/state', async (c) => {
         status: 'connected',
         historyEntries: strategies.length,
       },
+      activity: {
+        ...indexMetadata,
+        name:
+          index.name === 'Nuthatch'
+            ? 'Nuthatch · SQL + MCP'
+            : index.name,
+        fallback:
+          index.status === 'connected'
+            ? null
+            : 'Direct World Chain event reads',
+      },
       strategist: {
-        name: graph.configured ? 'The Graph' : 'Chain-event fallback',
-        ...graph,
+        ...indexMetadata,
+        name:
+          index.name === 'Nuthatch'
+            ? 'Nuthatch semantic activity layer'
+            : index.name,
       },
     },
     pool: {

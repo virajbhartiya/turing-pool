@@ -1,0 +1,127 @@
+# semantic.toml - what this nest's data *means* (RFC-0016). Read by the MCP `schema`
+# tool, the admin UI, and the scaffolded skill. Edit descriptions freely; the
+# `[table.*.footguns]` are DERIVED from the ABI and regenerated - leave them be.
+
+schema_version = 1
+
+[nest]
+description = "Live World Chain activity for Turing Pool's World AgentBook-gated Aqua and SwapVM market."
+
+[table.aqua__docked]
+description = "A strategy was removed from the live Aqua deployment's virtual-balance namespace."
+grain = "one row per Aqua dock operation"
+
+[table.aqua__docked.columns]
+app = "The `app` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+maker = "The `maker` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+strategyHash = "The `strategyHash` bytes32 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+
+[table.aqua__shipped]
+description = "A strategy was shipped into the live Aqua deployment's virtual-balance namespace."
+grain = "one row per Aqua ship operation"
+
+[table.aqua__shipped.columns]
+app = "The `app` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+maker = "The `maker` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+strategy = "The `strategy` bytes parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+strategyHash = "The `strategyHash` bytes32 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+
+[table.quota__fee_schedule_updated]
+description = "The on-chain HumanQuota controller repriced the next trade from cumulative executed volume."
+grain = "one row per mined fill while the controller is enabled"
+
+[table.quota__fee_schedule_updated.columns]
+humanShareBps = "The `humanShareBps` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+tightFeeBps = "The `tightFeeBps` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+tightVolume = "The `tightVolume` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+token = "The `token` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+wideFeeBps = "The `wideFeeBps` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+wideVolume = "The `wideVolume` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+
+[table.quota__fee_schedule_updated.footguns]
+big_ints = [
+    "tightFeeBps",
+    "wideFeeBps",
+    "tightVolume",
+    "wideVolume",
+    "humanShareBps",
+]
+overflows_dec = [
+    "tightFeeBps",
+    "wideFeeBps",
+    "tightVolume",
+    "wideVolume",
+    "humanShareBps",
+]
+
+[table.quota__usage_recorded]
+description = "Verified-human notional consumed from a sybil-resistant quota shared across that human's wallets."
+grain = "one row per tight-lane fill"
+
+[table.quota__usage_recorded.columns]
+amount = "The `amount` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+day = "The `day` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+humanId = "The `humanId` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+token = "The `token` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+
+[table.quota__usage_recorded.footguns]
+big_ints = [
+    "humanId",
+    "amount",
+    "day",
+]
+overflows_dec = [
+    "humanId",
+    "amount",
+    "day",
+]
+
+[table.router__human_gated]
+description = "The _humanGate SwapVM instruction resolved a taker through World AgentBook and selected a fee lane."
+grain = "one row per executed SwapVM order"
+
+[table.router__human_gated.columns]
+feeE9 = "SwapVM fee scale where 100000 units equal one basis point; divide feeE9_dec by 100000 to obtain basis points."
+humanId = "World AgentBook human identifier. Zero means anonymous; use humanId_dec for arithmetic and never treat it as a wallet address."
+orderHash = "The Aqua/SwapVM order whose execution was gated."
+taker = "The wallet executing the trade."
+tight = "True when a nonzero humanId had enough shared daily quota for the executed notional."
+
+[table.router__human_gated.footguns]
+big_ints = [
+    "humanId",
+    "feeE9",
+]
+overflows_dec = [
+    "humanId",
+    "feeE9",
+]
+
+[table.router__swapped]
+description = "A real fill executed by the deployed SwapVM router against maker-owned Aqua inventory."
+grain = "one row per settled SwapVM fill"
+
+[table.router__swapped.columns]
+amountIn = "The `amountIn` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+amountOut = "The `amountOut` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+maker = "The `maker` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+orderHash = "The `orderHash` bytes32 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+taker = "The `taker` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+tokenIn = "The `tokenIn` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+tokenOut = "The `tokenOut` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+
+[table.router__swapped.footguns]
+big_ints = [
+    "amountIn",
+    "amountOut",
+]
+overflows_dec = [
+    "amountIn",
+    "amountOut",
+]
+
+[view.turing_activity_mix]
+description = "Volume-weighted human/bot activity derived from real SwapVM fills; trade count is diagnostic only."
+
+[view.turing_trades]
+description = "HumanGated and Swapped events correlated by transaction and order hash, giving one auditable row per real trade."

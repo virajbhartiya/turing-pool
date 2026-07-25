@@ -130,11 +130,42 @@ jq '{wallet, tier, feeBps, humanId, transactionHash, explorerUrl}' <<<"$human"
 
 bot_tx="$(jq -r .transactionHash <<<"$bot")"
 human_tx="$(jq -r .transactionHash <<<"$human")"
-state_after="$(curl -sf "$API_URL/state")"
+
+echo
+echo "3. Nuthatch follows the receipts → correlated SQL activity"
+state_after=""
+for _ in {1..15}; do
+  state_after="$(curl -sf "$API_URL/state")"
+  if jq -e --arg bot "$bot_tx" --arg human "$human_tx" '
+    any(.swaps[]; .transactionHash == $bot and .source == "swapvm" and .tight == false) and
+    any(.swaps[]; .transactionHash == $human and .source == "swapvm" and .tight == true)
+  ' <<<"$state_after" >/dev/null; then
+    break
+  fi
+  sleep 2
+done
 jq -e --arg bot "$bot_tx" --arg human "$human_tx" '
   any(.swaps[]; .transactionHash == $bot and .source == "swapvm" and .tight == false) and
   any(.swaps[]; .transactionHash == $human and .source == "swapvm" and .tight == true)
 ' <<<"$state_after" >/dev/null
+if jq -e '.dataSources.activity.mode == "sql+mcp"' <<<"$state_after" >/dev/null; then
+  jq -e '
+    .dataSources.activity.status == "connected" and
+    .dataSources.activity.name == "Nuthatch · SQL + MCP" and
+    .dataSources.activity.registryHash != null and
+    .dataSources.activity.summary.tightFills >= 1 and
+    .dataSources.activity.summary.wideFills >= 1
+  ' <<<"$state_after" >/dev/null
+  jq '{
+    indexer: .dataSources.activity.name,
+    indexedBlock: .dataSources.activity.indexedBlock,
+    lagBlocks: .dataSources.activity.lagBlocks,
+    registryHash: .dataSources.activity.registryHash,
+    activity: .dataSources.activity.summary
+  }' <<<"$state_after"
+else
+  echo "Nuthatch is not configured; direct World Chain event fallback verified."
+fi
 jq -e --arg amount "$AMOUNT_IN" --arg before "$volume_before" '
   (.feeController.tightVolume + ":" + .feeController.wideVolume) != $before and
   (.feeController.normalization | contains("on-chain")) and

@@ -6,7 +6,7 @@ export function ProtocolDetails({ state }: { state: ProtocolState }) {
   const remaining = BigInt(state.demoHuman.quotaRemainingToken0);
   const used = cap > remaining ? cap - remaining : 0n;
   const usedPercent = cap > 0n ? Number((used * 100n) / cap) : 0;
-  const graph = state.dataSources.strategist;
+  const indexer = state.dataSources.activity;
 
   return (
     <section className="protocol-section">
@@ -52,7 +52,8 @@ export function ProtocolDetails({ state }: { state: ProtocolState }) {
             <div><dt>Quotes</dt><dd>{state.dataSources.quotes.name}</dd></div>
             <div><dt>Strategy</dt><dd>{state.dataSources.strategy.name}</dd></div>
             <div><dt>Controller</dt><dd>HumanQuota · on-chain volume</dd></div>
-            <div><dt>Indexer</dt><dd>{graph.name} · {graph.status}</dd></div>
+            <div><dt>Indexer</dt><dd>{indexer.name} · {indexer.status}</dd></div>
+            {indexer.indexedBlock && <div><dt>Indexed</dt><dd>block {indexer.indexedBlock}</dd></div>}
             <div><dt>Router</dt><dd>{shortAddress(state.contracts.router)}</dd></div>
           </dl>
         </article>

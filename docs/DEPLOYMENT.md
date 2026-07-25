@@ -26,6 +26,18 @@ pnpm --filter @turing-pool/server start
 Use an archive-capable RPC: the dashboard reconstructs its feed from contract
 events beginning at the checked-in deployment block.
 
+For the complete three-system demo, run the checked-in Nuthatch nest alongside
+the API:
+
+```bash
+pnpm nuthatch:dev
+NUTHATCH_URL=http://127.0.0.1:8288 pnpm --filter @turing-pool/server start
+```
+
+Nuthatch is a persistent indexer and should not run inside a Vercel Function.
+For a hosted demo, deploy it as a small stateful sidecar and point the API's
+`NUTHATCH_URL` at that private/gateway-protected endpoint.
+
 ## Vercel production
 
 The Vercel project serves:
@@ -48,8 +60,8 @@ route as the browser.
 
 Turing Pool runs as one service: the Hono API serves the dashboard at `/`, JSON
 endpoints under their existing paths, and a process-only health check at
-`/health`. A subgraph can be added for analytics but is not required for live
-pricing or settlement.
+`/health`. Nuthatch supplies live indexed activity when configured but is not
+required for pricing or settlement.
 
 ## Required production inputs
 
@@ -61,6 +73,8 @@ pricing or settlement.
   `DEMO_TRADE_MAX_AMOUNT_IN=1000000000000000000`.
 - `BOT_PRIVATE_KEY` and `HUMAN_AGENT_PRIVATE_KEY`: disposable, minimally funded
   demo actors. Never expose these to Vite or commit them.
+- `NUTHATCH_URL`: optional stateful Nuthatch HTTP endpoint. The production API
+  falls back to direct chain reads if it is absent or unhealthy.
 
 ## Container verification
 
@@ -92,5 +106,6 @@ SIWE domain and HTTPS resource URL from it. For another host, set
 2. Save the emitted deployment file outside git and provide it as
    `DEPLOYMENTS_JSON`.
 3. Configure the World RPC, capped trade route, and disposable server keys.
-4. Verify `/health`, `/state`, `/demo/quotes`, `POST /demo/trade`, and the
+4. Start Nuthatch and verify its `/ready` and `turing_trades` SQL view.
+5. Verify `/health`, `/state`, `/demo/quotes`, `POST /demo/trade`, and the
    dashboard.

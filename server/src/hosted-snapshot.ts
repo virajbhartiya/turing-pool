@@ -105,6 +105,14 @@ export function hostedState() {
         status: 'snapshot',
         historyEntries: 2,
       },
+      activity: {
+        name: 'Recorded activity snapshot',
+        configured: false,
+        endpoint: null,
+        status: 'snapshot',
+        indexedBlock: null,
+        fallback: null,
+      },
       strategist: {
         name: 'Hosted deterministic snapshot',
         configured: false,

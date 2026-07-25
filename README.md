@@ -60,11 +60,11 @@ Quote API (Hono + viem) ──────────── eth_call quotes per
 │      applies live fees, records executed notional, reprices the next fill │
 │      (swap ctx only — quotes are static & honest by construction)        │
 └──────────────────────────────────────────────────────────────────────────┘
-   ▲ Swapped events (tier + humanId)
+   ▲ HumanGated + Swapped + fee events
    │
-Subgraph (The Graph) ◄─── indexes fills and controller evidence for analytics.
-HumanQuota              ◄── stores the authoritative notional mix and updates
-                            the next schedule inside every SwapVM transaction.
+Nuthatch (The Graph) ◄── correlates live fills into SQL + MCP agent context.
+HumanQuota           ◄── stores the authoritative notional mix and updates the
+                         next schedule inside every SwapVM transaction.
 ```
 
 Two independent on-chain implementations:
@@ -86,7 +86,8 @@ cd contracts && RUN_FORK_TESTS=1 forge test --match-contract Fork -vv && cd ..
 # asserted end-to-end demos
 pnpm e2e               # local Aqua + mock AgentBook
 pnpm e2e:fork          # deployed Aqua + AgentBook bytecode on a Base fork
-pnpm demo:world         # two new World Chain trades through the website API
+pnpm nuthatch:dev       # terminal 1: follow the live World contracts
+pnpm demo:world         # terminal 3: trade → index → reprice proof
 
 # optional local/fork rehearsals
 pnpm demo:fork
@@ -123,7 +124,7 @@ release checks.
 
 **1inch — Build an Aqua App.** A custom dual-tier Aqua app plus a modified SwapVM router with `_humanGate` at opcode 34. The live receipts execute the custom router and verify its `HumanGated` event. Aqua owns the strategy namespace and virtual balances; SwapVM executes the fill while the maker retains asset ownership.
 
-**The Graph — analytics extension.** The repository includes a subgraph and strategist agent for indexed activity analysis and historical experiments. The live execution path deliberately keeps the safety-critical fee state on-chain; Graph data is not required to quote or settle a trade.
+**The Graph — Nuthatch live activity layer.** The checked-in Nuthatch nest indexes the deployed router, quota, and Aqua contracts, correlates `HumanGated` with `Swapped`, and exposes the result through SQL and MCP. The older subgraph remains as an experiment. The safety-critical fee state stays on-chain; Nuthatch is not required to quote or settle.
 
 ## Repo layout
 
@@ -131,7 +132,8 @@ release checks.
 contracts/   Foundry: TuringPoolApp, HumanQuota, _humanGate + TuringPoolRouter
 server/      AgentKit quote API plus the Vercel hosted-preview Function
 agent/       bot.ts, human-agent.ts (SIWE loop + sybil demo), strategist.ts
-subgraph/    The Graph subgraph (schema, mappings, configure script)
+nuthatch/    The Graph Nuthatch nest: World contracts, SQL views, semantics
+subgraph/    Legacy Graph subgraph experiment
 web/         Vite + React trading terminal (market, quote ticket, fee chart, ledger)
 scripts/     e2e.sh — the whole demo, asserted, local or Base-fork mode
 docs/        design and deployment runbooks

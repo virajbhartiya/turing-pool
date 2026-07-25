@@ -18,6 +18,8 @@
     "demo:sepolia": "bash scripts/demo-sepolia.sh",
     "demo:world": "bash scripts/demo-world.sh",
     "demo:beats": "bash scripts/demo-beats.sh",
+    "nuthatch:dev": "bash scripts/nuthatch-dev.sh",
+    "nuthatch:schema": "nuthatch schema --dir nuthatch",
     "dev:web": "pnpm --filter @turing-pool/web dev",
     "test:vercel-runtime": "vercel build --yes && node --test test/vercel-runtime.test.mjs"
   },

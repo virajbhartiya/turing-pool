@@ -1,0 +1,28 @@
+[
+  {
+    "type": "event",
+    "name": "HumanGated",
+    "anonymous": false,
+    "inputs": [
+      { "name": "orderHash", "type": "bytes32", "indexed": true },
+      { "name": "taker", "type": "address", "indexed": true },
+      { "name": "humanId", "type": "uint256", "indexed": true },
+      { "name": "tight", "type": "bool", "indexed": false },
+      { "name": "feeE9", "type": "uint256", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "Swapped",
+    "anonymous": false,
+    "inputs": [
+      { "name": "orderHash", "type": "bytes32", "indexed": false },
+      { "name": "maker", "type": "address", "indexed": false },
+      { "name": "taker", "type": "address", "indexed": false },
+      { "name": "tokenIn", "type": "address", "indexed": false },
+      { "name": "tokenOut", "type": "address", "indexed": false },
+      { "name": "amountIn", "type": "uint256", "indexed": false },
+      { "name": "amountOut", "type": "uint256", "indexed": false }
+    ]
+  }
+]

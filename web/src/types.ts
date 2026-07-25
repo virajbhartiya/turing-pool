@@ -90,6 +90,28 @@ export interface DataSource {
   [key: string]: unknown;
 }
 
+export interface ActivityDataSource extends DataSource {
+  configured?: boolean;
+  endpoint?: string | null;
+  mode?: 'sql+mcp' | 'graphql' | 'chain-events';
+  indexedBlock?: string | null;
+  sealedThrough?: string | null;
+  lagBlocks?: number;
+  registryHash?: string | null;
+  provenance?: string;
+  fallback?: string | null;
+  error?: string;
+  summary?: {
+    fills: number;
+    tightFills: number;
+    wideFills: number;
+    tightVolume: string;
+    wideVolume: string;
+    humanShareBps: number;
+    indexedTradeBlock: string | null;
+  };
+}
+
 export interface ProtocolState {
   runtime: Runtime;
   contracts: Contracts;
@@ -113,6 +135,7 @@ export interface ProtocolState {
   dataSources: {
     quotes: DataSource;
     strategy: DataSource & { historyEntries?: number };
+    activity: ActivityDataSource;
     strategist: DataSource & {
       configured?: boolean;
       indexedBlock?: string | null;

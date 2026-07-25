@@ -1,0 +1,26 @@
+[
+  {
+    "type": "event",
+    "name": "UsageRecorded",
+    "anonymous": false,
+    "inputs": [
+      { "name": "humanId", "type": "uint256", "indexed": true },
+      { "name": "token", "type": "address", "indexed": true },
+      { "name": "amount", "type": "uint256", "indexed": false },
+      { "name": "day", "type": "uint256", "indexed": true }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "FeeScheduleUpdated",
+    "anonymous": false,
+    "inputs": [
+      { "name": "token", "type": "address", "indexed": true },
+      { "name": "tightFeeBps", "type": "uint256", "indexed": false },
+      { "name": "wideFeeBps", "type": "uint256", "indexed": false },
+      { "name": "tightVolume", "type": "uint256", "indexed": false },
+      { "name": "wideVolume", "type": "uint256", "indexed": false },
+      { "name": "humanShareBps", "type": "uint256", "indexed": false }
+    ]
+  }
+]
