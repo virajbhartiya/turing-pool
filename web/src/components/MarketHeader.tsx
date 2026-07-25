@@ -24,25 +24,6 @@ export function MarketHeader({
 
   return (
     <>
-      <section className="market-header compact-market-header" id="market">
-        <div>
-          <div className="breadcrumb">Markets / <span>TETH–TUSD</span></div>
-          <div className="pair-title">
-            <span className="pair-icon" aria-hidden="true"><i>Ξ</i><i>$</i></span>
-            <div>
-              <h1>tETH / tUSD <span>Identity-priced spot</span></h1>
-              <p>Live SwapVM execution through Aqua · fees reprice after mined volume</p>
-            </div>
-          </div>
-        </div>
-        <div className="market-price">
-          <span>Verified executable price</span>
-          <strong>{humanPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-          <small>tUSD / tETH</small>
-          <em>+{identityEdgeBps} BPS VS ANONYMOUS</em>
-        </div>
-      </section>
-
       <section className="market-tape" aria-label="Live market tape">
         <article className="human">
           <span>Verified human fee</span>
@@ -69,6 +50,26 @@ export function MarketHeader({
           <small>{humanShare.toFixed(1)}% verified volume · revenue-neutral controller</small>
         </article>
       </section>
+
+      <section className="market-header compact-market-header" id="market">
+        <div>
+          <div className="breadcrumb">Markets / <span>TETH–TUSD</span></div>
+          <div className="pair-title">
+            <span className="pair-icon" aria-hidden="true"><i>Ξ</i><i>$</i></span>
+            <div>
+              <h1>tETH / tUSD <span>Identity-priced spot</span></h1>
+              <p>Live SwapVM execution through Aqua · fees reprice after mined volume</p>
+            </div>
+          </div>
+        </div>
+        <div className="market-price">
+          <span>Verified executable price</span>
+          <strong>{humanPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+          <small>tUSD / tETH</small>
+          <em>+{identityEdgeBps} BPS VS ANONYMOUS</em>
+        </div>
+      </section>
+
     </>
   );
 }

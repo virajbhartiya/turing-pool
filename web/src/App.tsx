@@ -136,6 +136,15 @@ export function App() {
       ? initialView
       : 'overview',
   );
+  const [theme, setTheme] = useState<'dark' | 'light'>(() =>
+    window.localStorage.getItem('turing-pool-theme') === 'light' ? 'light' : 'dark',
+  );
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem('turing-pool-theme', theme);
+  }, [theme]);
+
   useEffect(() => {
     const selectHashView = () => {
       const view = window.location.hash.replace('#', '') as DexView;
@@ -478,9 +487,11 @@ export function App() {
         connecting={wallet.connecting}
         onConnect={wallet.connect}
         onSelectAccount={wallet.selectAccount}
+        onToggleTheme={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')}
         onViewChange={selectView}
         quote={walletQuote}
         refreshing={refreshing}
+        theme={theme}
       />
 
       {activeView === 'overview' && (

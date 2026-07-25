@@ -13,6 +13,8 @@ interface DexHeaderProps {
   refreshing: boolean;
   onConnect: (requestAccountSelection?: boolean) => Promise<void>;
   onSelectAccount: (account: string) => void;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
 }
 
 const NAVIGATION: Array<{ view: DexView; label: string; key: string }> = [
@@ -33,6 +35,8 @@ export function DexHeader({
   refreshing,
   onConnect,
   onSelectAccount,
+  theme,
+  onToggleTheme,
 }: DexHeaderProps) {
   const human = quote?.humanBacked === true;
   return (
@@ -44,6 +48,14 @@ export function DexHeader({
           <strong>Base Sepolia</strong>
         </div>
         <div className="dex-header-actions">
+          <button
+            aria-label={`Use ${theme === 'dark' ? 'light' : 'dark'} theme`}
+            className="theme-toggle"
+            onClick={onToggleTheme}
+            type="button"
+          >
+            {theme === 'dark' ? '☼' : '☾'}
+          </button>
           {!account ? (
             <button
               className="header-wallet disconnected"
