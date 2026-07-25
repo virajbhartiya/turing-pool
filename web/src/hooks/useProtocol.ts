@@ -29,7 +29,7 @@ export function apiBase(): string {
 export function useProtocol(
   amountIn = demoTradeAmountIn,
   direction: DemoTradeDirection = 'tETH-to-tUSD',
-  pollInterval = 2_500,
+  pollInterval = 8_000,
 ) {
   const [snapshot, setSnapshot] = useState<ProtocolSnapshot>();
   const [error, setError] = useState<string>();

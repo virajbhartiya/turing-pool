@@ -65,10 +65,7 @@ function errorDescription(error: unknown): string {
 export function describeTradeError(error: unknown): TradeErrorDescription {
   const description = errorDescription(error);
 
-  if (
-    /(?:\b429\b|too many requests|rate[ -]?limit)/i.test(description) &&
-    /humanGateOpcode|0x15ce4826/i.test(description)
-  ) {
+  if (/(?:\b429\b|too many requests|rate[ -]?limit|compute units per second)/i.test(description)) {
     return {
       code: 'rpc_rate_limited',
       error:
