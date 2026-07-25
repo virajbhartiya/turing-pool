@@ -23,6 +23,11 @@ contract TuringPoolRouter is SwapVM, AquaOpcodes, HumanGate {
         return _opcodes().length;
     }
 
+    /// @notice Version 2 binds quota writes to the executing Aqua order hash.
+    function humanGateVersion() external pure returns (uint256) {
+        return 2;
+    }
+
     function _instructions()
         internal
         pure

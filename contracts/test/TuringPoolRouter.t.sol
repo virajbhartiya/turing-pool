@@ -78,6 +78,7 @@ contract TuringPoolRouterTest is AquaSwapVMTest, HumanGate {
         tokenA.mint(maker, BAL_A);
         tokenB.mint(maker, BAL_B);
         strategyHash = shipStrategy(order, tokenA, tokenB, BAL_A, BAL_B);
+        quota.setOrderAuthorization(address(swapVM), strategyHash, true);
     }
 
     function _expectedOut(uint256 balIn, uint256 balOut, uint256 amountIn, uint256 feeE9)

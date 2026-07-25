@@ -91,7 +91,7 @@ contract DeployDemo is Script {
         );
 
         TuringPoolApp app = new TuringPoolApp(IAqua(aquaAddr), IAgentBook(agentBookAddr), quota);
-        TuringPoolRouter router = new TuringPoolRouter(aquaAddr, address(0), maker, "TuringPool", "1");
+        TuringPoolRouter router = new TuringPoolRouter(aquaAddr, address(0), maker, "TuringPool", "2");
         quota.setAppAuthorization(address(app), true);
         quota.setAppAuthorization(address(router), true);
 
@@ -166,6 +166,7 @@ contract DeployDemo is Script {
             amounts[1] = POOL_USD;
             orderHash = IAqua(aquaAddr).ship(address(router), abi.encode(order), tokens, amounts);
         }
+        quota.setOrderAuthorization(address(router), orderHash, true);
         require(orderHash == router.hash(order), "order hash mismatch");
 
         vm.stopBroadcast();

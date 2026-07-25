@@ -71,6 +71,12 @@ Two independent on-chain implementations:
 1. **`TuringPoolApp`** (`contracts/src/TuringPoolApp.sol`) — a raw Aqua app (fork of 1inch's reference `XYCSwap`) with tier resolution in `_resolveTier`.
 2. **`TuringPoolRouter` + `_humanGate`** (`contracts/src/swapvm/`) — a redeployed SwapVM router whose instruction set is the standard `AquaOpcodes` **plus one new opcode**. Personhood is literally an instruction in 1inch's swap VM.
 
+The deployment-ready vault extension adds permissionless, multi-LP pools
+without mixing their economics. Every vault issues transferable shares, acts
+as its own Aqua maker, and owns a dedicated `HumanQuota`; all vaults can share
+one HumanGate v2 router because fee writes are authorized by exact order hash.
+See [docs/VAULTS.md](./docs/VAULTS.md).
+
 ## Run it
 
 ```bash
@@ -129,7 +135,7 @@ release checks.
 ## Repo layout
 
 ```
-contracts/   Foundry: TuringPoolApp, HumanQuota, _humanGate + TuringPoolRouter
+contracts/   Foundry: app, quota, HumanGate router, LP vaults, and vault factory
 server/      AgentKit quote API plus the Vercel hosted-preview Function
 agent/       bot.ts, human-agent.ts (SIWE loop + sybil demo), strategist.ts
 nuthatch/    The Graph Nuthatch nest: World contracts, SQL views, semantics

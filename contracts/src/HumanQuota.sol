@@ -9,11 +9,17 @@ pragma solidity 0.8.30;
 ///         cannot be dodged with fresh wallets.
 contract HumanQuota {
     error NotOwner();
+    error InvalidOwner();
+    error NotOrderRegistrar();
+    error UnauthorizedOrder();
     error NotAuthorizedApp();
     error InvalidFeeConfiguration();
     error FeeVolumeOverflow();
 
     event AppAuthorized(address indexed app, bool authorized);
+    event OrderRegistrarAuthorized(address indexed registrar, bool authorized);
+    event OrderAuthorized(address indexed app, bytes32 indexed orderHash, bool authorized);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event DailyCapSet(address indexed token, uint256 cap);
     event UsageRecorded(uint256 indexed humanId, address indexed token, uint256 amount, uint256 indexed day);
     event FeeControllerConfigured(
@@ -39,6 +45,8 @@ contract HumanQuota {
 
     /// @notice Apps allowed to record usage (i.e. deployed TuringPool contracts)
     mapping(address app => bool) public authorizedApps;
+    mapping(address registrar => bool) public orderRegistrars;
+    mapping(address app => mapping(bytes32 orderHash => bool)) public authorizedOrders;
 
     /// @notice Max tight-tier input notional per human per UTC day, in token units.
     ///         A cap of 0 means the tight tier is disabled for that token.
@@ -69,11 +77,30 @@ contract HumanQuota {
 
     constructor() {
         owner = msg.sender;
+        emit OwnershipTransferred(address(0), msg.sender);
+    }
+
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), InvalidOwner());
+        address previousOwner = owner;
+        owner = newOwner;
+        emit OwnershipTransferred(previousOwner, newOwner);
     }
 
     function setAppAuthorization(address app, bool authorized) external onlyOwner {
         authorizedApps[app] = authorized;
         emit AppAuthorized(app, authorized);
+    }
+
+    function setOrderRegistrar(address registrar, bool authorized) external onlyOwner {
+        orderRegistrars[registrar] = authorized;
+        emit OrderRegistrarAuthorized(registrar, authorized);
+    }
+
+    function setOrderAuthorization(address app, bytes32 orderHash, bool authorized) external {
+        if (msg.sender != owner && !orderRegistrars[msg.sender]) revert NotOrderRegistrar();
+        authorizedOrders[app][orderHash] = authorized;
+        emit OrderAuthorized(app, orderHash, authorized);
     }
 
     function setDailyCap(address token, uint256 cap) external onlyOwner {
@@ -170,6 +197,19 @@ contract HumanQuota {
     ///         pair used by the next quote/trade.
     function recordTrade(uint256 humanId, address token, uint256 amount, bool tight) external {
         require(authorizedApps[msg.sender], NotAuthorizedApp());
+        _recordTrade(humanId, token, amount, tight);
+    }
+
+    /// @notice Order-bound recording used by HumanGate v2. A shared router may
+    ///         execute many makers' programs, so app authorization alone is
+    ///         insufficient to isolate one pool's fee and quota state.
+    function recordTrade(bytes32 orderHash, uint256 humanId, address token, uint256 amount, bool tight) external {
+        require(authorizedApps[msg.sender], NotAuthorizedApp());
+        require(authorizedOrders[msg.sender][orderHash], UnauthorizedOrder());
+        _recordTrade(humanId, token, amount, tight);
+    }
+
+    function _recordTrade(uint256 humanId, address token, uint256 amount, bool tight) private {
         if (tight) {
             uint256 day = currentDay();
             used[humanId][token][day] += amount;

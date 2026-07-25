@@ -6,6 +6,11 @@ This package contains the on-chain half of Turing Pool:
 - `HumanQuota.sol` — daily token-denominated quotas keyed by World AgentBook `humanId`.
 - `swapvm/HumanGate.sol` — the custom SwapVM instruction that resolves identity, checks quota, applies the fee tier, and records tight-tier usage.
 - `swapvm/TuringPoolRouter.sol` — the standard Aqua opcode table plus `_humanGate` at opcode 34.
+- `vault/TuringPoolVault.sol` — a two-token, ERC-20 share vault that owns and
+  atomically migrates its Aqua strategy as liquidity changes.
+- `vault/TuringPoolVaultFactory.sol` — a permissionless factory that gives each
+  vault isolated quota, volume, and fee state while sharing one HumanGate v2
+  router.
 
 ## Verify
 
@@ -37,3 +42,20 @@ forge script script/DeployDemo.s.sol \
 
 The script writes the active addresses and strategy data to
 `deployments/demo.json` for the API, agents, and dashboard.
+
+## Deploy the vault factory
+
+Vaults require the order-bound HumanGate v2 router. Deploy that shared router
+and its permissionless factory against an existing Aqua and AgentBook:
+
+```bash
+AQUA=0x... \
+AGENT_BOOK=0x... \
+PRIVATE_KEY=... \
+forge script script/DeployVaultFactory.s.sol:DeployVaultFactory \
+  --rpc-url "$RPC_URL" \
+  --broadcast
+```
+
+See [`docs/VAULTS.md`](../docs/VAULTS.md) for the pool lifecycle, creation
+parameters, and production trust assumptions.

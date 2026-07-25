@@ -81,7 +81,7 @@ contract DeployAdaptiveRouter is Script {
             seedToken1WideVolume
         );
 
-        TuringPoolRouter router = new TuringPoolRouter(address(aqua), address(0), maker, "TuringPool", "1");
+        TuringPoolRouter router = new TuringPoolRouter(address(aqua), address(0), maker, "TuringPool", "2");
         quota.setAppAuthorization(address(router), true);
         require(router.humanGateOpcode() == OP_HUMAN_GATE, "unexpected human gate opcode");
 
@@ -128,6 +128,7 @@ contract DeployAdaptiveRouter is Script {
 
         aqua.dock(oldRouter, oldOrderHash, tokens);
         bytes32 orderHash = aqua.ship(address(router), abi.encode(order), tokens, amounts);
+        quota.setOrderAuthorization(address(router), orderHash, true);
 
         vm.stopBroadcast();
 

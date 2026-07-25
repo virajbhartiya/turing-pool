@@ -67,7 +67,7 @@ abstract contract HumanGate {
         }
 
         if (!ctx.vm.isStaticContext) {
-            quota.recordTrade(humanId, quotaToken, quotaAmount, tight);
+            quota.recordTrade(ctx.query.orderHash, humanId, quotaToken, quotaAmount, tight);
             emit HumanGated(ctx.query.orderHash, ctx.query.taker, humanId, tight, feeE9);
         }
 
