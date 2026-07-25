@@ -75,6 +75,9 @@ The deployment-ready vault extension adds permissionless, multi-LP pools
 without mixing their economics. Every vault issues transferable shares, acts
 as its own Aqua maker, and owns a dedicated `HumanQuota`; all vaults can share
 one HumanGate v2 router because fee writes are authorized by exact order hash.
+The connected-wallet terminal discovers those pools from the factory and
+supports create, proportional deposits, transferable LP positions, pro-rata
+withdrawals, and identity-priced SwapVM trades from MetaMask.
 See [docs/VAULTS.md](./docs/VAULTS.md).
 
 ## Run it

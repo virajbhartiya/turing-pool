@@ -121,6 +121,13 @@ vault.redeem(shares, minAmount0, minAmount1, receiver);
 - Fee-on-transfer, rebasing, and callback-bearing tokens have not been
   qualified and should not be listed without additional review.
 - The contracts have automated integration coverage but have not been audited.
-- The current trading terminal is wired to the original demo pool. A deployed
-  factory manifest is required before exposing vault creation and LP actions in
-  the UI.
+- The React terminal discovers every vault from the configured factory. A
+  connected wallet can create a market, approve and deposit both assets, receive
+  transferable LP shares, redeem its pro-rata position, and submit the selected
+  vault's live SwapVM trade.
+- The API simulates the final create, deposit, redeem, and swap call before
+  returning MetaMask calldata. Approvals are returned as explicit preliminary
+  actions and are scoped to the selected vault or shared router.
+- Set `VAULT_FACTORY` only after verifying the factory and HumanGate v2 router
+  on the intended chain. If it is absent, the terminal presents the original
+  deployed market and an honest "factory not configured" vault state.

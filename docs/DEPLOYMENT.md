@@ -46,6 +46,8 @@ The Vercel project serves:
 - `index.ts` is the Hono Function entrypoint.
 - `/health`, `/state`, `/demo/quotes`, `/quote`, and `POST /demo/trade` are
   backend routes.
+- `/vaults` and its prepare routes expose the optional permissionless LP
+  factory to connected wallets without moving signing keys into the server.
 - The production runtime reads World Chain and can execute capped demo trades.
 
 ```bash
@@ -75,6 +77,10 @@ required for pricing or settlement.
   demo actors. Never expose these to Vite or commit them.
 - `NUTHATCH_URL`: optional stateful Nuthatch HTTP endpoint. The production API
   falls back to direct chain reads if it is absent or unhealthy.
+- `VAULT_FACTORY`: optional verified `TuringPoolVaultFactory` address. It
+  enables pool creation, LP deposits/withdrawals, and selected-vault trades.
+  The factory's `ROUTER()` must be the deployed HumanGate v2 SwapVM router and
+  each vault is checked against `isVault` before calldata is prepared.
 
 ## Container verification
 
@@ -106,6 +112,8 @@ SIWE domain and HTTPS resource URL from it. For another host, set
 2. Save the emitted deployment file outside git and provide it as
    `DEPLOYMENTS_JSON`.
 3. Configure the World RPC, capped trade route, and disposable server keys.
-4. Start Nuthatch and verify its `/ready` and `turing_trades` SQL view.
-5. Verify `/health`, `/state`, `/demo/quotes`, `POST /demo/trade`, and the
-   dashboard.
+4. Optionally deploy and verify the HumanGate v2 router/factory, then set
+   `VAULT_FACTORY`; never configure a local or fork-only address in production.
+5. Start Nuthatch and verify its `/ready` and `turing_trades` SQL view.
+6. Verify `/health`, `/state`, `/demo/quotes`, `POST /demo/trade`, `/vaults`,
+   and the dashboard.
