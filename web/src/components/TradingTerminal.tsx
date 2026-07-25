@@ -61,8 +61,8 @@ function tradeErrorHeadline(error: DemoTradeError): string {
   if (error.code === 'trade_busy') return 'Trade already processing';
   if (error.code === 'execution_unavailable') return 'Execution unavailable';
   if (error.code === 'insufficient_balance') return 'Insufficient demo asset balance';
-  if (error.code === 'wallet_rejected') return 'MetaMask request cancelled';
-  if (error.code === 'wallet_unavailable') return 'MetaMask unavailable';
+  if (error.code === 'wallet_rejected') return 'Wallet request cancelled';
+  if (error.code === 'wallet_unavailable') return 'Wallet unavailable';
   if (error.code === 'wrong_network') return 'Execution network required';
   if (error.code === 'network_error') return 'Network unavailable · status unknown';
   return 'Trade not completed';
@@ -337,10 +337,10 @@ export function TradingTerminal({
                 type="button"
               >
                 {walletConnecting
-                  ? 'Opening MetaMask…'
+                  ? 'Opening wallet…'
                   : walletInstalled
-                    ? 'Connect MetaMask'
-                    : 'Install MetaMask to continue'}
+                    ? 'Connect wallet'
+                    : 'Install a browser wallet'}
               </button>
             </div>
           ) : walletQuoteError ? (
@@ -482,7 +482,7 @@ export function TradingTerminal({
           <details className="ticket-route">
             <summary>Execution details <span>{(selected.feeBps / 100).toFixed(2)}% price impact</span></summary>
             <p>{tokenInSymbol} → SwapVM opcode 34 → Aqua inventory → {tokenOutSymbol}</p>
-            <small>Gas is estimated and confirmed in MetaMask before broadcast.</small>
+            <small>Gas is estimated and confirmed in your wallet before broadcast.</small>
           </details>
           <button
             className={`trade-action ${lane}`}
@@ -501,8 +501,8 @@ export function TradingTerminal({
           >
             {!connectedAccount
               ? walletInstalled
-                ? 'Connect MetaMask to trade'
-                : 'MetaMask required'
+                ? 'Connect wallet to trade'
+                : 'Browser wallet required'
               : walletQuote?.sufficientBalance === false
                 ? `Insufficient ${walletQuote.tokenInSymbol} balance`
               : walletQuoteLoading || !quoteReady
@@ -510,7 +510,7 @@ export function TradingTerminal({
               : selectedTradePending
               ? 'Confirming wallet trade…'
               : executionEnabled
-                ? `${walletQuote?.requiresApproval ? 'Approve & ' : ''}${direction === 'tUSD-to-tETH' ? 'buy' : 'sell'} with MetaMask`
+                ? `${walletQuote?.requiresApproval ? 'Approve & ' : ''}${direction === 'tUSD-to-tETH' ? 'buy' : 'sell'} with wallet`
                 : 'Interactive execution unavailable'}
           </button>
           {!executionEnabled && (

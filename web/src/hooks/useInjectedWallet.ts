@@ -58,7 +58,7 @@ export function useInjectedWallet() {
   const connect = useCallback(
     async (requestAccountSelection = false) => {
       if (!provider) {
-        setError('MetaMask was not detected in this browser.');
+        setError('No compatible browser wallet was detected.');
         return;
       }
       setConnecting(true);

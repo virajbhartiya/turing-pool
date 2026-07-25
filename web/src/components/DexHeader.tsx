@@ -14,12 +14,12 @@ interface DexHeaderProps {
   onSelectAccount: (account: string) => void;
 }
 
-const NAVIGATION: Array<{ view: DexView; label: string; key: string }> = [
-  { view: 'overview', label: 'Overview', key: 'F0' },
-  { view: 'trade', label: 'Swap', key: 'F1' },
-  { view: 'pool', label: 'Pool', key: 'F2' },
-  { view: 'verify', label: 'Verify', key: 'F3' },
-  { view: 'protocol', label: 'Protocol', key: 'F4' },
+const NAVIGATION: Array<{ view: DexView; label: string }> = [
+  { view: 'overview', label: 'Overview' },
+  { view: 'trade', label: 'Swap' },
+  { view: 'pool', label: 'Pool' },
+  { view: 'verify', label: 'Verify' },
+  { view: 'protocol', label: 'Protocol' },
 ];
 
 export function DexHeader({
@@ -43,7 +43,6 @@ export function DexHeader({
         >
           <span>T</span>
           <strong>Turing Pool</strong>
-          <small>Identity-priced DEX</small>
         </button>
         <nav aria-label="Product navigation">
           {NAVIGATION.map((item) => (
@@ -54,7 +53,6 @@ export function DexHeader({
               onClick={() => onViewChange(item.view)}
               type="button"
             >
-              <kbd>{item.key}</kbd>
               {item.label}
             </button>
           ))}
@@ -67,7 +65,7 @@ export function DexHeader({
               onClick={() => void onConnect(false)}
               type="button"
             >
-              {connecting ? 'Opening MetaMask…' : 'Connect wallet'}
+              {connecting ? 'Opening wallet…' : 'Connect wallet'}
             </button>
           ) : (
             <div className={`header-wallet ${human ? 'human' : 'bot'}`}>
@@ -92,7 +90,6 @@ export function DexHeader({
                   {shortAddress(account)}
                 </button>
               )}
-              {quote && <b>{quote.feeBps} bps</b>}
             </div>
           )}
         </div>

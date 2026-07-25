@@ -38,7 +38,7 @@ export function IdentityWorkspace({
         </div>
       </div>
 
-      <div className="identity-layout">
+      <div className="identity-layout simplified">
         <article className="identity-action-panel">
           <header>
             <span>01</span>
@@ -55,10 +55,10 @@ export function IdentityWorkspace({
               type="button"
             >
               {walletConnecting
-                ? 'Opening MetaMask…'
+                ? 'Opening wallet…'
                 : walletInstalled
-                  ? 'Connect MetaMask'
-                  : 'Install MetaMask'}
+                  ? 'Connect wallet'
+                  : 'Install a browser wallet'}
             </button>
           ) : (
             <WorldIdentityControl
@@ -69,28 +69,34 @@ export function IdentityWorkspace({
           )}
         </article>
 
-        <aside className="identity-explainer">
-          <div>
-            <span>02 · World Chain</span>
-            <BrandLogo brand="world" />
-            <strong>AgentBook registers a humanId</strong>
-            <p>World App proves personhood and links the nullifier-derived identity to this wallet.</p>
-          </div>
-          <i>→</i>
-          <div>
-            <span>03 · Execution network</span>
-            <b className="mirror-logo">↔</b>
-            <strong>The identity mirror updates</strong>
-            <p>The relayer copies the canonical humanId and source block—never the World proof.</p>
-          </div>
-          <i>→</i>
-          <div>
-            <span>04 · SwapVM</span>
-            <BrandLogo brand="oneinch" />
-            <strong>Opcode 34 selects the rate</strong>
-            <p>Verified retail receives the bounded lane; HFT and arbitrage flow receives variable risk pricing.</p>
-          </div>
-        </aside>
+        <details className="identity-flow-disclosure">
+          <summary>
+            <span>How verification reaches SwapVM</span>
+            <b>View flow +</b>
+          </summary>
+          <aside className="identity-explainer">
+            <div>
+              <span>02 · World Chain</span>
+              <BrandLogo brand="world" />
+              <strong>AgentBook registers a humanId</strong>
+              <p>World App proves personhood and links the nullifier-derived identity to this wallet.</p>
+            </div>
+            <i>→</i>
+            <div>
+              <span>03 · Execution network</span>
+              <b className="mirror-logo">↔</b>
+              <strong>The identity mirror updates</strong>
+              <p>The relayer copies the canonical humanId and source block—never the World proof.</p>
+            </div>
+            <i>→</i>
+            <div>
+              <span>04 · SwapVM</span>
+              <BrandLogo brand="oneinch" />
+              <strong>Opcode 34 selects the rate</strong>
+              <p>Verified retail receives the bounded lane; HFT and arbitrage flow receives variable risk pricing.</p>
+            </div>
+          </aside>
+        </details>
       </div>
 
       <TokenFaucet

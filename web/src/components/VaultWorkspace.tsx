@@ -42,7 +42,7 @@ interface ActionStatus {
 const IDLE_STATUS: ActionStatus = {
   state: 'idle',
   title: 'Ready',
-  detail: 'Every state-changing action is simulated before MetaMask opens.',
+  detail: 'Every state-changing action is simulated before your wallet opens.',
 };
 
 const ACTIONS = ['deposit', 'redeem'] as const;
@@ -267,7 +267,7 @@ export function VaultWorkspace({
         const approval = prepared.action.startsWith('approve-');
         setStatus({
           state: 'wallet',
-          title: approval ? 'Approve token in MetaMask' : 'Confirm action in MetaMask',
+          title: approval ? 'Approve token in wallet' : 'Confirm action in wallet',
           detail: approval
             ? 'This one-time allowance is scoped to the selected vault or SwapVM router.'
             : 'The simulated transaction is ready to broadcast on the execution network.',
@@ -449,7 +449,7 @@ export function VaultWorkspace({
                 <div><span>Your LP position</span><strong>{ownershipLabel}</strong><small>{formatUnits(vault.position.shares, 18, 4)} {vault.shareToken.symbol} · transferable ERC-20</small></div>
               </div>
 
-              <div className="vault-grid">
+              <div className={`vault-grid ${status.state === 'idle' ? 'idle' : ''}`}>
                 <article className="vault-card vault-action-card">
                   {action === 'deposit' && (
                     <>
@@ -497,7 +497,7 @@ export function VaultWorkspace({
                       </div>
                       <div className="vault-balance-row"><span>Wallet</span><b>{formatUnits(vault.position.token0Balance, vault.token0.decimals, 4)} {vault.token0.symbol}</b><b>{formatUnits(vault.position.token1Balance, vault.token1.decimals, 4)} {vault.token1.symbol}</b></div>
                       <button className="vault-primary" disabled={vault.paused || actionPending || !depositPreview || depositPreview.shares === 0n} onClick={() => void addLiquidity()} type="button">
-                        {!account ? 'Connect MetaMask to deposit' : vault.paused ? 'Pool deposits paused' : 'Approve assets & add liquidity'}
+                        {!account ? 'Connect wallet to deposit' : vault.paused ? 'Pool deposits paused' : 'Approve assets & add liquidity'}
                       </button>
                     </>
                   )}
@@ -518,7 +518,7 @@ export function VaultWorkspace({
                         <small>≈ {(ownershipPercent * redeemPercent / 100).toFixed(6)}% of pool inventory</small>
                       </div>
                       <button className="vault-primary" disabled={actionPending} onClick={() => void redeemLiquidity()} type="button">
-                        {!account ? 'Connect LP wallet to withdraw' : 'Redeem through MetaMask'}
+                        {!account ? 'Connect wallet to withdraw' : 'Redeem through wallet'}
                       </button>
                     </>
                   )}
@@ -553,11 +553,13 @@ export function VaultWorkspace({
                     <div><dt>Aqua order</dt><dd>{vault.strategyActive ? 'ACTIVE' : vault.paused ? 'PAUSED' : 'UNSEEDED'}</dd></div>
                   </dl>
                   <button className="vault-token-button" onClick={() => void watchLpToken()} type="button">
-                    {lpTokenAdded ? `${vault.shareToken.symbol} added to MetaMask` : `Add ${vault.shareToken.symbol} to MetaMask`}
+                    {lpTokenAdded ? `${vault.shareToken.symbol} added to wallet` : `Add ${vault.shareToken.symbol} to wallet`}
                   </button>
                 </article>
 
-                <VaultStatus status={status} explorerUrl={explorerUrl} />
+                {status.state !== 'idle' && (
+                  <VaultStatus status={status} explorerUrl={explorerUrl} />
+                )}
               </div>
             </>
           )}
@@ -582,7 +584,7 @@ function VaultStatus({
       {status.state !== 'idle' && (
         <ol>
           <li className="complete"><i>1</i><span>Factory + vault state</span><b>Turing Pool</b></li>
-          <li className={['wallet', 'mining', 'confirmed'].includes(status.state) ? 'complete' : undefined}><i>2</i><span>Wallet approval</span><b>MetaMask</b></li>
+          <li className={['wallet', 'mining', 'confirmed'].includes(status.state) ? 'complete' : undefined}><i>2</i><span>Wallet approval</span><b>Connected wallet</b></li>
           <li className={status.state === 'confirmed' ? 'complete' : undefined}><i>3</i><span>Aqua order migration / settlement</span><b>1inch</b></li>
           <li className={status.state === 'confirmed' ? 'complete' : undefined}><i>4</i><span>Position + fee state refreshed</span><b>Indexer</b></li>
         </ol>

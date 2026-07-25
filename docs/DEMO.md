@@ -5,7 +5,7 @@
 This is the fastest way to prove the product is executing rather than showing
 mocked UI. It runs real transactions through SwapVM and Aqua on Base Sepolia,
 using identity mirrored from the canonical World Chain AgentBook. The dashboard
-prepares calldata but MetaMask signs connected-wallet
+prepares calldata but the connected wallet signs
 trades; the legacy replay script keeps its disposable actor keys server-side.
 No private key is in the repository or browser bundle. Start Nuthatch before
 the API so the indexer observes every new judge-demo receipt.
@@ -45,15 +45,15 @@ pnpm demo:sepolia
 
 ## Connected-wallet demo
 
-1. Add both funded demo accounts to MetaMask and connect both accounts to the
+1. Add both funded demo accounts to a compatible browser wallet and connect them to the
    dashboard.
 2. Open the dashboard in two tabs. Use the account selector to pin the
    World-backed address in one tab and the anonymous address in the other;
    the selection is stored per tab.
-3. MetaMask switches to Base Sepolia (`84532`) automatically. The terminal
+3. The wallet switches to the execution network automatically. The terminal
    calls the Base AgentBook mirror and assigns `TIGHT` or `WIDE`; there is no
    manual human/bot toggle.
-4. Click buy or sell. If needed, MetaMask first requests a token approval. A
+4. Click buy or sell. If needed, the wallet first requests a token approval. A
    second prompt signs the actual SwapVM trade. The backend never signs for the
    connected account.
 5. The terminal verifies `HumanGated` and `Swapped`, refreshes the LP book and
@@ -61,7 +61,7 @@ pnpm demo:sepolia
 
 The connected address must hold the deployed fixed-supply `tETH` or `tUSD`
 demo asset selected as input, plus enough Base Sepolia ETH for gas. An arbitrary
-new MetaMask account can connect and be classified, but cannot trade until it
+new wallet account can connect and be classified, but cannot trade until it
 receives the demo input asset.
 
 The command asserts the execution claims and prints BaseScan transaction links:

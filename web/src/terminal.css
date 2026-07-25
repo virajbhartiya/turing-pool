@@ -915,6 +915,10 @@ body::before {
   gap: 8px;
 }
 
+.vault-grid.idle {
+  grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+}
+
 .vault-card {
   padding: 15px;
 }
@@ -1272,6 +1276,536 @@ body::before {
   background: #080c10;
 }
 
+/* Protocol page: one readable execution story, with live state attached. */
+.protocol-explainer {
+  display: grid;
+  gap: 10px;
+}
+
+.protocol-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(420px, 0.7fr);
+  min-height: 230px;
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--accent);
+  background:
+    linear-gradient(110deg, rgba(255, 173, 31, 0.055), transparent 34%),
+    #060a0e;
+}
+
+.protocol-hero > div {
+  align-self: center;
+  padding: 30px 34px;
+}
+
+.protocol-hero h1 {
+  max-width: 820px;
+  margin-top: 10px;
+  font-size: clamp(35px, 4vw, 58px);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.protocol-hero p {
+  max-width: 760px;
+  margin-top: 18px;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.protocol-hero > dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+  border-left: 1px solid var(--border);
+  background: rgba(7, 11, 15, 0.78);
+}
+
+.protocol-hero > dl > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.protocol-hero > dl > div:nth-child(odd) {
+  border-right: 1px solid var(--border);
+}
+
+.protocol-hero dt,
+.protocol-pipeline dt,
+.protocol-latest-receipt dt {
+  color: var(--muted);
+  font: 750 9px var(--mono);
+  letter-spacing: 0.1em;
+}
+
+.protocol-hero dd {
+  margin: 9px 0 0;
+  color: var(--text);
+  font: 750 17px var(--mono);
+}
+
+.protocol-hero dd.positive {
+  color: var(--human);
+}
+
+.protocol-phases {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  border: 1px solid var(--border);
+  background: var(--border);
+}
+
+.protocol-phases > div {
+  padding: 14px 17px;
+  background: #080c10;
+}
+
+.protocol-phases span,
+.protocol-phases strong,
+.protocol-phases small {
+  display: block;
+}
+
+.protocol-phases span {
+  color: var(--accent);
+  font: 800 9px var(--mono);
+  letter-spacing: 0.09em;
+}
+
+.protocol-phases strong {
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.protocol-phases small {
+  margin-top: 4px;
+  color: var(--muted);
+  font: 10px/1.45 var(--mono);
+}
+
+.protocol-pipeline {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.protocol-pipeline > article {
+  position: relative;
+  min-width: 0;
+  min-height: 355px;
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--border-strong);
+  padding: 17px;
+  background: #080c10;
+}
+
+.protocol-pipeline > article.identity {
+  border-top-color: var(--human);
+}
+
+.protocol-pipeline > article.gate,
+.protocol-pipeline > article.settlement {
+  border-top-color: var(--accent);
+}
+
+.protocol-pipeline > article.controller {
+  border-top-color: var(--cyan);
+}
+
+.protocol-pipeline > article.index {
+  border-top-color: #9d76ff;
+}
+
+.protocol-pipeline > article:not(:last-child)::after {
+  position: absolute;
+  z-index: 2;
+  top: 33px;
+  right: -9px;
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  background: #080c10;
+  color: var(--muted);
+  content: "›";
+  font: 14px var(--mono);
+}
+
+.protocol-pipeline article > header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.protocol-pipeline article > header > b {
+  color: var(--muted);
+  font: 800 10px var(--mono);
+}
+
+.protocol-pipeline article > header .brand-logo {
+  width: 22px;
+  height: 22px;
+}
+
+.protocol-pipeline article > header > span:last-child {
+  margin-left: auto;
+  color: var(--muted);
+  font: 750 9px var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.protocol-pipeline h2 {
+  margin-top: 22px;
+  font-size: 20px;
+  letter-spacing: -0.025em;
+}
+
+.protocol-pipeline article > p {
+  min-height: 94px;
+  margin-top: 9px;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.protocol-pipeline article > p code {
+  color: var(--accent);
+  font: inherit;
+}
+
+.protocol-pipeline dl {
+  margin: 17px 0 0;
+  border-top: 1px solid var(--border);
+}
+
+.protocol-pipeline dl > div {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.protocol-pipeline dd {
+  overflow: hidden;
+  margin: 5px 0 0;
+  color: var(--text);
+  font: 650 10px/1.45 var(--mono);
+  text-overflow: ellipsis;
+}
+
+.protocol-pipeline dd code {
+  color: var(--text-2);
+  font: inherit;
+}
+
+.protocol-pipeline dd.positive {
+  color: var(--human);
+}
+
+.protocol-pipeline dd.negative {
+  color: var(--bot);
+}
+
+.protocol-deep-dive {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(390px, 0.75fr);
+  gap: 8px;
+}
+
+.protocol-invariant,
+.protocol-contracts,
+.protocol-latest-receipt {
+  border: 1px solid var(--border);
+  background: #080c10;
+}
+
+.protocol-invariant {
+  padding: 22px;
+}
+
+.protocol-invariant h2 {
+  margin-top: 8px;
+  font-size: clamp(25px, 2.5vw, 36px);
+}
+
+.protocol-invariant > div:first-child > p {
+  max-width: 720px;
+  margin-top: 9px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.protocol-equation {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) 28px minmax(150px, 1fr) 28px minmax(190px, 1.15fr);
+  align-items: stretch;
+  margin-top: 20px;
+}
+
+.protocol-equation > div {
+  border: 1px solid var(--border-strong);
+  padding: 14px;
+  background: #060a0e;
+}
+
+.protocol-equation > div.target {
+  border-top: 2px solid var(--accent);
+}
+
+.protocol-equation > i {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font: 18px var(--mono);
+  font-style: normal;
+}
+
+.protocol-equation span,
+.protocol-equation strong,
+.protocol-equation em {
+  display: block;
+}
+
+.protocol-equation span {
+  color: var(--muted);
+  font: 750 9px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.protocol-equation strong {
+  margin-top: 8px;
+  color: var(--text);
+  font: 800 29px var(--mono);
+}
+
+.protocol-equation strong small {
+  margin-left: 4px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.protocol-equation em {
+  margin-top: 5px;
+  color: var(--text-2);
+  font: 10px var(--mono);
+  font-style: normal;
+}
+
+.protocol-formula {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  border-left: 2px solid var(--cyan);
+  padding: 9px 11px;
+  background: #060a0e;
+  color: var(--text-2);
+  font: 11px var(--mono);
+}
+
+.protocol-formula span {
+  color: var(--muted);
+}
+
+.protocol-contracts > header,
+.protocol-latest-receipt > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px 17px;
+  border-bottom: 1px solid var(--border);
+}
+
+.protocol-contracts > header > b {
+  color: var(--muted);
+  font: 750 9px var(--mono);
+}
+
+.protocol-contracts > section {
+  padding: 12px 17px;
+  border-bottom: 1px solid var(--border);
+}
+
+.protocol-contracts > section:last-child {
+  border-bottom: 0;
+}
+
+.protocol-contracts h3 {
+  margin-bottom: 4px;
+  color: var(--accent);
+  font: 800 9px var(--mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.protocol-contracts section > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+  color: var(--text-2);
+  font: 10px var(--mono);
+}
+
+.protocol-contracts a,
+.protocol-contracts code {
+  color: var(--human);
+  font: inherit;
+  text-decoration: none;
+}
+
+.protocol-latest-receipt > header h2 {
+  margin-top: 5px;
+  font-size: 19px;
+}
+
+.protocol-latest-receipt > header > a {
+  border: 1px solid var(--human);
+  padding: 8px 11px;
+  color: var(--human);
+  font: 750 9px var(--mono);
+  text-decoration: none;
+}
+
+.protocol-latest-receipt > dl {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  margin: 0;
+}
+
+.protocol-latest-receipt > dl > div {
+  min-width: 0;
+  padding: 13px 16px;
+  border-right: 1px solid var(--border);
+}
+
+.protocol-latest-receipt > dl > div:last-child {
+  border-right: 0;
+}
+
+.protocol-latest-receipt dd {
+  overflow: hidden;
+  margin: 6px 0 0;
+  color: var(--text);
+  font: 700 11px var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Secondary analytics stay one click away instead of competing with the task. */
+.lp-performance-disclosure {
+  border: 1px solid var(--border);
+  background: #080c10;
+}
+
+.lp-performance-disclosure > summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) auto;
+  align-items: stretch;
+  cursor: pointer;
+  list-style: none;
+}
+
+.lp-performance-disclosure > summary::-webkit-details-marker,
+.identity-flow-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.lp-performance-disclosure > summary > div {
+  padding: 13px 16px;
+  border-right: 1px solid var(--border);
+}
+
+.lp-performance-disclosure > summary span,
+.lp-performance-disclosure > summary strong {
+  display: block;
+}
+
+.lp-performance-disclosure > summary span {
+  color: var(--muted);
+  font: 750 9px var(--mono);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.lp-performance-disclosure > summary strong {
+  margin-top: 5px;
+  font: 750 13px var(--mono);
+}
+
+.lp-disclosure-toggle {
+  display: grid;
+  min-width: 140px;
+  place-items: center;
+  padding: 12px;
+  color: var(--accent);
+  font: 750 9px var(--mono);
+}
+
+.lp-disclosure-toggle span:last-child,
+.lp-performance-disclosure[open] .lp-disclosure-toggle span:first-child {
+  display: none;
+}
+
+.lp-performance-disclosure[open] .lp-disclosure-toggle span:last-child {
+  display: block;
+}
+
+.lp-performance-disclosure[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.compact-detail-head {
+  min-height: 48px;
+}
+
+.identity-layout.simplified {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.identity-flow-disclosure {
+  border: 1px solid var(--border);
+  background: #080c10;
+}
+
+.identity-flow-disclosure > summary {
+  display: flex;
+  min-height: 49px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.identity-flow-disclosure > summary span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.identity-flow-disclosure > summary b {
+  color: var(--accent);
+  font: 750 9px var(--mono);
+  text-transform: uppercase;
+}
+
+.identity-flow-disclosure[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.identity-flow-disclosure .identity-explainer {
+  border: 0;
+}
+
 .error-banner {
   border-color: rgba(255, 105, 95, 0.5);
   border-radius: 1px;
@@ -1299,6 +1833,33 @@ footer {
 
   .lean-controller {
     grid-template-columns: 1fr;
+  }
+
+  .protocol-hero,
+  .protocol-deep-dive {
+    grid-template-columns: 1fr;
+  }
+
+  .protocol-hero > dl {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .protocol-pipeline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .protocol-pipeline > article:not(:last-child)::after {
+    display: none;
+  }
+
+  .protocol-pipeline > article:last-child {
+    grid-column: 1 / -1;
+    min-height: 0;
+  }
+
+  .protocol-latest-receipt > dl {
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .vault-grid,
@@ -1349,7 +1910,49 @@ footer {
     grid-template-columns: 1fr;
   }
 
+  .protocol-hero {
+    min-height: 0;
+  }
+
+  .protocol-hero > div {
+    padding: 24px 18px;
+  }
+
+  .protocol-hero > dl,
+  .protocol-phases,
+  .protocol-pipeline,
+  .protocol-equation,
+  .protocol-latest-receipt > dl,
+  .lp-performance-disclosure > summary {
+    grid-template-columns: 1fr;
+  }
+
+  .protocol-hero > dl > div:nth-child(odd),
+  .protocol-latest-receipt > dl > div,
+  .lp-performance-disclosure > summary > div {
+    border-right: 0;
+  }
+
+  .protocol-pipeline > article,
+  .protocol-pipeline > article:last-child {
+    grid-column: auto;
+    min-height: 0;
+  }
+
+  .protocol-pipeline article > p {
+    min-height: 0;
+  }
+
+  .protocol-equation > i {
+    min-height: 26px;
+  }
+
+  .protocol-formula {
+    flex-direction: column;
+  }
+
   .vault-grid,
+  .vault-grid.idle,
   .vault-create-grid {
     grid-template-columns: 1fr;
   }

@@ -175,11 +175,6 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
         </div>
       </div>
 
-      <div className="landing-proof">
-        <span>LIVE TESTNET</span>
-        <strong>World identity · 1inch Aqua + SwapVM · The Graph Nuthatch</strong>
-        <button onClick={() => onNavigate('protocol')} type="button">Inspect protocol ↗</button>
-      </div>
     </section>
   );
 }

@@ -209,7 +209,7 @@ export function WorldIdentityControl({
           <span>World ID pricing passport</span>
           <strong>{ready ? 'Verified human rate active' : 'Connect wallet to World ID'}</strong>
         </div>
-        <b>{ready ? 'VERIFIED' : status?.worldRegistered ? 'SYNC' : 'OPTIONAL'}</b>
+        <b>{ready ? 'VERIFIED' : status?.worldRegistered ? 'SYNCING' : 'VERIFY'}</b>
       </header>
       <p>{message}</p>
       {status?.worldRegistered && (

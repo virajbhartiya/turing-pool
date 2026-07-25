@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { EvidenceLedger } from './components/EvidenceLedger';
 import { DexHeader, type DexView } from './components/DexHeader';
-import { FeeControllerPanel } from './components/FeeControllerPanel';
 import { IdentityWorkspace } from './components/IdentityWorkspace';
-import { IntegrationFlow } from './components/IntegrationFlow';
 import { LandingPage } from './components/LandingPage';
 import { LPEconomicsPanel } from './components/LPEconomicsPanel';
 import { MarketHeader } from './components/MarketHeader';
-import { ProtocolDetails } from './components/ProtocolDetails';
+import { ProtocolWorkspace } from './components/ProtocolWorkspace';
 import { TradingTerminal } from './components/TradingTerminal';
 import { VaultWorkspace } from './components/VaultWorkspace';
 import { useInjectedWallet } from './hooks/useInjectedWallet';
@@ -77,7 +74,7 @@ function connectedWalletError(error: unknown): DemoTradeError {
   if (code === 4001) {
     return {
       code: 'wallet_rejected',
-      error: 'The MetaMask request was rejected. No transaction was submitted.',
+      error: 'The wallet request was rejected. No transaction was submitted.',
       retryable: false,
       status: 400,
     };
@@ -85,7 +82,7 @@ function connectedWalletError(error: unknown): DemoTradeError {
   if (code === 4902) {
     return {
       code: 'wrong_network',
-      error: 'The execution network could not be added to MetaMask.',
+      error: 'The execution network could not be added to the wallet.',
       retryable: false,
       status: 400,
     };
@@ -99,7 +96,7 @@ function connectedWalletError(error: unknown): DemoTradeError {
       status: 400,
     };
   }
-  if (/MetaMask|wallet/i.test(description)) {
+  if (/wallet|provider/i.test(description)) {
     return {
       code: 'wallet_unavailable',
       error: description,
@@ -110,7 +107,7 @@ function connectedWalletError(error: unknown): DemoTradeError {
   return {
     code: 'network_error',
     error:
-      'The wallet transaction could not be confirmed. Check MetaMask and BaseScan before retrying.',
+      'The wallet transaction could not be confirmed. Check your wallet and the block explorer before retrying.',
     retryable: true,
     retryAfterSeconds: 5,
     status: 0,
@@ -245,12 +242,12 @@ export function App() {
         stage: 'wallet',
         status: 'active',
         title: 'Verify connected wallet',
-        detail: 'Checking the MetaMask account and execution network',
+        detail: 'Checking the connected account and execution network',
         queries: [
           {
             kind: 'wallet',
             method: 'eth_chainId + eth_accounts',
-            target: 'MetaMask injected provider',
+            target: 'Connected EIP-1193 wallet',
             result: 'Awaiting connected account and chain',
           },
         ],
@@ -263,13 +260,13 @@ export function App() {
         upsertProgress(current, {
           stage: 'wallet',
           status: 'complete',
-          title: 'MetaMask wallet connected',
+          title: 'Wallet connected',
           detail: `${walletAccount.slice(0, 8)}…${walletAccount.slice(-6)} on the execution network`,
           queries: [
             {
               kind: 'wallet',
               method: 'eth_chainId + eth_accounts',
-              target: 'MetaMask injected provider',
+              target: 'Connected EIP-1193 wallet',
               result: `chain 84532 · ${walletAccount}`,
             },
           ],
@@ -387,7 +384,7 @@ export function App() {
             stage: 'allowance',
             status: 'active',
             title: `Approve ${prepared.quote.tokenInSymbol}`,
-            detail: 'Confirm the exact input amount allowance in MetaMask',
+            detail: 'Confirm the exact input amount allowance in your wallet',
             queries: [
               {
                 kind: 'write',
@@ -453,8 +450,8 @@ export function App() {
         upsertProgress(current, {
           stage: 'submission',
           status: 'active',
-          title: 'Confirm trade in MetaMask',
-          detail: 'MetaMask will sign and broadcast the prepared SwapVM transaction',
+          title: 'Confirm trade in wallet',
+          detail: 'Your wallet will sign and broadcast the prepared SwapVM transaction',
           queries: [
             {
               kind: 'write',
@@ -679,7 +676,6 @@ export function App() {
       {activeView === 'trade' && (
         <>
           <MarketHeader
-            state={state}
             quotes={quotes}
           />
           <TradingTerminal
@@ -739,10 +735,7 @@ export function App() {
 
       {activeView === 'protocol' && (
         <section className="view-workspace protocol-workspace">
-          <IntegrationFlow state={state} lastTrade={lastTrade} />
-          <FeeControllerPanel controller={state.feeController} />
-          <EvidenceLedger state={state} />
-          <ProtocolDetails state={state} />
+          <ProtocolWorkspace state={state} lastTrade={lastTrade} />
         </section>
       )}
 

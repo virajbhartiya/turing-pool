@@ -35,14 +35,33 @@ export function LPEconomicsPanel({
   );
 
   return (
-    <section className="controller-section" id="lp" aria-label="LP economics">
+    <details className="controller-section lp-performance-disclosure" id="lp">
+      <summary>
+        <div>
+          <span>LP performance</span>
+          <strong>{formatUnits(economics.total.normalizedVolumeToken0, token0Decimals, 4)} {token0Symbol} volume</strong>
+        </div>
+        <div>
+          <span>Estimated fees</span>
+          <strong>
+            {formatUnits(economics.total.impliedFees.token0, token0Decimals, 6)} {token0Symbol}
+          </strong>
+        </div>
+        <div>
+          <span>Realized / target</span>
+          <strong>{bpsLabel(economics.realizedBlendedFeeBps)} / {state.feeController.targetFeeBps} bps</strong>
+        </div>
+        <b className="lp-disclosure-toggle">
+          <span>View details +</span>
+          <span>Close details −</span>
+        </b>
+      </summary>
       <div className="terminal-panel">
-        <div className="panel-head">
+        <div className="panel-head compact-detail-head">
           <div>
-            <strong>Market fee performance</strong>
+            <strong>LP accounting detail</strong>
             <span>Derived from mined fills in the active controller window</span>
           </div>
-          <span className="live-tag">ON-CHAIN</span>
         </div>
 
         <div className="metric-strip lp-metrics">
@@ -76,6 +95,6 @@ export function LPEconomicsPanel({
       <p className="lp-disclaimer">
         Fee income is estimated from each mined receipt’s input and applied rate.
       </p>
-    </section>
+    </details>
   );
 }

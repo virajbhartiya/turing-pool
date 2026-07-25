@@ -116,21 +116,21 @@ export function TokenFaucet({
       await addTokenToWallet(provider, state.token0);
       await addTokenToWallet(provider, state.token1);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'MetaMask could not add the assets');
+      setError(caught instanceof Error ? caught.message : 'The wallet could not add the assets');
     }
   }
 
   const working = ['preparing', 'signing', 'mining'].includes(phase);
   const buttonLabel = !account
     ? walletConnecting
-      ? 'Opening MetaMask…'
+      ? 'Opening wallet…'
       : walletInstalled
         ? 'Connect wallet to claim'
-        : 'Install MetaMask'
+        : 'Install a browser wallet'
     : phase === 'preparing'
       ? 'Simulating claim…'
       : phase === 'signing'
-        ? 'Confirm in MetaMask…'
+        ? 'Confirm in wallet…'
         : phase === 'mining'
           ? 'Claim is mining…'
           : state?.claimable
@@ -195,7 +195,7 @@ export function TokenFaucet({
         <span>{availabilityLabel(state)}</span>
         {phase === 'complete' && (
           <button onClick={() => void addAssets()} type="button">
-            Add assets to MetaMask
+            Add assets to wallet
           </button>
         )}
         {receipt && <a href={receipt} rel="noreferrer" target="_blank">View receipt ↗</a>}
