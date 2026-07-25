@@ -7,6 +7,7 @@ import type {
   DemoTradeDirection,
   DemoTradeError,
   DemoTradeLane,
+  DemoTradeProgress,
   DemoTradeResult,
   ProtocolState,
 } from '../types';
@@ -58,6 +59,7 @@ interface TradingTerminalProps {
   ) => Promise<void>;
   tradeLane?: DemoTradeLane;
   tradeError?: DemoTradeError;
+  tradeProgress: DemoTradeProgress[];
   lastTrade?: DemoTradeResult;
   amountIn: string;
   onAmountChange: (amountIn: string) => void;
@@ -89,6 +91,50 @@ function tradeErrorHeadline(error: DemoTradeError): string {
   return 'Trade not completed';
 }
 
+function ExecutionTrace({
+  lane,
+  pending,
+  progress,
+}: {
+  lane: Lane;
+  pending: boolean;
+  progress: DemoTradeProgress[];
+}) {
+  if (progress.length === 0) return null;
+
+  const failed = progress.some((step) => step.status === 'error');
+  const status = failed ? 'STOPPED' : pending ? 'EXECUTING' : 'CONFIRMED';
+
+  return (
+    <section className={`execution-trace ${lane}`} aria-live="polite">
+      <header>
+        <div>
+          <span>Live execution trace</span>
+          <small>Backend and chain events only</small>
+        </div>
+        <b className={failed ? 'failed' : undefined}>{status}</b>
+      </header>
+      <ol>
+        {progress.map((step, index) => (
+          <li className={step.status} key={step.stage}>
+            <i aria-hidden="true">
+              {step.status === 'complete'
+                ? '✓'
+                : step.status === 'error'
+                  ? '!'
+                  : String(index + 1).padStart(2, '0')}
+            </i>
+            <div>
+              <strong>{step.title}</strong>
+              <small>{step.detail}</small>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 export function TradingTerminal({
   state,
   quotes,
@@ -96,6 +142,7 @@ export function TradingTerminal({
   onTrade,
   tradeLane,
   tradeError,
+  tradeProgress,
   lastTrade,
   amountIn,
   onAmountChange,
@@ -283,6 +330,11 @@ export function TradingTerminal({
               ? `Mined notional updates HumanQuota, repricing the next SwapVM quote through opcode ${state.execution?.opcode}.`
               : 'Live signing is disabled on this runtime.'}
           </p>
+          <ExecutionTrace
+            lane={tradeLane ?? lane}
+            pending={submitting}
+            progress={tradeProgress}
+          />
           {tradeError && (
             <div className="trade-receipt error" role="alert">
               <b>{tradeErrorHeadline(tradeError)}</b>

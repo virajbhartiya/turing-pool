@@ -13,6 +13,7 @@ import type {
   DemoTradeDirection,
   DemoTradeError,
   DemoTradeLane,
+  DemoTradeProgress,
   DemoTradeResult,
 } from './types';
 
@@ -45,6 +46,26 @@ function isDemoTradeResult(value: unknown): value is DemoTradeResult {
   );
 }
 
+function isDemoTradeProgress(value: unknown): value is DemoTradeProgress {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Partial<DemoTradeProgress>;
+  return (
+    typeof candidate.stage === 'string' &&
+    (candidate.status === 'active' || candidate.status === 'complete') &&
+    typeof candidate.title === 'string' &&
+    typeof candidate.detail === 'string'
+  );
+}
+
+function upsertProgress(
+  current: DemoTradeProgress[],
+  next: DemoTradeProgress,
+): DemoTradeProgress[] {
+  const existing = current.findIndex((item) => item.stage === next.stage);
+  if (existing === -1) return [...current, next];
+  return current.map((item, index) => (index === existing ? next : item));
+}
+
 export function App() {
   const initialDirection: DemoTradeDirection =
     new URLSearchParams(window.location.search).get('side') === 'buy'
@@ -56,6 +77,7 @@ export function App() {
   const [copied, setCopied] = useState(false);
   const [tradeLane, setTradeLane] = useState<DemoTradeLane>();
   const [tradeError, setTradeError] = useState<DemoTradeError>();
+  const [tradeProgress, setTradeProgress] = useState<DemoTradeProgress[]>([]);
   const [lastTrade, setLastTrade] = useState<DemoTradeResult>();
 
   useEffect(() => {
@@ -88,28 +110,108 @@ export function App() {
   ) {
     setTradeLane(lane);
     setTradeError(undefined);
+    setTradeProgress([
+      {
+        stage: 'wallet',
+        status: 'active',
+        title: 'Connect execution service',
+        detail: 'Opening a live trace for this on-chain trade',
+      },
+    ]);
     try {
       const response = await fetch(`${apiBase()}/demo/trade`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          accept: 'application/x-ndjson',
+          'content-type': 'application/json',
+        },
         body: JSON.stringify({ lane, amountIn, direction: tradeDirection }),
       });
-      const body: unknown = await response.json();
-      if (!response.ok || !isDemoTradeResult(body)) {
-        setTradeError(
-          isDemoTradeError(body)
-            ? body
-            : {
-                code: 'trade_failed',
-                error: 'The trade service returned an unexpected response. Check on-chain activity before retrying.',
-                retryable: false,
-                status: response.status,
-              },
+      if (!response.ok || !response.body) {
+        const body: unknown = await response.json();
+        const safeError: DemoTradeError = isDemoTradeError(body)
+          ? body
+          : {
+              code: 'trade_failed',
+              error:
+                'The trade service returned an unexpected response. Check on-chain activity before retrying.',
+              retryable: false,
+              status: response.status,
+            };
+        setTradeError(safeError);
+        setTradeProgress((current) =>
+          current.map((item) =>
+            item.status === 'active' ? { ...item, status: 'error' } : item,
+          ),
         );
         return;
       }
-      setLastTrade(body);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffered = '';
+      let result: DemoTradeResult | undefined;
+      let streamedError: DemoTradeError | undefined;
+
+      const consumeLine = (line: string) => {
+        if (!line.trim()) return;
+        const event = JSON.parse(line) as {
+          type?: unknown;
+          progress?: unknown;
+          result?: unknown;
+          error?: unknown;
+        };
+        const progress = event.progress;
+        if (event.type === 'progress' && isDemoTradeProgress(progress)) {
+          setTradeProgress((current) => upsertProgress(current, progress));
+        } else if (event.type === 'result' && isDemoTradeResult(event.result)) {
+          result = event.result;
+        } else if (event.type === 'error' && isDemoTradeError(event.error)) {
+          streamedError = event.error;
+        }
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        buffered += decoder.decode(value, { stream: !done });
+        const lines = buffered.split('\n');
+        buffered = lines.pop() ?? '';
+        for (const line of lines) consumeLine(line);
+        if (done) break;
+      }
+      consumeLine(buffered);
+
+      if (streamedError) {
+        setTradeError(streamedError);
+        setTradeProgress((current) =>
+          current.map((item) =>
+            item.status === 'active' ? { ...item, status: 'error' } : item,
+          ),
+        );
+        return;
+      }
+      if (!result) {
+        throw new Error('trade stream ended without a mined result');
+      }
+
+      setLastTrade(result);
+      setTradeProgress((current) =>
+        upsertProgress(current, {
+          stage: 'refresh',
+          status: 'active',
+          title: 'Refresh market state',
+          detail: 'Loading the new quote pair, LP economics, and indexed activity',
+        }),
+      );
       await refresh();
+      setTradeProgress((current) =>
+        upsertProgress(current, {
+          stage: 'refresh',
+          status: 'complete',
+          title: 'Terminal synchronized',
+          detail: 'Chart, receipts, LP revenue, and next executable rates are refreshed',
+        }),
+      );
     } catch {
       setTradeError({
         code: 'network_error',
@@ -119,6 +221,11 @@ export function App() {
         retryAfterSeconds: 5,
         status: 0,
       });
+      setTradeProgress((current) =>
+        current.map((item) =>
+          item.status === 'active' ? { ...item, status: 'error' } : item,
+        ),
+      );
     } finally {
       setTradeLane(undefined);
     }
@@ -153,6 +260,7 @@ export function App() {
         onTrade={executeTrade}
         tradeError={tradeError}
         tradeLane={tradeLane}
+        tradeProgress={tradeProgress}
         lastTrade={lastTrade}
         amountIn={amountIn}
         onAmountChange={setAmountIn}

@@ -382,6 +382,86 @@ h1 span { margin-left: 9px; color: var(--muted); font-size: 0.58em; font-weight:
 .trade-action.bot { background: var(--bot); color: #160807; }
 .trade-action:disabled { cursor: wait; opacity: 0.62; }
 .ticket-note { margin: 7px 0 0; color: var(--muted); font: 10px var(--mono); text-align: center; }
+.execution-trace {
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--human);
+  border-radius: 2px;
+  background: #080a0c;
+}
+.execution-trace.bot { border-top-color: var(--bot); }
+.execution-trace > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 11px;
+  background: rgba(255, 255, 255, 0.015);
+}
+.execution-trace > header span,
+.execution-trace > header small { display: block; }
+.execution-trace > header span {
+  color: var(--text);
+  font: 800 11px var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.execution-trace > header small { margin-top: 3px; color: var(--muted); font: 11px var(--mono); }
+.execution-trace > header b {
+  color: var(--human);
+  font: 800 10px var(--mono);
+  letter-spacing: 0.08em;
+}
+.execution-trace.bot > header b { color: var(--bot); }
+.execution-trace > header b.failed { color: var(--bot); }
+.execution-trace ol { display: grid; margin: 0; padding: 0; list-style: none; }
+.execution-trace li {
+  display: grid;
+  grid-template-columns: 27px 1fr;
+  gap: 9px;
+  padding: 9px 11px;
+  border-bottom: 1px solid rgba(161, 186, 180, 0.08);
+}
+.execution-trace li:last-child { border-bottom: 0; }
+.execution-trace li > i {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  color: var(--muted);
+  font: 800 10px var(--mono);
+  font-style: normal;
+}
+.execution-trace li > div { min-width: 0; }
+.execution-trace li strong,
+.execution-trace li small { display: block; }
+.execution-trace li strong { color: var(--text-2); font-size: 12px; font-weight: 700; }
+.execution-trace li small {
+  margin-top: 3px;
+  color: var(--muted);
+  font: 11px/1.45 var(--mono);
+  overflow-wrap: anywhere;
+}
+.execution-trace li.active > i {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+  animation: pulse 0.75s ease-in-out infinite alternate;
+}
+.execution-trace li.complete > i {
+  border-color: rgba(68, 183, 232, 0.45);
+  background: rgba(68, 183, 232, 0.1);
+  color: var(--human);
+}
+.execution-trace li.error > i {
+  border-color: rgba(255, 125, 120, 0.5);
+  background: rgba(255, 125, 120, 0.1);
+  color: var(--bot);
+}
 .trade-receipt {
   display: block;
   margin-top: 9px;

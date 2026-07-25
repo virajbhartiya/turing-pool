@@ -166,6 +166,25 @@ export interface DemoTradeError {
   status: number;
 }
 
+export type DemoTradeProgressStage =
+  | 'wallet'
+  | 'identity'
+  | 'allowance'
+  | 'simulation'
+  | 'submission'
+  | 'settlement'
+  | 'receipt'
+  | 'repricing'
+  | 'refresh';
+
+export interface DemoTradeProgress {
+  stage: DemoTradeProgressStage;
+  status: 'active' | 'complete' | 'error';
+  title: string;
+  detail: string;
+  transactionHash?: string;
+}
+
 export interface DemoTradeResult {
   lane: DemoTradeLane;
   direction: DemoTradeDirection;

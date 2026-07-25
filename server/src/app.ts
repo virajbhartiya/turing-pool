@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { cors } from 'hono/cors';
+import { streamText } from 'hono/streaming';
 import { randomBytes } from 'node:crypto';
 import {
   parseAgentkitHeader,
@@ -550,6 +551,28 @@ app.post('/demo/trade', async (c) => {
       },
       400,
     );
+  }
+
+  if (c.req.header('accept')?.includes('application/x-ndjson')) {
+    c.header('content-type', 'application/x-ndjson; charset=UTF-8');
+    c.header('cache-control', 'no-cache, no-transform');
+    return streamText(c, async (stream) => {
+      const send = async (event: unknown) => {
+        await stream.write(`${JSON.stringify(event)}\n`);
+      };
+      try {
+        const result = await executeDemoTrade(
+          body.lane as DemoTradeLane,
+          amountIn,
+          direction,
+          async (progress) => send({ type: 'progress', progress }),
+        );
+        await send({ type: 'result', result });
+      } catch (error) {
+        console.error('[turing-pool] streamed demo trade failed', error);
+        await send({ type: 'error', error: describeTradeError(error) });
+      }
+    });
   }
 
   try {

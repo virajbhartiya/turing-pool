@@ -71,6 +71,28 @@ export interface DemoTradeResult {
   explorerUrl: string;
 }
 
+export type DemoTradeProgressStage =
+  | 'wallet'
+  | 'identity'
+  | 'allowance'
+  | 'simulation'
+  | 'submission'
+  | 'settlement'
+  | 'receipt'
+  | 'repricing';
+
+export interface DemoTradeProgress {
+  stage: DemoTradeProgressStage;
+  status: 'active' | 'complete';
+  title: string;
+  detail: string;
+  transactionHash?: Hex;
+}
+
+export type DemoTradeProgressReporter = (
+  progress: DemoTradeProgress,
+) => void | Promise<void>;
+
 export interface RouterExecutionView {
   order: {
     maker: Address;
@@ -496,6 +518,7 @@ export async function executeDemoTrade(
   lane: DemoTradeLane,
   amountIn: bigint,
   direction: DemoTradeDirection = 'tETH-to-tUSD',
+  reportProgress?: DemoTradeProgressReporter,
 ): Promise<DemoTradeResult> {
   if (!demoTradesEnabled()) throw new Error('interactive demo trades are disabled');
   const view = routerExecutionView();
@@ -515,18 +538,51 @@ export async function executeDemoTrade(
 
   tradeInFlight.add(lane);
   try {
+    await reportProgress?.({
+      stage: 'wallet',
+      status: 'active',
+      title: 'Authenticate demo signer',
+      detail: `Loading the configured ${lane} execution wallet`,
+    });
     const key = privateKeyForLane(lane);
     const account = privateKeyToAccount(key);
     const expected = expectedAddress(lane);
     if (account.address.toLowerCase() !== expected.toLowerCase()) {
       throw new Error(`${lane} signing key resolves to ${account.address}, expected ${expected}`);
     }
+    await reportProgress?.({
+      stage: 'wallet',
+      status: 'complete',
+      title: 'Demo signer matched',
+      detail: `${account.address.slice(0, 8)}…${account.address.slice(-6)} matches the configured ${lane} wallet`,
+    });
 
     const opcode = await routerOpcode();
     const transport = http(RPC_URL);
     const walletClient = createWalletClient({ account, transport });
+    await reportProgress?.({
+      stage: 'identity',
+      status: 'active',
+      title: 'Resolve identity and quote',
+      detail: `Calling SwapVM opcode ${opcode}, AgentBook, and HumanQuota`,
+    });
     const quote = await quoteRouterFor(account.address, amountIn, view, direction);
+    await reportProgress?.({
+      stage: 'identity',
+      status: 'complete',
+      title: quote.humanId === 0n ? 'Anonymous flow resolved' : 'Human backing resolved',
+      detail:
+        quote.humanId === 0n
+          ? `AgentBook returned humanId 0 · WIDE lane · ${quote.feeBps} bps`
+          : `AgentBook returned humanId ${quote.humanId.toString().slice(0, 12)}… · TIGHT lane · ${quote.feeBps} bps`,
+    });
 
+    await reportProgress?.({
+      stage: 'allowance',
+      status: 'active',
+      title: 'Check token allowance',
+      detail: `Reading ${route.tokenInSymbol} allowance for the active SwapVM router`,
+    });
     let approvalTransactionHash: Hex | undefined;
     const allowance = await client.readContract({
       address: route.tokenIn,
@@ -548,12 +604,27 @@ export async function executeDemoTrade(
       }
       await waitForRouterAllowance(route.tokenIn, account.address, amountIn);
     }
+    await reportProgress?.({
+      stage: 'allowance',
+      status: 'complete',
+      title: approvalTransactionHash ? 'Token approval mined' : 'Token allowance ready',
+      detail: approvalTransactionHash
+        ? `${route.tokenInSymbol} approval confirmed before execution`
+        : `Existing ${route.tokenInSymbol} allowance covers this trade`,
+      transactionHash: approvalTransactionHash,
+    });
 
     const slippageBps = BigInt(process.env.SLIPPAGE_BPS ?? '50');
     if (slippageBps < 0n || slippageBps >= 10_000n) {
       throw new Error('SLIPPAGE_BPS must be between 0 and 9999');
     }
     const minimumAmountOut = (quote.amountOut * (10_000n - slippageBps)) / 10_000n;
+    await reportProgress?.({
+      stage: 'simulation',
+      status: 'active',
+      title: 'Simulate SwapVM execution',
+      detail: `Checking opcode ${opcode}, slippage floor, and Aqua inventory without changing state`,
+    });
     const simulation = await client.simulateContract({
       address: deployments.router,
       abi: routerAbi,
@@ -567,16 +638,81 @@ export async function executeDemoTrade(
       ],
       account,
     });
+    await reportProgress?.({
+      stage: 'simulation',
+      status: 'complete',
+      title: 'Simulation passed',
+      detail: `Quote is executable through opcode ${opcode} against maker-owned Aqua inventory`,
+    });
+    await reportProgress?.({
+      stage: 'submission',
+      status: 'active',
+      title: 'Submit on-chain trade',
+      detail: 'Signing and broadcasting the simulated SwapVM request',
+    });
     const transactionHash = await walletClient.writeContract({
       ...simulation.request,
       chain: null,
     });
+    await reportProgress?.({
+      stage: 'submission',
+      status: 'complete',
+      title: 'Transaction broadcast',
+      detail: `${transactionHash.slice(0, 12)}… is pending on World Chain`,
+      transactionHash,
+    });
+    await reportProgress?.({
+      stage: 'settlement',
+      status: 'active',
+      title: 'Await Aqua settlement',
+      detail: 'Waiting for the maker inventory transfer and SwapVM receipt',
+      transactionHash,
+    });
     const receipt = await client.waitForTransactionReceipt({ hash: transactionHash });
     if (receipt.status !== 'success') throw new Error(`SwapVM trade reverted: ${transactionHash}`);
+    await reportProgress?.({
+      stage: 'settlement',
+      status: 'complete',
+      title: 'Aqua settlement mined',
+      detail: `World Chain block ${receipt.blockNumber} confirmed the inventory movement`,
+      transactionHash,
+    });
 
     const { gate, swap } = decodeRouterReceipt(receipt, account.address, route);
     const feeBps = Number(gate.args.feeE9 / FEE_E9_PER_BPS);
     const tight = gate.args.tight;
+    await reportProgress?.({
+      stage: 'receipt',
+      status: 'complete',
+      title: 'Receipt independently verified',
+      detail: `HumanGated + Swapped events prove ${tight ? 'TIGHT' : 'WIDE'} execution at ${feeBps} bps`,
+      transactionHash,
+    });
+    await reportProgress?.({
+      stage: 'repricing',
+      status: 'active',
+      title: 'Reprice the next market',
+      detail: 'Reading the post-trade HumanQuota volume controller',
+      transactionHash,
+    });
+    try {
+      const nextSchedule = await readFeeSchedule(view);
+      await reportProgress?.({
+        stage: 'repricing',
+        status: 'complete',
+        title: 'Next fee pair is live',
+        detail: `${nextSchedule.tightFeeBps}/${nextSchedule.wideFeeBps} bps human/bot · ${nextSchedule.targetFeeBps} bps LP target`,
+        transactionHash,
+      });
+    } catch {
+      await reportProgress?.({
+        stage: 'repricing',
+        status: 'complete',
+        title: 'Volume update mined',
+        detail: 'The dashboard will read the new fee pair on its next refresh',
+        transactionHash,
+      });
+    }
     lastTradeAt.set(lane, Date.now());
     return {
       lane,
