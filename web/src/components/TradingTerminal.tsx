@@ -200,6 +200,9 @@ export function TradingTerminal({
   const lane: Lane = walletQuote ? (walletQuote.tight ? 'human' : 'bot') : 'human';
   const selected = walletQuote ?? quotes[lane];
   const outputDelta = BigInt(quotes.human.amountOut) - BigInt(quotes.bot.amountOut);
+  const identityEdgeBps =
+    quotes.improvementBps ??
+    Number((outputDelta * 10_000n) / BigInt(quotes.bot.amountOut));
   const tokenInSymbol = quotes.tokenInSymbol ?? (direction === 'tETH-to-tUSD' ? 'tETH' : 'tUSD');
   const tokenOutSymbol = quotes.tokenOutSymbol ?? (direction === 'tETH-to-tUSD' ? 'tUSD' : 'tETH');
   const deltaLabel = formatUnits(outputDelta, 18, tokenOutSymbol === 'tETH' ? 6 : 2);
@@ -407,6 +410,20 @@ export function TradingTerminal({
             </div>
             <div><dt>Live LP rate</dt><dd>{selected.feeBps} bps</dd></div>
             <div>
+              <dt>Verified retail quote</dt>
+              <dd>
+                {formatUnits(quotes.human.amountOut, 18, tokenOutSymbol === 'tETH' ? 6 : 2)}{' '}
+                {tokenOutSymbol}
+              </dd>
+            </div>
+            <div>
+              <dt>HFT / arbitrage quote</dt>
+              <dd>
+                {formatUnits(quotes.bot.amountOut, 18, tokenOutSymbol === 'tETH' ? 6 : 2)}{' '}
+                {tokenOutSymbol}
+              </dd>
+            </div>
+            <div>
               <dt>Minimum received</dt>
               <dd>
                 {formatUnits(minimumReceived, 18, tokenOutSymbol === 'tETH' ? 6 : 2)}{' '}
@@ -414,9 +431,9 @@ export function TradingTerminal({
               </dd>
             </div>
             <div>
-              <dt>Verified price edge</dt>
-              <dd className={lane === 'human' ? 'positive' : 'negative'}>
-                {lane === 'human' ? `+${deltaLabel}` : `−${deltaLabel}`} {tokenOutSymbol}
+              <dt>Retail receives more</dt>
+              <dd className="positive">
+                +{deltaLabel} {tokenOutSymbol} · +{identityEdgeBps} bps
               </dd>
             </div>
           </dl>
