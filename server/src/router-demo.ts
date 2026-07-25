@@ -476,7 +476,10 @@ export function demoTradesEnabled(): boolean {
   return process.env.DEMO_TRADES_ENABLED === '1';
 }
 
+let cachedRouterOpcode: number | undefined;
+
 export async function routerOpcode(): Promise<number> {
+  if (cachedRouterOpcode !== undefined) return cachedRouterOpcode;
   const opcode = await client.readContract({
     address: deployments.router,
     abi: routerAbi,
@@ -485,7 +488,8 @@ export async function routerOpcode(): Promise<number> {
   if (opcode !== BigInt(REQUIRED_OPCODE)) {
     throw new Error(`unexpected _humanGate opcode: ${opcode}`);
   }
-  return Number(opcode);
+  cachedRouterOpcode = Number(opcode);
+  return cachedRouterOpcode;
 }
 
 export async function executeDemoTrade(
