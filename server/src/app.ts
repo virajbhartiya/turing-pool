@@ -19,7 +19,6 @@ import {
   lookupHuman,
   quotaRemaining,
   recentSwaps,
-  strategyHistory,
 } from './chain.js';
 import {
   amountForOverQuotaQuote,
@@ -577,14 +576,18 @@ app.get('/state', async (c) => {
       activityIndex(),
       routerOpcode(),
     ]);
-  const strategies =
-    index.mode === 'sql+mcp' && index.status === 'connected'
-      ? configuredStrategyHistory(state.strategy, state.strategyHash)
-      : await strategyHistory();
-  const swaps =
-    index.mode === 'sql+mcp' && index.status === 'connected'
-      ? index.swaps
-      : await recentSwaps();
+  const strategies = configuredStrategyHistory(state.strategy, state.strategyHash);
+  let swaps: Awaited<ReturnType<typeof recentSwaps>>;
+  if (index.mode === 'sql+mcp' && index.status === 'connected') {
+    swaps = index.swaps;
+  } else {
+    try {
+      swaps = await recentSwaps();
+    } catch (error) {
+      console.error('[turing-pool] activity scan unavailable', error);
+      swaps = [];
+    }
+  }
   const indexMetadata =
     index.mode === 'sql+mcp' && index.status === 'connected'
       ? {
