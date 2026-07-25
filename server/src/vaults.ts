@@ -15,6 +15,7 @@ import {
   vaultAbi,
   vaultFactoryAbi,
 } from './abi.js';
+import { createAsyncTtlCache } from './async-ttl-cache.js';
 import { client, deployments } from './chain.js';
 import { loadNuthatchVaultAccounting } from './nuthatch.js';
 import {
@@ -90,11 +91,8 @@ export interface PreparedVaultTrade {
 const ZERO_HASH = `0x${'00'.repeat(32)}` as Hex;
 const ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 const tokenMetadataCache = new Map<string, Promise<TokenMetadata>>();
-const liquidityAccountingCache = new Map<
-  string,
-  { loadedAt: number; value: Awaited<ReturnType<typeof loadLiquidityAccounting>> }
->();
 const LIQUIDITY_ACCOUNTING_TTL_MS = 15_000;
+const VAULT_STATIC_TTL_MS = 60 * 60 * 1_000;
 
 export function publicVaultHistoryError(_error: unknown): string {
   return 'Liquidity history is temporarily unavailable.';
@@ -218,15 +216,40 @@ async function metadata(token: Address): Promise<TokenMetadata> {
   return request;
 }
 
+const registeredVaultCache = createAsyncTtlCache({
+  ttlMs: VAULT_STATIC_TTL_MS,
+  load: async (vault: Address) => {
+    const registered = await client.readContract({
+      address: requireFactory(),
+      abi: vaultFactoryAbi,
+      functionName: 'isVault',
+      args: [vault],
+    });
+    if (!registered) throw new Error('vault is not registered by the configured factory');
+  },
+});
+
 async function assertRegisteredVault(vault: Address): Promise<void> {
-  const registered = await client.readContract({
-    address: requireFactory(),
-    abi: vaultFactoryAbi,
-    functionName: 'isVault',
-    args: [vault],
-  });
-  if (!registered) throw new Error('vault is not registered by the configured factory');
+  return registeredVaultCache.get(vault);
 }
+
+const vaultStaticCache = createAsyncTtlCache({
+  ttlMs: VAULT_STATIC_TTL_MS,
+  load: async (vault: Address) => {
+    const [[token0, token1, quota, router, shareName, shareSymbol]] = await Promise.all([
+      Promise.all([
+        client.readContract({ address: vault, abi: vaultAbi, functionName: 'TOKEN0' }),
+        client.readContract({ address: vault, abi: vaultAbi, functionName: 'TOKEN1' }),
+        client.readContract({ address: vault, abi: vaultAbi, functionName: 'QUOTA' }),
+        client.readContract({ address: vault, abi: vaultAbi, functionName: 'ROUTER' }),
+        client.readContract({ address: vault, abi: vaultAbi, functionName: 'name' }),
+        client.readContract({ address: vault, abi: vaultAbi, functionName: 'symbol' }),
+      ]),
+      assertRegisteredVault(vault),
+    ]);
+    return { token0, token1, quota, router, shareName, shareSymbol };
+  },
+});
 
 async function loadLiquidityAccounting(vault: Address, wallet: Address) {
   const endpoint = process.env.NUTHATCH_URL;
@@ -240,15 +263,20 @@ async function loadLiquidityAccounting(vault: Address, wallet: Address) {
   return loadNuthatchVaultAccounting(endpoint, wallet);
 }
 
+type LiquidityAccountingKey = `${Address}:${Address}`;
+
+const liquidityAccountingCache = createAsyncTtlCache({
+  ttlMs: LIQUIDITY_ACCOUNTING_TTL_MS,
+  load: async (key: LiquidityAccountingKey) => {
+    const [vault, wallet] = key.split(':') as [Address, Address];
+    return loadLiquidityAccounting(vault, wallet);
+  },
+});
+
 async function liquidityAccounting(vault: Address, wallet: Address) {
-  const key = `${vault.toLowerCase()}:${wallet.toLowerCase()}`;
-  const cached = liquidityAccountingCache.get(key);
-  if (cached && Date.now() - cached.loadedAt < LIQUIDITY_ACCOUNTING_TTL_MS) {
-    return cached.value;
-  }
-  const value = await loadLiquidityAccounting(vault, wallet);
-  liquidityAccountingCache.set(key, { loadedAt: Date.now(), value });
-  return value;
+  const key =
+    `${vault.toLowerCase()}:${wallet.toLowerCase()}` as LiquidityAccountingKey;
+  return liquidityAccountingCache.get(key);
 }
 
 async function readFeeSchedule(quota: Address, token: Address): Promise<OnChainFeeSchedule> {
@@ -400,59 +428,71 @@ export async function vaultRegistry(walletInput?: unknown) {
 export async function vaultState(vaultInput: unknown, walletInput?: unknown) {
   const vault = parseVaultAddress(vaultInput);
   const wallet = walletInput === undefined ? undefined : parseWalletAddress(walletInput);
-  await assertRegisteredVault(vault);
+  const { token0, token1, quota, router, shareName, shareSymbol } =
+    await vaultStaticCache.get(vault);
   const [
-    token0,
-    token1,
-    quota,
-    router,
-    manager,
-    shareName,
-    shareSymbol,
-    totalSupply,
-    reserves,
-    strategyActive,
-    paused,
-    orderHash,
+    liveState,
+    token0Meta,
+    token1Meta,
+    fee0,
+    fee1,
+    walletState,
   ] = await Promise.all([
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'TOKEN0' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'TOKEN1' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'QUOTA' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'ROUTER' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'owner' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'name' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'symbol' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'totalSupply' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'reserves' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'strategyActive' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'paused' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'currentOrderHash' }),
-  ]);
-  const [token0Meta, token1Meta, fee0, fee1] = await Promise.all([
+    Promise.all([
+      client.readContract({ address: vault, abi: vaultAbi, functionName: 'owner' }),
+      client.readContract({ address: vault, abi: vaultAbi, functionName: 'totalSupply' }),
+      client.readContract({ address: vault, abi: vaultAbi, functionName: 'reserves' }),
+      client.readContract({ address: vault, abi: vaultAbi, functionName: 'strategyActive' }),
+      client.readContract({ address: vault, abi: vaultAbi, functionName: 'paused' }),
+      client.readContract({ address: vault, abi: vaultAbi, functionName: 'currentOrderHash' }),
+    ]),
     metadata(token0),
     metadata(token1),
     readFeeSchedule(quota, token0),
     readFeeSchedule(quota, token1),
+    wallet
+      ? Promise.all([
+          client.readContract({
+            address: vault,
+            abi: vaultAbi,
+            functionName: 'balanceOf',
+            args: [wallet],
+          }),
+          client.readContract({
+            address: token0,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [wallet],
+          }),
+          client.readContract({
+            address: token1,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [wallet],
+          }),
+          client.readContract({
+            address: token0,
+            abi: erc20Abi,
+            functionName: 'allowance',
+            args: [wallet, vault],
+          }),
+          client.readContract({
+            address: token1,
+            abi: erc20Abi,
+            functionName: 'allowance',
+            args: [wallet, vault],
+          }),
+        ])
+      : Promise.resolve([0n, 0n, 0n, 0n, 0n] as const),
   ]);
-  const [shares, token0Balance, token1Balance, token0Allowance, token1Allowance] = wallet
-    ? await Promise.all([
-        client.readContract({ address: vault, abi: vaultAbi, functionName: 'balanceOf', args: [wallet] }),
-        client.readContract({ address: token0, abi: erc20Abi, functionName: 'balanceOf', args: [wallet] }),
-        client.readContract({ address: token1, abi: erc20Abi, functionName: 'balanceOf', args: [wallet] }),
-        client.readContract({
-          address: token0,
-          abi: erc20Abi,
-          functionName: 'allowance',
-          args: [wallet, vault],
-        }),
-        client.readContract({
-          address: token1,
-          abi: erc20Abi,
-          functionName: 'allowance',
-          args: [wallet, vault],
-        }),
-      ])
-    : ([0n, 0n, 0n, 0n, 0n] as const);
+  const [manager, totalSupply, reserves, strategyActive, paused, orderHash] = liveState;
+  const [
+    shares,
+    token0Balance,
+    token1Balance,
+    token0Allowance,
+    token1Allowance,
+  ] = walletState;
   const claim0 = totalSupply === 0n ? 0n : (reserves[0] * shares) / totalSupply;
   const claim1 = totalSupply === 0n ? 0n : (reserves[1] * shares) / totalSupply;
   let accounting:

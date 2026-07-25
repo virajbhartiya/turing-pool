@@ -87,78 +87,77 @@ export function VaultWorkspace({
   const [deposit1, setDeposit1] = useState('1');
   const [redeemPercent, setRedeemPercent] = useState(100);
   const [lpTokenAdded, setLpTokenAdded] = useState(false);
+
   const refreshRegistry = useCallback(async () => {
-    const params = account ? `?address=${encodeURIComponent(account)}` : '';
     const next = await responseJson<VaultRegistry>(
-      await fetch(`${apiBase()}/vaults${params}`),
+      await fetch(`${apiBase()}/vaults`),
     );
     setRegistry(next);
-    setSelectedVault((current) =>
-      current && next.vaults.some((item) => item.toLowerCase() === current.toLowerCase())
-        ? current
-        : next.vaults.at(-1),
-    );
     return next;
-  }, [account]);
+  }, []);
 
   const refreshVault = useCallback(
-    async (target = selectedVault) => {
-      if (!target) {
-        setVault(undefined);
-        return;
-      }
+    async (target: string) => {
       const params = account ? `?address=${encodeURIComponent(account)}` : '';
       const next = await responseJson<VaultState>(
         await fetch(`${apiBase()}/vaults/${target}${params}`),
       );
       setVault(next);
     },
-    [account, selectedVault],
+    [account],
   );
 
-  const refreshAll = useCallback(async () => {
+  useEffect(() => {
+    setLoading(true);
+    void refreshRegistry()
+      .then((next) => {
+        setSelectedVault((current) =>
+          current && next.vaults.some(
+            (item) => item.toLowerCase() === current.toLowerCase(),
+          )
+            ? current
+            : next.vaults.at(-1),
+        );
+        if (next.vaults.length === 0) {
+          setVault(undefined);
+          setLoading(false);
+        }
+      })
+      .catch((error) => {
+        setLoadError(error instanceof Error ? error.message : String(error));
+        setLoading(false);
+      });
+  }, [refreshRegistry]);
+
+  const refreshSelectedVault = useCallback(async () => {
+    if (!selectedVault) {
+      if (registry) {
+        setVault(undefined);
+        setLoading(false);
+      }
+      return;
+    }
     setLoading(true);
     try {
-      const next = await refreshRegistry();
-      const target =
-        selectedVault && next.vaults.includes(selectedVault)
-          ? selectedVault
-          : next.vaults.at(-1);
-      if (target) {
-        const params = account ? `?address=${encodeURIComponent(account)}` : '';
-        setVault(
-          await responseJson<VaultState>(
-            await fetch(`${apiBase()}/vaults/${target}${params}`),
-          ),
-        );
-      } else {
-        setVault(undefined);
-      }
+      await refreshVault(selectedVault);
       setLoadError(undefined);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(false);
     }
-  }, [account, refreshRegistry, selectedVault]);
+  }, [refreshVault, registry, selectedVault]);
 
   useEffect(() => {
-    void refreshAll();
-  }, [refreshAll]);
-
-  useEffect(() => {
-    if (!selectedVault) return;
-    void refreshVault(selectedVault).catch((error) =>
-      setLoadError(error instanceof Error ? error.message : String(error)),
-    );
-  }, [refreshVault, selectedVault]);
+    void refreshSelectedVault();
+  }, [refreshSelectedVault]);
 
   useEffect(() => {
     const refreshAfterFill = (event: Event) => {
       if (event instanceof StorageEvent && event.key !== 'turing-pool:last-vault-fill') {
         return;
       }
-      void refreshAll();
+      void refreshSelectedVault();
     };
     window.addEventListener('storage', refreshAfterFill);
     window.addEventListener('turing-pool:vault-fill', refreshAfterFill);
@@ -166,7 +165,7 @@ export function VaultWorkspace({
       window.removeEventListener('storage', refreshAfterFill);
       window.removeEventListener('turing-pool:vault-fill', refreshAfterFill);
     };
-  }, [refreshAll]);
+  }, [refreshSelectedVault]);
 
   const ownershipPercent = useMemo(
     () => (vault ? Number(vault.position.ownershipPpb) / 10_000_000 : 0),
@@ -301,7 +300,7 @@ export function VaultWorkspace({
           };
           setStatus(confirmedStatus);
           setLastConfirmed(confirmedStatus);
-          await Promise.all([refreshAll(), onProtocolRefresh()]);
+          await Promise.all([refreshSelectedVault(), onProtocolRefresh()]);
           return;
         }
         await waitForRpcVisibility();
