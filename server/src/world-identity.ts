@@ -8,10 +8,14 @@ import {
   type Hex,
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { baseSepolia } from 'viem/chains';
 
 import { client, deployments } from './chain.js';
-import { RPC_URL, WORLD_RPC_URL } from './config.js';
+import {
+  CHAIN_ID,
+  RPC_URL,
+  WORLD_AGENTBOOK_CHAIN_ID,
+  WORLD_RPC_URL,
+} from './config.js';
 
 const WORLD_AGENT_BOOK_ABI = parseAbi([
   'function lookupHuman(address agent) view returns (uint256 humanId)',
@@ -94,8 +98,10 @@ export async function worldIdentityStatus(value: unknown) {
     mirrorSourceBlock: mirrorRecord[1].toString(),
     sourceAgentBook: source,
     mirror,
-    sourceChainId: Number(deployments.identitySourceChainId ?? 480),
-    destinationChainId: baseSepolia.id,
+    sourceChainId: Number(
+      deployments.identitySourceChainId ?? WORLD_AGENTBOOK_CHAIN_ID,
+    ),
+    destinationChainId: CHAIN_ID,
     syncAvailable: Boolean(process.env.MIRROR_RELAYER_PRIVATE_KEY),
   };
 }
@@ -166,10 +172,10 @@ export async function syncWorldIdentity(value: unknown) {
   const { mirror } = identityContracts();
   const wallet = createWalletClient({
     account,
-    chain: baseSepolia,
     transport: http(RPC_URL),
   });
   const transactionHash = await wallet.writeContract({
+    chain: undefined,
     address: mirror,
     abi: MIRROR_ABI,
     functionName: 'mirrorHuman',

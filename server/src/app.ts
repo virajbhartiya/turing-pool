@@ -8,16 +8,23 @@ import {
   validateAgentkitMessage,
   verifyAgentkitSignature,
   buildAgentkitSchema,
+  createAgentBookVerifier,
   InMemoryAgentKitStorage,
 } from '@worldcoin/agentkit';
 
-import { BASE_URL, CHAIN_ID, RPC_URL, SERVER_DOMAIN } from './config.js';
+import {
+  AGENTKIT_SIGNER_NETWORK,
+  AGENTKIT_SIGNER_RPC_URL,
+  BASE_URL,
+  RPC_URL,
+  SERVER_DOMAIN,
+  WORLD_RPC_URL,
+} from './config.js';
 import {
   client,
   configuredStrategyHistory,
   dailyCap,
   deployments,
-  lookupHuman,
   quotaRemaining,
   recentSwaps,
 } from './chain.js';
@@ -68,7 +75,12 @@ app.use('*', cors());
 const SNAPSHOT_MODE = process.env.HOSTED_DEMO_MODE === 'snapshot';
 
 const storage = new InMemoryAgentKitStorage();
-const CHAIN = `eip155:${CHAIN_ID}`;
+const canonicalAgentBook = createAgentBookVerifier({
+  rpcUrl: WORLD_RPC_URL,
+  ...(deployments.identitySourceAgentBook
+    ? { contractAddress: deployments.identitySourceAgentBook }
+    : {}),
+});
 const STATEMENT =
   'Prove this trading wallet belongs to a unique World ID-verified trader so a shared quota can bound LP risk and unlock tighter pricing.';
 
@@ -323,7 +335,7 @@ function agentkitChallenge(resourceUri: string) {
           expirationTime: new Date(Date.now() + 5 * 60_000).toISOString(),
           resources: [resourceUri],
         },
-        supportedChains: [{ chainId: CHAIN, type: 'eip191' as const }],
+        supportedChains: [{ chainId: AGENTKIT_SIGNER_NETWORK, type: 'eip191' as const }],
         schema: buildAgentkitSchema(),
         mode: 'free',
       },
@@ -345,6 +357,11 @@ async function verifyAgent(header: string, resourceUri: string): Promise<Verifie
   } catch (err) {
     return { error: `unparseable agentkit header: ${(err as Error).message}` };
   }
+  if (payload.chainId !== AGENTKIT_SIGNER_NETWORK) {
+    return {
+      error: `unsupported signer network: expected ${AGENTKIT_SIGNER_NETWORK}, got ${payload.chainId}`,
+    };
+  }
 
   const validation = await validateAgentkitMessage(payload, resourceUri, {
     maxAge: 5 * 60_000,
@@ -352,14 +369,17 @@ async function verifyAgent(header: string, resourceUri: string): Promise<Verifie
   });
   if (!validation.valid) return { error: `validation failed: ${validation.error}` };
 
-  const verification = await verifyAgentkitSignature(payload, process.env.RPC_URL ?? 'http://127.0.0.1:8545');
+  const verification = await verifyAgentkitSignature(payload, AGENTKIT_SIGNER_RPC_URL);
   if (!verification.valid || !verification.address) {
     return { error: `signature verification failed: ${verification.error}` };
   }
-  await storage.recordNonce(payload.nonce);
 
-  const humanId = await lookupHuman(verification.address as `0x${string}`);
-  return { address: verification.address as `0x${string}`, humanId };
+  const canonicalHumanId = await canonicalAgentBook.lookupHuman(verification.address);
+  await storage.recordNonce(payload.nonce);
+  return {
+    address: verification.address as `0x${string}`,
+    humanId: canonicalHumanId === null ? 0n : BigInt(canonicalHumanId),
+  };
 }
 
 app.get('/quote', async (c) => {

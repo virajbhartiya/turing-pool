@@ -20,6 +20,13 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const RPC_URL = process.env.RPC_URL ?? 'http://127.0.0.1:8545';
 export const API_URL = process.env.API_URL ?? 'http://localhost:4021';
 export const CHAIN_ID = Number(process.env.CHAIN_ID ?? 31337);
+export const AGENTKIT_SIGNER_CHAIN_ID = Number(
+  process.env.AGENTKIT_SIGNER_CHAIN_ID ?? CHAIN_ID,
+);
+
+if (!Number.isSafeInteger(AGENTKIT_SIGNER_CHAIN_ID) || AGENTKIT_SIGNER_CHAIN_ID <= 0) {
+  throw new Error('AGENTKIT_SIGNER_CHAIN_ID must be a positive EVM chain ID');
+}
 
 type AgentRole = 'maker' | 'bot' | 'humanAgent' | 'sybilAgent';
 type AgentKeyEnvironment = Partial<
@@ -85,7 +92,7 @@ export function makeAgentkitFetch(privateKey: Hex): AgentkitClient {
   return createAgentkitClient({
     signer: {
       address: account.address,
-      chainId: `eip155:${CHAIN_ID}`,
+      chainId: `eip155:${AGENTKIT_SIGNER_CHAIN_ID}`,
       type: 'eip191',
       signMessage: (message: string) => account.signMessage({ message }),
     },

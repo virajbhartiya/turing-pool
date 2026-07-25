@@ -19,6 +19,11 @@ Built at **ETHGlobal Lisbon 2026** for the World AgentKit, 1inch Aqua, and The G
 Identity originates on **World Chain mainnet (chain 480)**. Trading, liquidity,
 fees, quotas, vaults, and indexing run on **Base Sepolia (chain 84532)**:
 
+AgentKit signs the quote challenge on the configured execution network
+(`AGENTKIT_SIGNER_CHAIN_ID`; `8453` for Base mainnet). The resource server then
+uses the official AgentBook verifier against World Chain. This keeps the
+signature/payment network independent from the canonical identity network.
+
 | Piece | Address |
 |---|---|
 | Canonical World AgentBook · World Chain | `0xA23aB2712eA7BBa896930544C7d6636a96b944dA` |
@@ -50,12 +55,10 @@ unless those invariants hold. Example public receipts:
 
 ```
 World ID-verified wallet                  Searcher / HFT wallet
-   │ 402 → SIWE sign → retry                     │ (wide lane)
+   │ 402 → Base SIWE sign → retry                 │ (wide lane)
    ▼                                             ▼
-Quote API (Hono + viem) ──────────── eth_call quotes per taker
+Quote API ──official AgentBook verifier──► World Chain identity
    │
-   ▼ swaps hit the chain directly
-World Chain: canonical AgentBook
    │ finalized lookup + source block/hash
    ▼
 Base: WorldAgentBookMirror ──lookupHuman──► opcode 34
@@ -145,7 +148,7 @@ release checks.
 
 ## Track integration map
 
-**World — AgentKit New Use Cases.** Human backing changes risk limits and execution terms in an adversarial market. AgentKit performs the 402→SIWE→verify loop; the canonical World `lookupHuman` result is relayed with source-block provenance into the Base mirror consumed by SwapVM.
+**World — AgentKit New Use Cases.** World ID verification changes risk limits and execution terms in an adversarial market. AgentKit signs the 402→SIWE→verify loop on the Base execution network; the official verifier resolves canonical World `lookupHuman`, whose finalized result is relayed with source-block provenance into the Base mirror consumed by SwapVM.
 
 **1inch — Build an Aqua App.** A custom dual-tier Aqua app plus a modified SwapVM router with `_humanGate` at opcode 34. The live receipts execute the custom router and verify its `HumanGated` event. Aqua owns the strategy namespace and virtual balances; SwapVM executes the fill while the maker retains asset ownership.
 

@@ -57,6 +57,21 @@ export const WORLD_RPC_URL =
   process.env.WORLD_RPC_URL ?? 'https://worldchain-mainnet.g.alchemy.com/public';
 export const PORT = Number(process.env.PORT ?? 4021);
 export const CHAIN_ID = Number(process.env.CHAIN_ID ?? 31337);
+export const AGENTKIT_SIGNER_CHAIN_ID = Number(
+  process.env.AGENTKIT_SIGNER_CHAIN_ID ?? CHAIN_ID,
+);
+export const AGENTKIT_SIGNER_NETWORK = `eip155:${AGENTKIT_SIGNER_CHAIN_ID}` as const;
+export const AGENTKIT_SIGNER_RPC_URL = process.env.AGENTKIT_SIGNER_RPC_URL || RPC_URL;
+export const WORLD_AGENTBOOK_CHAIN_ID = 480;
+
+if (!Number.isSafeInteger(AGENTKIT_SIGNER_CHAIN_ID) || AGENTKIT_SIGNER_CHAIN_ID <= 0) {
+  throw new Error('AGENTKIT_SIGNER_CHAIN_ID must be a positive EVM chain ID');
+}
+if (AGENTKIT_SIGNER_CHAIN_ID !== CHAIN_ID) {
+  throw new Error(
+    'AGENTKIT_SIGNER_CHAIN_ID must match CHAIN_ID so the proof is bound to the execution network',
+  );
+}
 // NOTE: @worldcoin/agentkit's validateAgentkitMessage derives the expected SIWE
 // domain from `new URL(resourceUri).hostname` - hostname WITHOUT port - so the
 // challenge domain must be the bare hostname. (Documented in FEEDBACK.md.)
