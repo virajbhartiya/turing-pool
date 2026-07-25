@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { EvidenceLedger } from './components/EvidenceLedger';
+import { DexHeader, type DexView } from './components/DexHeader';
 import { FeeControllerPanel } from './components/FeeControllerPanel';
+import { IdentityWorkspace } from './components/IdentityWorkspace';
 import { IntegrationFlow } from './components/IntegrationFlow';
 import { LPEconomicsPanel } from './components/LPEconomicsPanel';
 import { MarketHeader } from './components/MarketHeader';
@@ -127,6 +129,29 @@ export function App() {
   const [tradeError, setTradeError] = useState<DemoTradeError>();
   const [tradeProgress, setTradeProgress] = useState<DemoTradeProgress[]>([]);
   const [lastTrade, setLastTrade] = useState<DemoTradeResult>();
+  const initialView = window.location.hash.replace('#', '') as DexView;
+  const [activeView, setActiveView] = useState<DexView>(
+    ['trade', 'pool', 'verify', 'protocol'].includes(initialView)
+      ? initialView
+      : 'trade',
+  );
+  const [theme, setTheme] = useState<'dark' | 'light'>(() =>
+    window.localStorage.getItem('turing-pool-theme') === 'light' ? 'light' : 'dark',
+  );
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem('turing-pool-theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    const selectHashView = () => {
+      const view = window.location.hash.replace('#', '') as DexView;
+      if (['trade', 'pool', 'verify', 'protocol'].includes(view)) setActiveView(view);
+    };
+    window.addEventListener('hashchange', selectHashView);
+    return () => window.removeEventListener('hashchange', selectHashView);
+  }, []);
 
   useEffect(() => {
     if (!copied) return;
@@ -191,6 +216,12 @@ export function App() {
     const url = new URL(window.location.href);
     url.searchParams.set('side', nextDirection === 'tUSD-to-tETH' ? 'buy' : 'sell');
     window.history.replaceState({}, '', url);
+  }
+
+  function selectView(view: DexView) {
+    setActiveView(view);
+    window.history.replaceState({}, '', `${window.location.pathname}${window.location.search}#${view}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function executeTrade(
@@ -448,58 +479,93 @@ export function App() {
   return (
     <main className="app-shell">
       {error && <div className="error-banner">Last refresh failed · {error}</div>}
-      <MarketHeader state={state} quotes={quotes} refreshing={refreshing} />
-      <TradingTerminal
-        state={state}
-        quotes={quotes}
-        onReplay={copyReplayCommand}
-        onTrade={executeTrade}
-        walletInstalled={wallet.installed}
-        walletConnecting={wallet.connecting}
-        connectedAccount={wallet.account}
-        connectedAccounts={wallet.accounts}
-        connectedChainId={wallet.chainId}
-        walletQuote={walletQuote}
-        walletQuoteLoading={walletQuoteLoading}
-        walletQuoteError={walletQuoteError ?? wallet.error}
-        onConnectWallet={wallet.connect}
-        onSelectWalletAccount={wallet.selectAccount}
-        onIdentityReady={async () => {
-          await Promise.all([refresh(), refreshWalletQuote()]);
-        }}
-        tradeError={tradeError}
-        tradeLane={tradeLane}
-        tradeProgress={tradeProgress}
-        lastTrade={lastTrade}
-        amountIn={amountIn}
-        onAmountChange={setAmountIn}
-        direction={direction}
-        onDirectionChange={selectDirection}
-      >
-        <LPEconomicsPanel
-          state={state}
-          token0PriceInToken1={token0PriceInToken1}
-          activeFeeSchedule={quotes.feeSchedule}
-          activeTokenInSymbol={quotes.tokenInSymbol}
-        />
-      </TradingTerminal>
-      <VaultWorkspace
+      <DexHeader
         account={wallet.account}
-        provider={wallet.provider}
-        onConnectWallet={wallet.connect}
-        onProtocolRefresh={refresh}
+        accounts={wallet.accounts}
+        activeView={activeView}
+        connecting={wallet.connecting}
+        onConnect={wallet.connect}
+        onSelectAccount={wallet.selectAccount}
+        onToggleTheme={() => setTheme((current) => current === 'dark' ? 'light' : 'dark')}
+        onViewChange={selectView}
+        quote={walletQuote}
+        refreshing={refreshing}
+        state={state}
+        theme={theme}
       />
-      <IntegrationFlow state={state} lastTrade={lastTrade} />
-      <FeeControllerPanel controller={state.feeController} copied={copied} onReplay={copyReplayCommand} />
-      <EvidenceLedger state={state} />
-      <ProtocolDetails state={state} />
+
+      {activeView === 'trade' && (
+        <>
+          <MarketHeader
+            state={state}
+            quotes={quotes}
+          />
+          <TradingTerminal
+            state={state}
+            quotes={quotes}
+            onReplay={copyReplayCommand}
+            onTrade={executeTrade}
+            walletInstalled={wallet.installed}
+            walletConnecting={wallet.connecting}
+            connectedAccount={wallet.account}
+            connectedChainId={wallet.chainId}
+            walletQuote={walletQuote}
+            walletQuoteLoading={walletQuoteLoading}
+            walletQuoteError={walletQuoteError ?? wallet.error}
+            onConnectWallet={wallet.connect}
+            tradeError={tradeError}
+            tradeLane={tradeLane}
+            tradeProgress={tradeProgress}
+            lastTrade={lastTrade}
+            amountIn={amountIn}
+            onAmountChange={setAmountIn}
+            direction={direction}
+            onDirectionChange={selectDirection}
+            onOpenVerify={() => selectView('verify')}
+          />
+        </>
+      )}
+
+      {activeView === 'pool' && (
+        <section className="view-workspace">
+          <VaultWorkspace
+            account={wallet.account}
+            provider={wallet.provider}
+            onConnectWallet={wallet.connect}
+            onProtocolRefresh={refresh}
+          />
+          <LPEconomicsPanel
+            state={state}
+            token0PriceInToken1={token0PriceInToken1}
+          />
+        </section>
+      )}
+
+      {activeView === 'verify' && (
+        <IdentityWorkspace
+          account={wallet.account}
+          onConnectWallet={wallet.connect}
+          onIdentityReady={async () => {
+            await Promise.all([refresh(), refreshWalletQuote()]);
+          }}
+          quote={walletQuote}
+          walletConnecting={wallet.connecting}
+          walletInstalled={wallet.installed}
+        />
+      )}
+
+      {activeView === 'protocol' && (
+        <section className="view-workspace protocol-workspace">
+          <IntegrationFlow state={state} lastTrade={lastTrade} />
+          <FeeControllerPanel controller={state.feeController} copied={copied} onReplay={copyReplayCommand} />
+          <EvidenceLedger state={state} />
+          <ProtocolDetails state={state} />
+        </section>
+      )}
+
       <footer>
         <span>Turing Pool · ETHGlobal Lisbon</span>
-        <p>
-          {isSnapshot
-            ? 'Hosted deterministic preview · no live RPC or executable liquidity'
-            : `${state.runtime.label} · Aqua + SwapVM settlement · maker-owned demo assets`}
-        </p>
+        <p>{isSnapshot ? 'Hosted deterministic preview' : 'Testnet prototype · public on-chain receipts'}</p>
       </footer>
     </main>
   );

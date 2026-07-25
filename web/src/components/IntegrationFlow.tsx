@@ -66,7 +66,7 @@ export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
               ? `block ${lastTrade.blockNumber} · ${lastTrade.feeBps} bps`
               : `router ${shortAddress(state.contracts.router)} · opcode ${state.execution?.opcode ?? 34}`}
           </p>
-          <small>Base Sepolia contracts · Aqua inventory</small>
+          <small>Deployed contracts · live Aqua inventory</small>
         </div>
         <div className="flow-arrow" aria-hidden="true">→</div>
         <div className={`integration-step nuthatch ${nuthatchConnected ? 'connected' : 'waiting'}`}>

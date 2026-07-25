@@ -1,9 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 
-import { formatUnits, shortAddress } from '../lib/format';
+import { formatUnits } from '../lib/format';
 import type {
   ConnectedWalletQuote,
-  DemoQuote,
   DemoQuotes,
   DemoTradeDirection,
   DemoTradeError,
@@ -13,43 +12,9 @@ import type {
   ProtocolState,
 } from '../types';
 import { BrandLogo } from './BrandLogo';
-import { FeeChart } from './FeeChart';
-import { WorldIdentityControl } from './WorldIdentityControl';
+import { FeeChart, type MarketChartMode } from './FeeChart';
 
 type Lane = 'human' | 'bot';
-
-function QuoteCard({
-  lane,
-  quote,
-  improvement,
-  tokenInSymbol,
-  tokenOutSymbol,
-}: {
-  lane: Lane;
-  quote: DemoQuote;
-  improvement?: string;
-  tokenInSymbol: string;
-  tokenOutSymbol: string;
-}) {
-  const human = lane === 'human';
-  const precision = tokenOutSymbol === 'tETH' ? 6 : 2;
-
-  return (
-    <article className={`quote-card ${human ? 'human' : 'bot'}`}>
-      <div className="quote-card-head">
-        <span><i />{human ? 'Human-backed agent' : 'Anonymous bot'}</span>
-        <b>{quote.tier.toUpperCase()} LANE</b>
-      </div>
-      <strong>{formatUnits(quote.amountOut, 18, precision)}<small>{tokenOutSymbol}</small></strong>
-      <p>{human ? 'World identity mirrored · shared risk budget' : 'No mirrored human ID · repeat-wallet risk'}</p>
-      <div className="quote-card-foot">
-        <span>{formatUnits(quote.amountIn)} {tokenInSymbol} in</span>
-        <b>{quote.feeBps} bps</b>
-      </div>
-      {improvement && <em>{improvement}</em>}
-    </article>
-  );
-}
 
 interface TradingTerminalProps {
   state: ProtocolState;
@@ -59,14 +24,11 @@ interface TradingTerminalProps {
   walletInstalled: boolean;
   walletConnecting: boolean;
   connectedAccount?: string;
-  connectedAccounts: string[];
   connectedChainId?: number;
   walletQuote?: ConnectedWalletQuote;
   walletQuoteLoading: boolean;
   walletQuoteError?: string;
   onConnectWallet: (requestAccountSelection?: boolean) => Promise<void>;
-  onSelectWalletAccount: (account: string) => void;
-  onIdentityReady: () => Promise<void>;
   tradeLane?: DemoTradeLane;
   tradeError?: DemoTradeError;
   tradeProgress: DemoTradeProgress[];
@@ -75,7 +37,7 @@ interface TradingTerminalProps {
   onAmountChange: (amountIn: string) => void;
   direction: DemoTradeDirection;
   onDirectionChange: (direction: DemoTradeDirection) => void;
-  children?: ReactNode;
+  onOpenVerify: () => void;
 }
 
 const TRADE_SIZES = {
@@ -218,14 +180,11 @@ export function TradingTerminal({
   walletInstalled,
   walletConnecting,
   connectedAccount,
-  connectedAccounts,
   connectedChainId,
   walletQuote,
   walletQuoteLoading,
   walletQuoteError,
   onConnectWallet,
-  onSelectWalletAccount,
-  onIdentityReady,
   tradeLane,
   tradeError,
   tradeProgress,
@@ -234,16 +193,16 @@ export function TradingTerminal({
   onAmountChange,
   direction,
   onDirectionChange,
-  children,
+  onOpenVerify,
 }: TradingTerminalProps) {
   const [slippageBps, setSlippageBps] = useState(50);
+  const [chartMode, setChartMode] = useState<MarketChartMode>('price');
   const lane: Lane = walletQuote ? (walletQuote.tight ? 'human' : 'bot') : 'human';
   const selected = walletQuote ?? quotes[lane];
   const outputDelta = BigInt(quotes.human.amountOut) - BigInt(quotes.bot.amountOut);
   const tokenInSymbol = quotes.tokenInSymbol ?? (direction === 'tETH-to-tUSD' ? 'tETH' : 'tUSD');
   const tokenOutSymbol = quotes.tokenOutSymbol ?? (direction === 'tETH-to-tUSD' ? 'tUSD' : 'tETH');
   const deltaLabel = formatUnits(outputDelta, 18, tokenOutSymbol === 'tETH' ? 6 : 2);
-  const sybilOverage = BigInt(quotes.sybil.amountIn) - BigInt(quotes.sybil.sharedQuotaRemaining);
   const executionEnabled = state.execution?.enabled === true;
   const submitting = tradeLane !== undefined;
   const selectedTradePending = tradeLane === lane;
@@ -251,8 +210,6 @@ export function TradingTerminal({
     walletQuote?.amountIn === amountIn &&
     walletQuote.chainId === state.runtime.chainId &&
     connectedChainId === state.runtime.chainId;
-  const companionUrl = new URL(window.location.href);
-  companionUrl.searchParams.delete('account');
   const minimumReceived =
     (BigInt(selected.amountOut) * BigInt(10_000 - slippageBps)) / 10_000n;
   const displayAmount = formatUnits(selected.amountIn, 18, 6);
@@ -276,93 +233,58 @@ export function TradingTerminal({
 
   return (
     <section className="trading-workspace" id="activity">
-      <div className="demo-guide" aria-label="Interactive demo flow">
-        <div>
-          <span>01</span>
-          <strong>Connect MetaMask</strong>
-          <small>The World AgentBook mirror assigns the lane automatically</small>
-        </div>
-        <i aria-hidden="true">→</i>
-        <div>
-          <span>02</span>
-          <strong>Execute a real fill</strong>
-          <small>SwapVM opcode 34 settles through Aqua</small>
-        </div>
-        <i aria-hidden="true">→</i>
-        <div>
-          <span>03</span>
-          <strong>Watch the market reprice</strong>
-          <small>Volume moves both rates around the LP target</small>
-        </div>
-      </div>
-
       <div className="trading-grid">
         <div className="trading-main">
           <div className="terminal-panel execution-panel">
             <div className="panel-head">
               <div>
-                <strong>Live fee market</strong>
-                <span>Every dot is a mined fill · dashed lines are the next executable rates</span>
+                <strong>{chartMode === 'price' ? 'tETH / tUSD price' : 'Adaptive fee market'}</strong>
+                <span>
+                  {chartMode === 'price'
+                    ? 'Realized execution price from mined fills'
+                    : 'Realized fees and the next executable lane rates'}
+                </span>
               </div>
               <div className="chart-controls" aria-label="Chart interval">
-                <span>1H</span>
-                <span className="active">ALL</span>
+                <button
+                  className={chartMode === 'price' ? 'active' : undefined}
+                  onClick={() => setChartMode('price')}
+                  type="button"
+                >
+                  Price
+                </button>
+                <button
+                  className={chartMode === 'fee' ? 'active' : undefined}
+                  onClick={() => setChartMode('fee')}
+                  type="button"
+                >
+                  Fee
+                </button>
               </div>
             </div>
-            <FeeChart controller={state.feeController} swaps={state.swaps} />
-            <div className="quote-comparison">
-              <QuoteCard
-                lane="bot"
-                quote={quotes.bot}
-                tokenInSymbol={tokenInSymbol}
-                tokenOutSymbol={tokenOutSymbol}
-              />
-              <QuoteCard
-                lane="human"
-                quote={quotes.human}
-                improvement={`+${deltaLabel} ${tokenOutSymbol} on identical size`}
-                tokenInSymbol={tokenInSymbol}
-                tokenOutSymbol={tokenOutSymbol}
-              />
-            </div>
-            <div className="comparison-tape">
-              <strong>Verified execution edge <b>+{deltaLabel} {tokenOutSymbol}</b></strong>
-              <span>{quotes.human.feeBps} bps human / {quotes.bot.feeBps} bps bot · both move with mined volume</span>
-            </div>
+            <FeeChart
+              controller={state.feeController}
+              mode={chartMode}
+              pool={state.pool}
+              swaps={state.swaps}
+            />
           </div>
-          {children}
         </div>
 
         <aside className="terminal-panel quote-ticket" aria-label="Quote ticket">
         <div className="panel-head">
-          <div><strong>Trade</strong><span>Exact input · live Base Sepolia execution</span></div>
+          <div><strong>Trade</strong><span>Exact input · live market order</span></div>
           <span className="live-tag">LIVE</span>
         </div>
         <div className="ticket-body">
-          <div className={`wallet-panel ${connectedAccount ? lane : 'disconnected'}`}>
-            <div className="wallet-panel-head">
-              <div>
-                <span>MetaMask execution account</span>
-                <strong>
-                  {!connectedAccount
-                    ? 'Connect a wallet to trade'
-                    : walletQuoteLoading
-                      ? 'Resolving World identity…'
-                      : walletQuote?.humanBacked
-                        ? walletQuote.tight
-                          ? 'World-verified human · tight lane'
-                          : 'World-verified human · quota-wide lane'
-                        : 'Anonymous wallet · bot lane'}
-                </strong>
+          {!connectedAccount ? (
+            <div className="wallet-panel disconnected">
+              <div className="wallet-panel-head">
+                <div>
+                  <span>Trading account</span>
+                  <strong>Connect a wallet to trade</strong>
+                </div>
               </div>
-              {connectedAccount && (
-                <b className={`wallet-tier ${lane}`}>
-                  {walletQuote?.tier.toUpperCase() ?? 'CHECKING'}
-                </b>
-              )}
-            </div>
-
-            {!connectedAccount ? (
               <button
                 className="wallet-connect-button"
                 disabled={!walletInstalled || walletConnecting}
@@ -375,45 +297,19 @@ export function TradingTerminal({
                     ? 'Connect MetaMask'
                     : 'Install MetaMask to continue'}
               </button>
-            ) : (
-              <>
-                <div className="wallet-account-row">
-                  <code>{shortAddress(connectedAccount)}</code>
-                  {connectedAccounts.length > 1 && (
-                    <select
-                      aria-label="Connected MetaMask account"
-                      onChange={(event) => onSelectWalletAccount(event.target.value)}
-                      value={connectedAccount}
-                    >
-                      {connectedAccounts.map((account) => (
-                        <option key={account} value={account}>
-                          {shortAddress(account)}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  <button onClick={() => void onConnectWallet(true)} type="button">
-                    Change accounts
-                  </button>
-                </div>
-                <small>
-                  {walletQuote
-                    ? walletQuote.humanBacked
-                      ? `Mirrored humanId ${walletQuote.humanId.slice(0, 10)}… · ${formatUnits(walletQuote.balance)} ${walletQuote.tokenInSymbol} available`
-                      : `World mirror returned humanId 0 · ${formatUnits(walletQuote.balance)} ${walletQuote.tokenInSymbol} available`
-                    : walletQuoteError ?? 'Reading wallet balance, allowance, and identity…'}
-                </small>
-                <WorldIdentityControl
-                  account={connectedAccount}
-                  quotedAsHuman={walletQuote?.humanBacked === true}
-                  onIdentityReady={onIdentityReady}
-                />
-                <a href={companionUrl.toString()} rel="noreferrer" target="_blank">
-                  Open second wallet tab ↗
-                </a>
-              </>
-            )}
-          </div>
+            </div>
+          ) : walletQuoteError ? (
+            <div className="ticket-inline-error">{walletQuoteError}</div>
+          ) : !walletQuoteLoading && !walletQuote?.humanBacked ? (
+            <button
+              className="compact-verify-link"
+              onClick={onOpenVerify}
+              type="button"
+            >
+              <span>Anonymous rate active</span>
+              Verify with World ID for the human rate →
+            </button>
+          ) : null}
           <div className="direction-tabs" aria-label="Trade direction">
             <button
               aria-pressed={direction === 'tUSD-to-tETH'}
@@ -510,7 +406,6 @@ export function TradingTerminal({
               </dd>
             </div>
             <div><dt>Live LP rate</dt><dd>{selected.feeBps} bps</dd></div>
-            <div><dt>Price impact</dt><dd>{(selected.feeBps / 100).toFixed(2)}%</dd></div>
             <div>
               <dt>Minimum received</dt>
               <dd>
@@ -518,8 +413,6 @@ export function TradingTerminal({
                 {tokenOutSymbol}
               </dd>
             </div>
-            <div><dt>Route</dt><dd>{tokenInSymbol} → SwapVM #34 → Aqua → {tokenOutSymbol}</dd></div>
-            <div><dt>Network</dt><dd>Base Sepolia · gas shown in MetaMask</dd></div>
             <div>
               <dt>Verified price edge</dt>
               <dd className={lane === 'human' ? 'positive' : 'negative'}>
@@ -527,6 +420,11 @@ export function TradingTerminal({
               </dd>
             </div>
           </dl>
+          <details className="ticket-route">
+            <summary>Execution details <span>{(selected.feeBps / 100).toFixed(2)}% price impact</span></summary>
+            <p>{tokenInSymbol} → SwapVM opcode 34 → Aqua inventory → {tokenOutSymbol}</p>
+            <small>Gas is estimated and confirmed in MetaMask before broadcast.</small>
+          </details>
           <button
             className={`trade-action ${lane}`}
             disabled={
@@ -556,13 +454,9 @@ export function TradingTerminal({
                 ? `${walletQuote?.requiresApproval ? 'Approve & ' : ''}${direction === 'tUSD-to-tETH' ? 'buy' : 'sell'} with MetaMask`
                 : 'Interactive execution unavailable'}
           </button>
-          <p className="ticket-note">
-            {!connectedAccount
-              ? 'Connect both MetaMask accounts, then select a different account in each browser tab.'
-              : executionEnabled
-                ? `MetaMask signs the Base SwapVM transaction. The World mirror selects the lane; mined volume reprices opcode ${state.execution?.opcode}.`
-                : 'Live signing is disabled on this runtime.'}
-          </p>
+          {!executionEnabled && (
+            <p className="ticket-note">Live signing is disabled on this runtime.</p>
+          )}
           <ExecutionTrace
             lane={tradeLane ?? lane}
             pending={submitting}
@@ -594,14 +488,6 @@ export function TradingTerminal({
             </a>
           )}
         </div>
-          <details className="sybil-alert">
-            <summary>
-              <span>Linked-wallet bypass test</span>
-              <strong>{quotes.sybil.tier.toUpperCase()} ↗</strong>
-            </summary>
-            <p>{formatUnits(quotes.sybil.sharedQuotaRemaining)} {tokenInSymbol} shared remaining</p>
-            <small>Wallet #2 asks for remaining + {sybilOverage.toString()} wei. A new wallet cannot reset the human risk budget.</small>
-          </details>
         </aside>
       </div>
     </section>

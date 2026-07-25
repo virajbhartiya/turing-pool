@@ -369,7 +369,7 @@ export function VaultWorkspace({
           <b className={registry?.enabled ? 'online' : undefined}>
             {registry?.enabled ? 'FACTORY LIVE' : 'FACTORY NOT CONFIGURED'}
           </b>
-          <small>{registry?.factory ? shortAddress(registry.factory) : 'HumanGate v2 required'}</small>
+          <small>{registry?.enabled ? `${registry.vaults.length} pool${registry.vaults.length === 1 ? '' : 's'} available` : 'HumanGate v2 required'}</small>
         </div>
       </header>
 
@@ -445,7 +445,7 @@ export function VaultWorkspace({
           ) : (
             <>
               <div className="vault-market-strip">
-                <div><span>Market</span><strong>{vault.token0.symbol} / {vault.token1.symbol}</strong><small>{shortAddress(vault.vault)}</small></div>
+                <div><span>Market</span><strong>{vault.token0.symbol} / {vault.token1.symbol}</strong><small>Aqua order {vault.strategyActive ? 'active' : 'inactive'}</small></div>
                 <div><span>Live fees</span><strong>{vault.feeSchedules.token0.tightFeeBps} / {vault.feeSchedules.token0.wideFeeBps} bps</strong><small>human / bot · {vault.feeSchedules.token0.targetFeeBps} bps target</small></div>
                 <div><span>Pool inventory</span><strong>{formatUnits(vault.reserves.token0, vault.token0.decimals, 4)} {vault.token0.symbol}</strong><small>{formatUnits(vault.reserves.token1, vault.token1.decimals, 4)} {vault.token1.symbol}</small></div>
                 <div><span>Your ownership</span><strong>{(ownershipBps / 100).toFixed(2)}%</strong><small>{formatUnits(vault.position.shares, 18, 4)} {vault.shareToken.symbol}</small></div>
@@ -519,7 +519,7 @@ export function VaultWorkspace({
 
                 <article className="vault-card vault-position">
                   <span>LP position</span>
-                  <h3>{account ? shortAddress(account) : 'Wallet not connected'}</h3>
+                  <h3>{account ? 'Connected position' : 'Wallet not connected'}</h3>
                   <dl>
                     <div><dt>LP shares</dt><dd>{formatUnits(vault.position.shares, 18, 6)} {vault.shareToken.symbol}</dd></div>
                     <div><dt>Pool ownership</dt><dd>{(ownershipBps / 100).toFixed(2)}%</dd></div>
@@ -552,12 +552,14 @@ function VaultStatus({
       <span>Execution path</span>
       <h3>{status.title}</h3>
       <p>{status.detail}</p>
-      <ol>
-        <li className={status.state === 'idle' ? undefined : 'complete'}><i>1</i><span>Factory + vault state</span><b>Turing Pool</b></li>
-        <li className={['wallet', 'mining', 'confirmed'].includes(status.state) ? 'complete' : undefined}><i>2</i><span>Wallet approval</span><b>MetaMask</b></li>
-        <li className={status.state === 'confirmed' ? 'complete' : undefined}><i>3</i><span>Aqua order migration / settlement</span><b>1inch</b></li>
-        <li className={status.state === 'confirmed' ? 'complete' : undefined}><i>4</i><span>Position + fee state refreshed</span><b>Base Sepolia</b></li>
-      </ol>
+      {status.state !== 'idle' && (
+        <ol>
+          <li className="complete"><i>1</i><span>Factory + vault state</span><b>Turing Pool</b></li>
+          <li className={['wallet', 'mining', 'confirmed'].includes(status.state) ? 'complete' : undefined}><i>2</i><span>Wallet approval</span><b>MetaMask</b></li>
+          <li className={status.state === 'confirmed' ? 'complete' : undefined}><i>3</i><span>Aqua order migration / settlement</span><b>1inch</b></li>
+          <li className={status.state === 'confirmed' ? 'complete' : undefined}><i>4</i><span>Position + fee state refreshed</span><b>Indexer</b></li>
+        </ol>
+      )}
       {explorerUrl && <a href={explorerUrl} rel="noreferrer" target="_blank">Open transaction receipt ↗</a>}
     </article>
   );
