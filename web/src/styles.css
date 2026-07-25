@@ -1263,14 +1263,7 @@ td a:hover { color: var(--accent); }
   padding: 11px;
   background: #0b0d10;
 }
-.vault-pnl.positive { border-left-color: var(--human); }
-.vault-pnl.negative { border-left-color: var(--bot); }
-.vault-pnl > span { display: block; color: var(--muted); font: 750 11px var(--mono); text-transform: uppercase; }
-.vault-pnl > strong { display: block; margin-top: 6px; font: 650 22px var(--mono); }
-.vault-pnl.positive > strong { color: var(--human); }
-.vault-pnl.negative > strong { color: var(--bot); }
-.vault-pnl > small { display: block; margin-top: 5px; color: var(--muted); font: 10px/1.45 var(--mono); }
-.vault-pnl-legs { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+.vault-pnl-legs { margin: 0; }
 .vault-pnl-legs > h4 { margin: 0; color: var(--text-2); font: 750 10px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
 .vault-pnl-legs > dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin: 7px 0 0; }
 .vault-pnl-legs > dl > div { display: grid; justify-content: stretch; gap: 3px; min-width: 0; border: 1px solid var(--border); padding: 8px; background: var(--panel); }

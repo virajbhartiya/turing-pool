@@ -183,25 +183,8 @@ export function VaultWorkspace({
     const token0Price = reserve0 > 0 ? reserve1 / reserve0 : 0;
     const claim0 = unitsAsNumber(vault.position.claimToken0, vault.token0.decimals);
     const claim1 = unitsAsNumber(vault.position.claimToken1, vault.token1.decimals);
-    const contributed0 = unitsAsNumber(
-      vault.position.accounting.netContributedToken0,
-      vault.token0.decimals,
-    );
-    const contributed1 = unitsAsNumber(
-      vault.position.accounting.netContributedToken1,
-      vault.token1.decimals,
-    );
     const currentValue = claim0 * token0Price + claim1;
-    const contributedValue = contributed0 * token0Price + contributed1;
-    const rawPnl = currentValue - contributedValue;
-    const pnl = Math.abs(rawPnl) < 0.00005 ? 0 : rawPnl;
-    return {
-      currentValue,
-      contributedValue,
-      pnl,
-      pnlPercent: contributedValue > 0 ? (pnl / contributedValue) * 100 : undefined,
-      token0Price,
-    };
+    return { currentValue };
   }, [vault]);
   const depositPreview = useMemo(() => {
     if (!vault) return undefined;
@@ -577,20 +560,8 @@ export function VaultWorkspace({
                       <p>Ownership, supplied assets, withdrawable balances, and earnings will appear here.</p>
                     </div>
                   )}
-                  {account && lpEconomics && (
-                    <div className={`vault-pnl ${lpEconomics.pnl >= 0 ? 'positive' : 'negative'}`}>
-                      <span>Position P&amp;L</span>
-                      <strong>
-                        {lpEconomics.pnl > 0 ? '+' : ''}
-                        {lpEconomics.pnl.toLocaleString('en-US', { maximumFractionDigits: 4 })}{' '}
-                        {vault.token1.symbol}
-                      </strong>
-                      <small>
-                        {lpEconomics.pnlPercent === undefined
-                          ? 'No contribution basis yet'
-                          : `${lpEconomics.pnlPercent >= 0 ? '+' : ''}${lpEconomics.pnlPercent.toFixed(3)}%`}
-                        {' · '}inventory change valued at the current pool price
-                      </small>
+                  {account && vault.position.accounting.available && (
+                    <div className="vault-pnl">
                       <section
                         aria-labelledby="vault-token-change-label"
                         className="vault-pnl-legs"
