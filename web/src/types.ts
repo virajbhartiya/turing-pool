@@ -124,6 +124,21 @@ export interface ProtocolState {
 
 export type DemoTradeLane = 'human' | 'bot';
 
+export type DemoTradeErrorCode =
+  | 'rpc_rate_limited'
+  | 'trade_busy'
+  | 'execution_unavailable'
+  | 'trade_failed'
+  | 'network_error';
+
+export interface DemoTradeError {
+  code: DemoTradeErrorCode;
+  error: string;
+  retryable: boolean;
+  retryAfterSeconds?: number;
+  status: number;
+}
+
 export interface DemoTradeResult {
   lane: DemoTradeLane;
   wallet: string;

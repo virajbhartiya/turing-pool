@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { amountForOverQuotaQuote, classifyRuntime, parseQuoteAmount } from '../src/demo.js';
+import {
+  amountForOverQuotaQuote,
+  classifyRuntime,
+  describeTradeError,
+  parseQuoteAmount,
+} from '../src/demo.js';
 import { hostedDemoQuotes, hostedState } from '../src/hosted-snapshot.js';
 import vercelApp from '../src/vercel-app.js';
 
@@ -45,6 +50,23 @@ test('quote amounts reject malformed, zero, negative, and unreasonably large inp
   for (const input of ['', 'abc', '1.2', '0', '-1', (10n ** 37n).toString()]) {
     assert.throws(() => parseQuoteAmount(input), /amountIn/);
   }
+});
+
+test('upstream RPC rate limits become a safe, actionable trade error', () => {
+  const raw = new Error(
+    'HTTP request failed. Status: 429 URL: https://worldchain-mainnet.g.alchemy.com/public '
+      + 'Request body: {"method":"eth_call","params":[{"data":"0x15ce4826"}]} '
+      + 'Contract Call: humanGateOpcode() Details: Too Many Requests',
+  );
+
+  assert.deepEqual(describeTradeError(raw), {
+    code: 'rpc_rate_limited',
+    error:
+      'World Chain is temporarily busy. No transaction was submitted. Wait a few seconds and try again.',
+    retryable: true,
+    retryAfterSeconds: 5,
+    status: 503,
+  });
 });
 
 test('anonymous live quotes use the configured bot wallet instead of a zero-address sentinel', async () => {

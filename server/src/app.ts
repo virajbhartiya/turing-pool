@@ -19,7 +19,12 @@ import {
   recentSwaps,
   strategyHistory,
 } from './chain.js';
-import { amountForOverQuotaQuote, classifyRuntime, parseQuoteAmount } from './demo.js';
+import {
+  amountForOverQuotaQuote,
+  classifyRuntime,
+  describeTradeError,
+  parseQuoteAmount,
+} from './demo.js';
 import { onChainFeePolicy } from './fee-policy.js';
 import { hostedDemoQuotes, hostedState } from './hosted-snapshot.js';
 import {
@@ -309,7 +314,10 @@ app.get('/demo/quotes', async (c) => {
 
 app.post('/demo/trade', async (c) => {
   if (!demoTradesEnabled()) {
-    return c.json({ error: 'interactive demo trades are disabled on this runtime' }, 503);
+    const safeError = describeTradeError(
+      new Error('interactive demo trades are disabled on this runtime'),
+    );
+    return c.json(safeError, safeError.status);
   }
   const allowedOrigin = process.env.DEMO_TRADE_ORIGIN;
   const requestOrigin = c.req.header('origin');
@@ -336,10 +344,11 @@ app.post('/demo/trade', async (c) => {
   try {
     return c.json(await executeDemoTrade(body.lane as DemoTradeLane, amountIn));
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'trade execution failed';
-    const busy = /already in progress|wait before submitting/.test(message);
-    const unavailable = /not configured|disabled/.test(message);
-    return c.json({ error: message }, busy ? 429 : unavailable ? 503 : 500);
+    const safeError = describeTradeError(error);
+    if (safeError.retryAfterSeconds !== undefined) {
+      c.header('Retry-After', safeError.retryAfterSeconds.toString());
+    }
+    return c.json(safeError, safeError.status);
   }
 });
 

@@ -4,6 +4,7 @@ import { formatUnits } from '../lib/format';
 import type {
   DemoQuote,
   DemoQuotes,
+  DemoTradeError,
   DemoTradeLane,
   DemoTradeResult,
   ProtocolState,
@@ -38,7 +39,7 @@ interface TradingTerminalProps {
   onReplay: () => void;
   onTrade: (lane: DemoTradeLane, amountIn: string) => Promise<void>;
   tradeLane?: DemoTradeLane;
-  tradeError?: string;
+  tradeError?: DemoTradeError;
   lastTrade?: DemoTradeResult;
   amountIn: string;
   onAmountChange: (amountIn: string) => void;
@@ -49,6 +50,14 @@ const TRADE_SIZES = [
   { label: '0.5', amountIn: '500000000000000000' },
   { label: '1.0', amountIn: '1000000000000000000' },
 ] as const;
+
+function tradeErrorHeadline(error: DemoTradeError): string {
+  if (error.code === 'rpc_rate_limited') return 'Network busy · no trade sent';
+  if (error.code === 'trade_busy') return 'Trade already processing';
+  if (error.code === 'execution_unavailable') return 'Execution unavailable';
+  if (error.code === 'network_error') return 'Network unavailable · status unknown';
+  return 'Trade not completed';
+}
 
 export function TradingTerminal({
   state,
@@ -166,7 +175,15 @@ export function TradingTerminal({
               ? `Mined notional updates HumanQuota, repricing the next SwapVM quote through opcode ${state.execution?.opcode}.`
               : 'Live signing is disabled on this runtime.'}
           </p>
-          {tradeError && <div className="trade-receipt error"><b>Trade rejected</b><span>{tradeError}</span></div>}
+          {tradeError && (
+            <div className="trade-receipt error" role="alert">
+              <b>{tradeErrorHeadline(tradeError)}</b>
+              <span>{tradeError.error}</span>
+              {tradeError.retryable && tradeError.retryAfterSeconds !== undefined && (
+                <small>Retry in about {tradeError.retryAfterSeconds} seconds.</small>
+              )}
+            </div>
+          )}
           {lastTrade && (
             <a className={`trade-receipt ${lastTrade.tight ? 'human' : 'bot'}`} href={lastTrade.explorerUrl} rel="noreferrer" target="_blank">
               <span>Latest mined proof · block {lastTrade.blockNumber} ↗</span>

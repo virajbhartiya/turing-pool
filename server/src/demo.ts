@@ -18,6 +18,87 @@ export function amountForOverQuotaQuote(remaining: bigint): bigint {
   return remaining + 1n;
 }
 
+export type TradeErrorCode =
+  | 'rpc_rate_limited'
+  | 'trade_busy'
+  | 'execution_unavailable'
+  | 'trade_failed';
+
+export interface TradeErrorDescription {
+  code: TradeErrorCode;
+  error: string;
+  retryable: boolean;
+  retryAfterSeconds?: number;
+  status: 429 | 500 | 503;
+}
+
+function errorDescription(error: unknown): string {
+  if (error instanceof Error) {
+    const cause = 'cause' in error ? error.cause : undefined;
+    return `${error.name}: ${error.message}${cause ? ` ${errorDescription(cause)}` : ''}`;
+  }
+  if (typeof error === 'object' && error !== null) {
+    const candidate = error as Record<string, unknown>;
+    return ['message', 'shortMessage', 'details', 'status', 'code', 'cause']
+      .map((key) => candidate[key])
+      .filter((value) => value !== undefined)
+      .map(errorDescription)
+      .join(' ');
+  }
+  return String(error);
+}
+
+/**
+ * Convert internal wallet/RPC failures into a small public error contract.
+ * Raw provider URLs, calldata, private configuration, and viem diagnostics must
+ * stay in server logs rather than being serialized into the trading terminal.
+ */
+export function describeTradeError(error: unknown): TradeErrorDescription {
+  const description = errorDescription(error);
+
+  if (
+    /(?:\b429\b|too many requests|rate[ -]?limit)/i.test(description) &&
+    /humanGateOpcode|0x15ce4826/i.test(description)
+  ) {
+    return {
+      code: 'rpc_rate_limited',
+      error:
+        'World Chain is temporarily busy. No transaction was submitted. Wait a few seconds and try again.',
+      retryable: true,
+      retryAfterSeconds: 5,
+      status: 503,
+    };
+  }
+
+  if (/already in progress|wait before submitting/i.test(description)) {
+    return {
+      code: 'trade_busy',
+      error:
+        'A trade for this lane is already being processed. No additional transaction was submitted.',
+      retryable: true,
+      retryAfterSeconds: 4,
+      status: 429,
+    };
+  }
+
+  if (/interactive demo trades are disabled|not configured|signing key resolves to/i.test(description)) {
+    return {
+      code: 'execution_unavailable',
+      error: 'Interactive on-chain execution is not available for this demo runtime.',
+      retryable: false,
+      status: 503,
+    };
+  }
+
+  return {
+    code: 'trade_failed',
+    error:
+      'The trade could not be completed safely. Check on-chain activity before trying again.',
+    retryable: false,
+    status: 500,
+  };
+}
+
 export interface RuntimeDescription {
   mode: 'local' | 'base-fork' | 'base' | 'chain';
   label: string;

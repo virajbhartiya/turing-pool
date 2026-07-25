@@ -6,7 +6,7 @@ import { MarketHeader } from './components/MarketHeader';
 import { ProtocolDetails } from './components/ProtocolDetails';
 import { TradingTerminal } from './components/TradingTerminal';
 import { apiBase, demoTradeAmountIn, useProtocol } from './hooks/useProtocol';
-import type { DemoTradeLane, DemoTradeResult } from './types';
+import type { DemoTradeError, DemoTradeLane, DemoTradeResult } from './types';
 
 function LoadingTerminal() {
   return (
@@ -18,12 +18,31 @@ function LoadingTerminal() {
   );
 }
 
+function isDemoTradeError(value: unknown): value is DemoTradeError {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Partial<DemoTradeError>;
+  return (
+    typeof candidate.code === 'string' &&
+    typeof candidate.error === 'string' &&
+    typeof candidate.retryable === 'boolean' &&
+    typeof candidate.status === 'number'
+  );
+}
+
+function isDemoTradeResult(value: unknown): value is DemoTradeResult {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Partial<DemoTradeResult>).transactionHash === 'string'
+  );
+}
+
 export function App() {
   const [amountIn, setAmountIn] = useState(demoTradeAmountIn);
   const { snapshot, error, refreshing, refresh } = useProtocol(amountIn);
   const [copied, setCopied] = useState(false);
   const [tradeLane, setTradeLane] = useState<DemoTradeLane>();
-  const [tradeError, setTradeError] = useState<string>();
+  const [tradeError, setTradeError] = useState<DemoTradeError>();
   const [lastTrade, setLastTrade] = useState<DemoTradeResult>();
 
   useEffect(() => {
@@ -50,14 +69,31 @@ export function App() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ lane, amountIn }),
       });
-      const body = (await response.json()) as DemoTradeResult | { error?: string };
-      if (!response.ok || !('transactionHash' in body)) {
-        throw new Error('error' in body && body.error ? body.error : `trade failed with HTTP ${response.status}`);
+      const body: unknown = await response.json();
+      if (!response.ok || !isDemoTradeResult(body)) {
+        setTradeError(
+          isDemoTradeError(body)
+            ? body
+            : {
+                code: 'trade_failed',
+                error: 'The trade service returned an unexpected response. Check on-chain activity before retrying.',
+                retryable: false,
+                status: response.status,
+              },
+        );
+        return;
       }
       setLastTrade(body);
       await refresh();
-    } catch (caught) {
-      setTradeError(caught instanceof Error ? caught.message : String(caught));
+    } catch {
+      setTradeError({
+        code: 'network_error',
+        error:
+          'The trading service could not be reached. No transaction confirmation was received.',
+        retryable: true,
+        retryAfterSeconds: 5,
+        status: 0,
+      });
     } finally {
       setTradeLane(undefined);
     }
