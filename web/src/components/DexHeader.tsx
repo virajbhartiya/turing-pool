@@ -35,7 +35,30 @@ export function DexHeader({
   const human = quote?.humanBacked === true;
   return (
     <header className="dex-header">
-      <div className="dex-statusbar">
+      <div className="dex-navbar">
+        <button
+          className="dex-brand"
+          onClick={() => onViewChange('overview')}
+          type="button"
+        >
+          <span>T</span>
+          <strong>Turing Pool</strong>
+          <small>Identity-priced DEX</small>
+        </button>
+        <nav aria-label="Product navigation">
+          {NAVIGATION.map((item) => (
+            <button
+              aria-current={activeView === item.view ? 'page' : undefined}
+              className={activeView === item.view ? 'active' : undefined}
+              key={item.view}
+              onClick={() => onViewChange(item.view)}
+              type="button"
+            >
+              <kbd>{item.key}</kbd>
+              {item.label}
+            </button>
+          ))}
+        </nav>
         <div className="dex-header-actions">
           {!account ? (
             <button
@@ -73,32 +96,6 @@ export function DexHeader({
             </div>
           )}
         </div>
-      </div>
-
-      <div className="dex-navbar">
-        <button
-          className="dex-brand"
-          onClick={() => onViewChange('overview')}
-          type="button"
-        >
-          <span>T</span>
-          <strong>Turing Pool</strong>
-          <small>Identity-priced DEX</small>
-        </button>
-        <nav aria-label="Product navigation">
-          {NAVIGATION.map((item) => (
-            <button
-              aria-current={activeView === item.view ? 'page' : undefined}
-              className={activeView === item.view ? 'active' : undefined}
-              key={item.view}
-              onClick={() => onViewChange(item.view)}
-              type="button"
-            >
-              <kbd>{item.key}</kbd>
-              {item.label}
-            </button>
-          ))}
-        </nav>
       </div>
     </header>
   );

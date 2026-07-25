@@ -53,14 +53,8 @@ body::before {
   backdrop-filter: blur(14px);
 }
 
-.dex-statusbar,
 .dex-navbar {
   padding-inline: clamp(12px, 1.6vw, 26px);
-}
-
-.dex-statusbar {
-  min-height: 29px;
-  background: #080b0f;
 }
 
 .dex-header-actions {
@@ -165,14 +159,17 @@ body::before {
 }
 
 .market-tape article.human {
+  background: linear-gradient(90deg, rgba(39, 211, 189, 0.075), transparent 55%), #080c10;
   box-shadow: inset 3px 0 var(--human);
 }
 
 .market-tape article.bot {
+  background: linear-gradient(90deg, rgba(255, 105, 95, 0.07), transparent 55%), #080c10;
   box-shadow: inset 3px 0 var(--bot);
 }
 
 .market-tape article.target {
+  background: linear-gradient(90deg, rgba(255, 173, 31, 0.065), transparent 55%), #080c10;
   box-shadow: inset 3px 0 var(--accent);
 }
 
@@ -277,7 +274,9 @@ body::before {
 }
 
 .panel-head strong {
-  font-size: 15px;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 760;
 }
 
 .panel-head span {
@@ -306,6 +305,14 @@ body::before {
   border-color: transparent;
   background: var(--accent);
   color: #111;
+}
+
+.execution-panel {
+  overflow: hidden;
+  border-top: 2px solid var(--cyan);
+  background:
+    linear-gradient(180deg, rgba(53, 189, 242, 0.025), transparent 35%),
+    var(--panel);
 }
 
 .fee-chart {
@@ -383,6 +390,20 @@ body::before {
 
 .quote-ticket {
   top: 96px;
+  border-top: 2px solid var(--accent);
+  background:
+    linear-gradient(180deg, rgba(255, 173, 31, 0.04), transparent 24%),
+    #090d11;
+  box-shadow: -12px 0 28px rgba(0, 0, 0, 0.18);
+}
+
+.quote-ticket > .panel-head {
+  border-bottom-color: var(--border-strong);
+  background: #0b0f13;
+}
+
+.quote-ticket > .panel-head strong {
+  font-size: 18px;
 }
 
 .ticket-tabs {
@@ -461,6 +482,11 @@ body::before {
   padding: 11px 12px;
 }
 
+.token-field:focus-within {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 var(--accent);
+}
+
 .token-field strong,
 .token-field input {
   font-size: 28px;
@@ -495,6 +521,36 @@ body::before {
 
 .execution-trace {
   border-radius: 1px;
+}
+
+.ticket-summary {
+  border-block: 1px solid var(--border);
+  background: #070b0f;
+}
+
+.ticket-summary > div {
+  padding-inline: 9px;
+}
+
+.ticket-summary > div:nth-child(3) dd {
+  color: var(--human);
+  font-weight: 750;
+}
+
+.ticket-summary > div:nth-child(4) dd {
+  color: var(--bot);
+  font-weight: 750;
+}
+
+.ticket-summary > div:last-child {
+  border: 1px solid rgba(39, 211, 189, 0.42);
+  background: var(--human-dim);
+}
+
+.ticket-summary > div:last-child dt,
+.ticket-summary > div:last-child dd {
+  color: var(--human);
+  font-weight: 800;
 }
 
 /* Landing: pitch rendered as a market terminal, not a marketing microsite */
@@ -572,6 +628,30 @@ body::before {
   padding: 15px;
 }
 
+.landing-market > div:nth-of-type(1) {
+  background: linear-gradient(90deg, var(--human-dim), transparent);
+}
+
+.landing-market > div:nth-of-type(1) strong {
+  color: var(--human);
+}
+
+.landing-market > div:nth-of-type(2) {
+  background: linear-gradient(90deg, var(--bot-dim), transparent);
+}
+
+.landing-market > div:nth-of-type(2) strong {
+  color: var(--bot);
+}
+
+.landing-market > div.target {
+  background: linear-gradient(90deg, var(--accent-dim), transparent);
+}
+
+.landing-market > div.target strong {
+  color: var(--accent);
+}
+
 .landing-market strong {
   font-size: 30px;
 }
@@ -588,13 +668,32 @@ body::before {
 
 .math-card {
   border-color: var(--border-strong);
+  border-top: 2px solid var(--accent);
   padding: 24px;
-  background: #080c10;
+  background:
+    linear-gradient(180deg, rgba(255, 173, 31, 0.025), transparent 32%),
+    #080c10;
+}
+
+.math-formula > span:first-child b {
+  color: var(--human);
+}
+
+.math-formula > span:nth-child(3) b {
+  color: var(--bot);
 }
 
 .math-formula .result b,
 .math-live strong {
   color: var(--accent);
+}
+
+.math-live span:first-child {
+  color: var(--human);
+}
+
+.math-live span:nth-of-type(2) {
+  color: var(--bot);
 }
 
 .math-solve {
@@ -609,6 +708,22 @@ body::before {
 .math-solve div {
   padding: 12px;
   background: #070b0f;
+}
+
+.math-solve div:first-child {
+  box-shadow: inset 2px 0 var(--human);
+}
+
+.math-solve div:last-child {
+  box-shadow: inset 2px 0 var(--bot);
+}
+
+.math-solve div:first-child b {
+  color: var(--human);
+}
+
+.math-solve div:last-child b {
+  color: var(--bot);
 }
 
 .math-solve span,
@@ -726,8 +841,9 @@ body::before {
 .vault-heading {
   min-height: 70px;
   border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
   padding: 13px 15px;
-  background: #070b0f;
+  background: linear-gradient(90deg, var(--accent-dim), transparent 30%), #070b0f;
 }
 
 .vault-toolbar {
@@ -749,13 +865,61 @@ body::before {
   background: #090d11;
 }
 
+.vault-market-strip > div:nth-child(2) {
+  box-shadow: inset 0 2px var(--accent);
+}
+
+.vault-market-strip > div:nth-child(3) {
+  box-shadow: inset 0 2px var(--cyan);
+}
+
+.vault-market-strip > div:nth-child(4) {
+  box-shadow: inset 0 2px var(--human);
+}
+
 .vault-grid,
 .vault-create-grid {
-  gap: 7px;
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr) minmax(240px, 0.58fr);
+  align-items: start;
+  gap: 8px;
 }
 
 .vault-card {
   padding: 15px;
+}
+
+.vault-action-card {
+  min-height: 410px;
+  border-top: 2px solid var(--accent);
+  background:
+    linear-gradient(180deg, rgba(255, 173, 31, 0.035), transparent 32%),
+    var(--panel);
+}
+
+.vault-action-card h3 {
+  font-size: 22px;
+}
+
+.vault-position {
+  border-top: 2px solid var(--human);
+  background:
+    linear-gradient(180deg, rgba(39, 211, 189, 0.03), transparent 30%),
+    var(--panel);
+}
+
+.vault-status {
+  min-height: 0;
+  border-top-color: var(--cyan);
+  background: #070b0f;
+}
+
+.vault-status.idle {
+  color: var(--muted);
+}
+
+.vault-balance-row {
+  border-color: var(--border-strong);
+  background: #070b0f;
 }
 
 .vault-direction button,
@@ -903,6 +1067,15 @@ footer {
     grid-template-columns: 1fr;
   }
 
+  .vault-grid,
+  .vault-create-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .vault-status {
+    grid-column: 1 / -1;
+  }
+
   .protocol-fill-flow {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -940,5 +1113,14 @@ footer {
   .math-definitions,
   .protocol-fill-flow {
     grid-template-columns: 1fr;
+  }
+
+  .vault-grid,
+  .vault-create-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vault-status {
+    grid-column: auto;
   }
 }
