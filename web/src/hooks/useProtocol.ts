@@ -45,7 +45,16 @@ export function useProtocol(
       ]);
 
       if (!stateResponse.ok || !quotesResponse.ok) {
-        throw new Error(`API returned state=${stateResponse.status}, quotes=${quotesResponse.status}`);
+        const failed = !stateResponse.ok ? stateResponse : quotesResponse;
+        const body = (await failed.json().catch(() => undefined)) as
+          | { error?: string; code?: string; retryAfterSeconds?: number }
+          | undefined;
+        const retry = body?.retryAfterSeconds ? ` Retry in ${body.retryAfterSeconds}s.` : '';
+        throw new Error(
+          body?.error
+            ? `${body.error}${retry}`
+            : `API returned state=${stateResponse.status}, quotes=${quotesResponse.status}`,
+        );
       }
 
       const [state, quotes] = (await Promise.all([
