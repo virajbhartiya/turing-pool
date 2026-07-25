@@ -160,7 +160,7 @@ export function TradingTerminal({
         </div>
         <div className="comparison-tape">
           <strong>Verified execution edge <b>+{deltaLabel} {tokenOutSymbol}</b></strong>
-          <span>{quotes.human.feeBps} bps retail vs {quotes.bot.feeBps} bps bot · LP target unchanged</span>
+          <span>{quotes.human.feeBps} bps human / {quotes.bot.feeBps} bps bot · both move with mined volume</span>
         </div>
       </div>
 

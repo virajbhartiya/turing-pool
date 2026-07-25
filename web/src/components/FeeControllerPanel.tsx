@@ -18,10 +18,11 @@ export function FeeControllerPanel({ controller, copied, onReplay }: FeeControll
       <div className="controller-panel">
         <div className="controller-copy">
           <span>Activity-priced fee controller</span>
-          <h2>Retail discount funded by bot flow.</h2>
+          <h2>Two live rates. One LP target.</h2>
           <p>
-            Every mined fill adds its executed input notional on-chain. A 1.0 tETH fill
-            moves the schedule 10× as much as a 0.1 tETH fill; swap count is display-only.
+            Both rates move after every mined fill. Bot volume deepens the human
+            discount; human volume raises both lanes while the weighted LP rate stays
+            at {controller.targetFeeBps} bps.
           </p>
           <div className="controller-status"><i />on-chain · reprices after each fill</div>
         </div>

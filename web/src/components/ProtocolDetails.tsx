@@ -42,7 +42,7 @@ export function ProtocolDetails({ state }: { state: ProtocolState }) {
             </div>
             <div>
               <time>{state.feeController.targetFeeBps} bps LP target</time>
-              <p>next schedule {state.feeController.tightFeeBps}/{state.feeController.wideFeeBps} bps</p>
+              <p>balanced next rates {state.feeController.tightFeeBps}/{state.feeController.wideFeeBps} bps</p>
             </div>
           </div>
         </article>
