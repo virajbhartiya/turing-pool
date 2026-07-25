@@ -62,14 +62,21 @@ function errorDescription(error: unknown): string {
  * Raw provider URLs, calldata, private configuration, and viem diagnostics must
  * stay in server logs rather than being serialized into the trading terminal.
  */
-export function describeTradeError(error: unknown): TradeErrorDescription {
+export function describeTradeError(
+  error: unknown,
+  rpcContext: 'world' | 'base' = 'world',
+): TradeErrorDescription {
   const description = errorDescription(error);
 
   if (/(?:\b429\b|too many requests|rate[ -]?limit|compute units per second)/i.test(description)) {
+    const baseSepoliaRpc =
+      rpcContext === 'base' ||
+      /https?:\/\/[^\s/]*(?:base-sepolia|sepolia\.base)[^\s/]*/i.test(description);
     return {
       code: 'rpc_rate_limited',
-      error:
-        'World Chain RPC is temporarily busy. No confirmed result was received; check the explorer before retrying.',
+      error: baseSepoliaRpc
+        ? 'Base Sepolia RPC is temporarily busy. No transaction was submitted; wait a few seconds and retry.'
+        : 'World Chain RPC is temporarily busy. No confirmed result was received; check the explorer before retrying.',
       retryable: true,
       retryAfterSeconds: 5,
       status: 503,

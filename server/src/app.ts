@@ -134,7 +134,7 @@ function vaultRequestError(c: Context, error: unknown) {
       400,
     );
   }
-  const safeError = describeTradeError(error);
+  const safeError = describeTradeError(error, 'base');
   return c.json(safeError, safeError.status);
 }
 

@@ -69,6 +69,19 @@ test('upstream RPC rate limits become a safe, actionable trade error', () => {
   });
 });
 
+test('Base vault rate limits never blame the World identity chain', () => {
+  const raw = new Error('HTTP request failed. Status: 429 Details: Too Many Requests');
+
+  assert.deepEqual(describeTradeError(raw, 'base'), {
+    code: 'rpc_rate_limited',
+    error:
+      'Base Sepolia RPC is temporarily busy. No transaction was submitted; wait a few seconds and retry.',
+    retryable: true,
+    retryAfterSeconds: 5,
+    status: 503,
+  });
+});
+
 test('anonymous live quotes use the configured bot wallet instead of a zero-address sentinel', async () => {
   const app = await readFile(new URL('../src/app.ts', import.meta.url), 'utf8');
   assert.match(app, /quoteRouterFor\(\s*deployments\.bot,/s);
