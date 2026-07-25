@@ -7,15 +7,15 @@ schema_version = 1
 
 [[contracts]]
 alias = "router"
-address = "0x2B3D18C65dDbf28d08334406CaFDFcD6385db7C4"
-start_block = 32814077
+address = "0x237726Cdf497794357D4BcB0bCDBD04437F0eAa3"
+start_block = 32814398
 abi = "abis/router.json"
 events = ["HumanGated", "Swapped"]
 
 [[contracts]]
 alias = "quota"
-address = "0xf3CcE65745cDaD99e3EFf4ce096D5485A3434448"
-start_block = 32814052
+address = "0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B"
+start_block = 32814381
 abi = "abis/quota.json"
 events = ["UsageRecorded", "FeeScheduleUpdated"]
 
