@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { cors } from 'hono/cors';
 import { randomBytes } from 'node:crypto';
 import {
@@ -12,6 +13,7 @@ import {
 import { BASE_URL, CHAIN_ID, RPC_URL, SERVER_DOMAIN } from './config.js';
 import {
   client,
+  configuredStrategyHistory,
   dailyCap,
   deployments,
   lookupHuman,
@@ -51,6 +53,45 @@ const STATEMENT =
 
 const SUBGRAPH_URL = process.env.SUBGRAPH_URL;
 const NUTHATCH_URL = process.env.NUTHATCH_URL;
+
+function errorDescription(error: unknown, depth = 0): string {
+  if (depth >= 4) return '';
+  if (error instanceof Error) {
+    const cause = 'cause' in error ? error.cause : undefined;
+    return `${error.name}: ${error.message} ${errorDescription(cause, depth + 1)}`;
+  }
+  if (typeof error === 'object' && error !== null) {
+    const candidate = error as Record<string, unknown>;
+    return ['message', 'shortMessage', 'details', 'status', 'code', 'cause']
+      .map((key) => candidate[key])
+      .filter((value) => value !== undefined)
+      .map((value) => errorDescription(value, depth + 1))
+      .join(' ');
+  }
+  return error === undefined ? '' : String(error);
+}
+
+function describeLiveReadError(error: unknown) {
+  const rateLimited = /(?:\b429\b|too many requests|rate[ -]?limit)/i.test(
+    errorDescription(error),
+  );
+  return {
+    code: rateLimited ? 'rpc_rate_limited' : 'live_data_unavailable',
+    error: rateLimited
+      ? 'World Chain is temporarily busy. Wait a few seconds and try again.'
+      : 'Live on-chain data is temporarily unavailable. Please try again.',
+    retryable: true,
+    retryAfterSeconds: 5,
+    status: 503 as const,
+  };
+}
+
+function liveReadErrorResponse(c: Context, error: unknown) {
+  const safeError = describeLiveReadError(error);
+  c.header('Retry-After', safeError.retryAfterSeconds.toString());
+  return c.json(safeError, safeError.status);
+}
+
 let graphStatusCache:
   | {
       checkedAt: number;
@@ -385,10 +426,11 @@ app.get('/demo/quotes', async (c) => {
   if (SNAPSHOT_MODE) {
     return c.json(hostedDemoQuotes(amountIn, direction));
   }
-  const [human, bot] = await Promise.all([
-    quoteRouterFor(deployments.humanAgent, amountIn, undefined, direction),
-    quoteRouterFor(deployments.bot, amountIn, undefined, direction),
-  ]);
+  try {
+    const [human, bot] = await Promise.all([
+      quoteRouterFor(deployments.humanAgent, amountIn, undefined, direction),
+      quoteRouterFor(deployments.bot, amountIn, undefined, direction),
+    ]);
   const sharedHumanId = human.humanId || BigInt(deployments.humanId);
   const remaining = await quotaRemaining(sharedHumanId, human.tokenIn);
   const sybilAmountIn = amountForOverQuotaQuote(remaining);
@@ -415,7 +457,7 @@ app.get('/demo/quotes', async (c) => {
   });
   const improvementBps =
     bot.amountOut > 0n ? Number(((human.amountOut - bot.amountOut) * 10_000n) / bot.amountOut) : 0;
-  return c.json({
+    return c.json({
     amountIn: amountIn.toString(),
     comparisonAmountIn: amountIn.toString(),
     direction: human.direction,
@@ -442,7 +484,10 @@ app.get('/demo/quotes', async (c) => {
     improvementBps,
     rationale:
       'Sybil-resistant per-human quotas bound the LP’s maximum adverse-selection exposure; the tighter quote prices that lower risk.',
-  });
+    });
+  } catch (error) {
+    return liveReadErrorResponse(c, error);
+  }
 });
 
 app.post('/demo/trade', async (c) => {
@@ -523,14 +568,15 @@ app.get('/state', async (c) => {
   if (SNAPSHOT_MODE) {
     return c.json(hostedState());
   }
-  const [state, strategies, latestBlock, rpcChainId, index, opcode] = await Promise.all([
-    routerPoolState(),
-    strategyHistory(),
-    client.getBlockNumber({ cacheTime: 0 }),
-    client.getChainId(),
-    activityIndex(),
-    routerOpcode(),
-  ]);
+  try {
+    const [state, strategies, latestBlock, rpcChainId, index, opcode] = await Promise.all([
+      routerPoolState(),
+      strategyHistory(),
+      client.getBlockNumber({ cacheTime: 0 }),
+      client.getChainId(),
+      activityIndex(),
+      routerOpcode(),
+    ]);
   const swaps =
     index.mode === 'sql+mcp' && index.status === 'connected'
       ? index.swaps
@@ -560,7 +606,7 @@ app.get('/state', async (c) => {
   ]);
   const tightSwaps = swaps.filter((s) => s.tight);
   const wideSwaps = swaps.filter((s) => !s.tight);
-  return c.json({
+    return c.json({
     contracts: {
       aqua: deployments.aqua,
       agentBook: deployments.agentBook,
@@ -649,7 +695,10 @@ app.get('/state', async (c) => {
     }),
     strategyHistory: strategies,
     swaps,
-  });
+    });
+  } catch (error) {
+    return liveReadErrorResponse(c, error);
+  }
 });
 
 app.get('/health', (c) =>

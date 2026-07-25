@@ -32,8 +32,11 @@ interface StrategyLifecycle {
 
 interface StrategySnapshot {
   latestBlock: bigint;
+  loadedAt: number;
   strategies: StrategyLifecycle[];
 }
+
+const STRATEGY_CACHE_TTL_MS = 10_000;
 
 let strategyCache: StrategySnapshot | undefined;
 let strategyLoad: Promise<StrategySnapshot> | undefined;
@@ -60,7 +63,9 @@ async function loadStrategySnapshot(): Promise<StrategySnapshot> {
     // the next scripted demo transaction. The event payloads are still cached
     // per block below; only this inexpensive head check must be fresh.
     const latestBlock = await client.getBlockNumber({ cacheTime: 0 });
-    if (strategyCache?.latestBlock === latestBlock) return strategyCache;
+    if (strategyCache && Date.now() - strategyCache.loadedAt < STRATEGY_CACHE_TTL_MS) {
+      return strategyCache;
+    }
 
     const [shipped, docked] = await Promise.all([
       getLogsInBlockChunks(
@@ -102,7 +107,7 @@ async function loadStrategySnapshot(): Promise<StrategySnapshot> {
         };
       });
 
-    strategyCache = { latestBlock, strategies };
+    strategyCache = { latestBlock, loadedAt: Date.now(), strategies };
     return strategyCache;
   })().finally(() => {
     strategyLoad = undefined;
@@ -144,6 +149,31 @@ export async function strategyHistory() {
       },
     };
   });
+}
+
+/**
+ * Represent the currently configured SwapVM strategy without discovering its
+ * lifecycle from historical Aqua logs. The dashboard uses this projection when
+ * Nuthatch is healthy, since Nuthatch already owns the indexed activity path.
+ */
+export function configuredStrategyHistory(
+  strategy: Pick<Strategy, 'tightFeeBps' | 'wideFeeBps'>,
+  strategyHash: `0x${string}`,
+) {
+  return [
+    {
+      blockNumber: FROM_BLOCK.toString(),
+      transactionHash: null,
+      strategyHash,
+      active: true,
+      kind: 'initial-ship' as const,
+      from: null,
+      to: {
+        tightFeeBps: strategy.tightFeeBps.toString(),
+        wideFeeBps: strategy.wideFeeBps.toString(),
+      },
+    },
+  ];
 }
 
 export async function quoteFor(taker: `0x${string}`, amountIn: bigint, zeroForOne: boolean) {
@@ -211,8 +241,11 @@ interface SwapRecord {
 
 interface SwapSnapshot {
   latestBlock: bigint;
+  loadedAt: number;
   swaps: SwapRecord[];
 }
+
+const SWAP_CACHE_TTL_MS = 5_000;
 
 function swapFromLog(l: any): SwapRecord {
   return {
@@ -260,7 +293,7 @@ export async function recentSwaps(limit = 50) {
   if (!swapLoad) {
     swapLoad = (async () => {
       const latestBlock = await client.getBlockNumber({ cacheTime: 0 });
-      if (swapCache?.latestBlock === latestBlock) return swapCache;
+      if (swapCache && Date.now() - swapCache.loadedAt < SWAP_CACHE_TTL_MS) return swapCache;
       const [appLogs, routerGates, routerFills] = await Promise.all([
         getLogsInBlockChunks(
           client,
@@ -296,6 +329,7 @@ export async function recentSwaps(limit = 50) {
       ].sort((left, right) => Number(BigInt(left.blockNumber) - BigInt(right.blockNumber)));
       swapCache = {
         latestBlock,
+        loadedAt: Date.now(),
         swaps,
       };
       return swapCache;
