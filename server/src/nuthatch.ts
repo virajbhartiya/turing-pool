@@ -24,6 +24,16 @@ export interface NuthatchActivitySummary {
   indexedTradeBlock: string | null;
 }
 
+export interface IndexedFeeSchedule {
+  pool: 'primary' | 'vault';
+  blockNumber: string;
+  transactionHash: `0x${string}`;
+  token: `0x${string}`;
+  tightFeeBps: number;
+  wideFeeBps: number;
+  humanShareBps: number;
+}
+
 export interface NuthatchRiskWindow {
   fills: number;
   tightFills: number;
@@ -47,6 +57,7 @@ export interface NuthatchActivity {
   registryHash: string | null;
   provenance: string;
   swaps: IndexedSwap[];
+  feeHistory: IndexedFeeSchedule[];
   summary: NuthatchActivitySummary;
   riskWindow: NuthatchRiskWindow | null;
 }
@@ -89,6 +100,18 @@ const TRADE_SQL = `
 `;
 
 const ACTIVITY_SQL = 'SELECT * FROM turing_activity_mix';
+const FEE_HISTORY_SQL = `
+  SELECT
+    pool,
+    block_number,
+    tx_hash,
+    token,
+    tight_fee_bps,
+    wide_fee_bps,
+    human_share_bps
+  FROM turing_fee_history
+  ORDER BY block_number DESC, log_index DESC
+`;
 const RISK_WINDOW_SQL = 'SELECT * FROM turing_risk_window';
 const HEX_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const HEX_HASH = /^0x[0-9a-fA-F]{64}$/;
@@ -156,6 +179,11 @@ function hash(value: unknown, field: string): `0x${string}` {
   return parsed as `0x${string}`;
 }
 
+function pool(value: unknown): 'primary' | 'vault' {
+  if (value === 'primary' || value === 'vault') return value;
+  throw new Error('Nuthatch row has invalid pool');
+}
+
 function rowObject(value: unknown): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error('Nuthatch SQL returned a non-object row');
@@ -196,6 +224,19 @@ function parseSummary(value: unknown): NuthatchActivitySummary {
   };
 }
 
+function parseFeeSchedule(value: unknown): IndexedFeeSchedule {
+  const row = rowObject(value);
+  return {
+    pool: pool(row.pool),
+    blockNumber: text(row.block_number, 'block_number'),
+    transactionHash: hash(row.tx_hash, 'tx_hash'),
+    token: address(row.token, 'token'),
+    tightFeeBps: integer(row.tight_fee_bps, 'tight_fee_bps'),
+    wideFeeBps: integer(row.wide_fee_bps, 'wide_fee_bps'),
+    humanShareBps: integer(row.human_share_bps, 'human_share_bps'),
+  };
+}
+
 function parseRiskWindow(value: unknown): NuthatchRiskWindow {
   const row = rowObject(value);
   return {
@@ -222,9 +263,10 @@ export async function loadNuthatchActivity(
   const base = normalizeNuthatchUrl(endpoint);
   const rowLimit = Math.max(1, Math.min(100, Math.floor(limit)));
   const tradeQuery = `${TRADE_SQL} LIMIT ${rowLimit}`;
+  const feeHistoryQuery = `${FEE_HISTORY_SQL} LIMIT ${rowLimit}`;
   // The public/free-tier Nuthatch server deliberately caps concurrent SQL
   // work. Keep this read path serialized so one dashboard refresh cannot
-  // self-throttle with its own three queries.
+  // self-throttle with its own queries.
   const ready = await getJson<NuthatchReady>(`${base}/ready`, fetcher);
   const trades = await getJson<SqlResponse>(
     `${base}/sql?q=${encodeURIComponent(tradeQuery)}&max_rows=${rowLimit}`,
@@ -232,6 +274,10 @@ export async function loadNuthatchActivity(
   );
   const activity = await getJson<SqlResponse>(
     `${base}/sql?q=${encodeURIComponent(ACTIVITY_SQL)}&max_rows=1`,
+    fetcher,
+  );
+  const feeHistoryResponse = await getJson<SqlResponse>(
+    `${base}/sql?q=${encodeURIComponent(feeHistoryQuery)}&max_rows=${rowLimit}`,
     fetcher,
   );
   const riskWindowResponse = await getJson<SqlResponse>(
@@ -244,6 +290,7 @@ export async function loadNuthatchActivity(
   if (
     !Array.isArray(trades.rows) ||
     !Array.isArray(activity.rows) ||
+    !Array.isArray(feeHistoryResponse.rows) ||
     !Array.isArray(riskWindowResponse.rows)
   ) {
     throw new Error('Nuthatch SQL response is missing rows');
@@ -284,6 +331,7 @@ export async function loadNuthatchActivity(
     registryHash: trades.provenance?.registry_hash ?? null,
     provenance: trades.provenance?.source ?? 'hot+sealed',
     swaps: trades.rows.map(parseSwap).reverse(),
+    feeHistory: feeHistoryResponse.rows.map(parseFeeSchedule).reverse(),
     summary,
     riskWindow,
   };

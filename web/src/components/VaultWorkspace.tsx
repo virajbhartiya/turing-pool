@@ -394,7 +394,7 @@ export function VaultWorkspace({
     ? transactionExplorer(registry?.chainId ?? 480, status.transactionHash)
     : undefined;
   const lpTokenUrl = vault
-    ? addressExplorer(registry?.chainId ?? 84532, vault.shareToken.address)
+    ? addressExplorer(registry?.chainId ?? 480, vault.shareToken.address)
     : undefined;
 
   return (

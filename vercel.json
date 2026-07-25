@@ -25,11 +25,11 @@
       "destination": "/"
     },
     {
-      "source": "/demo/quotes",
+      "source": "/market/quotes",
       "destination": "/"
     },
     {
-      "source": "/demo/trade",
+      "source": "/market/trade",
       "destination": "/"
     },
     {

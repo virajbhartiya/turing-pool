@@ -126,7 +126,7 @@ export function hostedState() {
     },
     runtime: {
       mode: 'hosted-preview',
-      label: 'Hosted preview · deterministic demo snapshot',
+      label: 'Hosted preview · deterministic market snapshot',
       agentBook: 'snapshot-only',
       chainId: 8453,
       latestBlock: 'snapshot',
@@ -139,7 +139,7 @@ export function hostedState() {
         block: 'snapshot',
       },
       strategy: {
-        name: 'Recorded Aqua demo lifecycle',
+        name: 'Recorded Aqua market lifecycle',
         status: 'snapshot',
         historyEntries: 2,
       },

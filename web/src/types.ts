@@ -16,13 +16,8 @@ export interface Contracts {
   mockAgentBook: boolean;
   vaultFactory?: string;
   vaultRouter?: string;
-  demoVault?: string;
-  demoVaultQuota?: string;
-  identityMirror?: string;
-  identityMode?: 'world-agentbook-mirror';
-  identitySourceAgentBook?: string;
-  identitySourceBlock?: string;
-  identitySourceChainId?: number;
+  activeVault?: string;
+  activeVaultQuota?: string;
   faucet?: string;
 }
 
@@ -67,6 +62,16 @@ export interface Swap {
   amountOut: string;
   feeBps: string;
   source?: 'aqua-app' | 'swapvm';
+}
+
+export interface FeeHistoryPoint {
+  pool: 'primary' | 'vault';
+  blockNumber: string;
+  transactionHash: string;
+  token: string;
+  tightFeeBps: number;
+  wideFeeBps: number;
+  humanShareBps: number;
 }
 
 export interface Execution {
@@ -165,6 +170,7 @@ export interface ProtocolState {
     dailyCapToken1: string;
   };
   swaps: Swap[];
+  feeHistory?: FeeHistoryPoint[];
   strategyHistory: StrategyHistoryEntry[];
   dataSources: {
     quotes: DataSource;

@@ -21,8 +21,8 @@ test('the Vercel route manifest sends dashboard API paths to the Hono function',
   for (const path of [
     '/health',
     '/state',
-    '/demo/quotes',
-    '/demo/trade',
+    '/market/quotes',
+    '/market/trade',
     '/wallet/quote',
     '/wallet/prepare',
     '/wallet/confirm',
@@ -72,7 +72,7 @@ test('the built Vercel output initializes and serves every hosted route', async 
       request('/'),
       request('/health'),
       request('/state'),
-      request('/demo/quotes'),
+      request('/market/quotes'),
       request('/quote?anonymous=1'),
       request('/quote'),
       request('/quote?anonymous=1&amountIn=invalid'),
@@ -129,7 +129,7 @@ test('the built Vercel function serves live World Chain state and quotes', async
     const request = (path) => app.fetch(new Request('https://turing-pool.test' + path));
     const [state, quotes] = await Promise.all([
       request('/state'),
-      request('/demo/quotes?amountIn=100000000000000000'),
+      request('/market/quotes?amountIn=100000000000000000'),
     ]);
     if (state.status !== 200 || quotes.status !== 200) {
       throw new Error(JSON.stringify({

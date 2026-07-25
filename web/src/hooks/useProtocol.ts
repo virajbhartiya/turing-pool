@@ -53,7 +53,7 @@ export function useProtocol(
       const base = apiBase();
       const [stateResponse, quotesResponse] = await Promise.all([
         fetch(`${base}/state`, { signal }),
-        fetch(`${base}/demo/quotes?amountIn=${amountIn}&direction=${direction}`, { signal }),
+        fetch(`${base}/market/quotes?amountIn=${amountIn}&direction=${direction}`, { signal }),
       ]);
 
       if (!stateResponse.ok || !quotesResponse.ok) {

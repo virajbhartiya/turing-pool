@@ -196,7 +196,7 @@ export function App() {
 
   async function copyReplayCommand() {
     try {
-      await navigator.clipboard.writeText('pnpm demo:world');
+      await navigator.clipboard.writeText('pnpm market:world');
       setCopied(true);
     } catch {
       setCopied(false);
@@ -267,7 +267,7 @@ export function App() {
               kind: 'wallet',
               method: 'eth_chainId + eth_accounts',
               target: 'Connected EIP-1193 wallet',
-              result: `chain 84532 · ${walletAccount}`,
+              result: `chain ${state.runtime.chainId} · ${walletAccount}`,
             },
           ],
         }),
@@ -282,7 +282,7 @@ export function App() {
             {
               kind: 'read',
               method: `lookupHuman(${walletAccount})`,
-              target: queryTarget('World AgentBook mirror', agentBook),
+              target: queryTarget('Canonical World AgentBook', agentBook),
               result: 'Pending',
             },
             {
@@ -343,7 +343,7 @@ export function App() {
             {
               kind: 'read',
               method: `lookupHuman(${walletAccount})`,
-              target: queryTarget('World AgentBook mirror', agentBook),
+              target: queryTarget('Canonical World AgentBook', agentBook),
               result: `humanId ${prepared.quote.humanId}`,
             },
             {
@@ -620,7 +620,7 @@ export function App() {
           queries: [
             {
               kind: 'index',
-              method: 'GET /state + /demo/quotes + /wallet/quote',
+              method: 'GET /state + /market/quotes + /wallet/quote',
               target: 'Turing API · Nuthatch-backed activity state',
               result: `Receipt ${transactionHash.slice(0, 12)}… merged into current terminal state`,
             },

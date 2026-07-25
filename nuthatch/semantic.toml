@@ -5,7 +5,7 @@
 schema_version = 1
 
 [nest]
-description = "Live Base Sepolia Aqua and SwapVM activity gated by canonical World AgentBook results published through the authenticated Base mirror."
+description = "Live World Chain Aqua and SwapVM activity priced directly from the canonical World AgentBook and indexed from mined settlement events."
 
 [table.aqua__docked]
 description = "A strategy was removed from the live Aqua deployment's virtual-balance namespace."
@@ -46,26 +46,6 @@ overflows_dec = [
     "amount0",
     "amount1",
     "nextClaimAt",
-]
-
-[table.identity_mirror__human_mirrored]
-description = "`HumanMirrored(address,uint256,uint256,bytes32)` events emitted by the `identity_mirror` contract. (seeded from the ABI - edit semantic.toml to improve this)"
-grain = "one row per HumanMirrored(address,uint256,uint256,bytes32) event"
-
-[table.identity_mirror__human_mirrored.columns]
-agent = "The `agent` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
-humanId = "The `humanId` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
-sourceBlock = "The `sourceBlock` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
-sourceBlockHash = "The `sourceBlockHash` bytes32 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
-
-[table.identity_mirror__human_mirrored.footguns]
-big_ints = [
-    "humanId",
-    "sourceBlock",
-]
-overflows_dec = [
-    "humanId",
-    "sourceBlock",
 ]
 
 [table.quota__fee_schedule_updated]
@@ -316,6 +296,9 @@ overflows_dec = [
 
 [view.turing_activity_mix]
 description = "Volume-weighted human/bot activity derived from real SwapVM fills; trade count is diagnostic only."
+
+[view.turing_fee_history]
+description = "Executable verified-retail and searcher fee schedules from primary and vault fills, deduplicated by event identity with vault precedence."
 
 [view.turing_risk_window]
 description = "The latest 50 primary and vault fills normalized into token0 notional. The strategist consumes this view to update the guarded on-chain fee policy; without a fresh row, policy updates stop."

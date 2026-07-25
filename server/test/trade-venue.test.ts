@@ -13,7 +13,7 @@ test('website swaps use the active LP vault when permissionless liquidity is liv
     resolveWebsiteTradeVenue({
       primaryRouter: PRIMARY_ROUTER,
       vaultRouter: VAULT_ROUTER,
-      demoVault: DEMO_VAULT,
+      activeVault: DEMO_VAULT,
       vaultFactory: VAULT_FACTORY,
     }),
     {

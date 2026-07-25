@@ -1,21 +1,19 @@
-# nuthatch nest on base-sepolia
+# nuthatch nest on world-chain
 
 A self-hosted blockchain index. Query it locally; there is no third-party API.
 
 ## Contracts
-- `router` = 0xc8c614C5Ef7823F4E0E6baf3EbC4593d089c7F22
-- `quota` = 0xEE987052Ac1840AAd96eF322822C664616c15C66
+- `router` = 0x237726Cdf497794357D4BcB0bCDBD04437F0eAa3
+- `quota` = 0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B
 - `aqua` = 0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec
-- `vault_router` = 0x503a9d46da9a9b1d7edf798f4cef2e49f296e0ce
-- `vault_quota` = 0x83644E4C17BA1ffDf38436a10a610F1325d9Bb0a
-- `identity_mirror` = 0x70b9FE7Bd162B0014df1E1f435dB47765Db62455
-- `faucet` = 0x1aA651B3fd14F8242b13759c56d73E48800fEF2a
+- `vault_router` = 0x4f09A6EbB5772D4c4BDf90F717AB0C7ee4bb908f
+- `vault_quota` = 0xCF45724b94DB62263ac23dbce922C45fB15deeA2
+- `faucet` = 0x8DE77C94983ACDaE8f08d558804068cA24FF4fC6
 
 ## Tables (one per contract event)
 - `aqua__docked` - Docked(address,address,bytes32) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, maker, app, strategyHash)
 - `aqua__shipped` - Shipped(address,address,bytes32,bytes) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, maker, app, strategyHash, strategy)
 - `faucet__claimed` - Claimed(address,uint256,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, account, amount0, amount1, nextClaimAt)
-- `identity_mirror__human_mirrored` - HumanMirrored(address,uint256,uint256,bytes32) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, agent, humanId, sourceBlock, sourceBlockHash)
 - `quota__fee_schedule_updated` - FeeScheduleUpdated(address,uint256,uint256,uint256,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, token, tightFeeBps, wideFeeBps, tightVolume, wideVolume, humanShareBps)
 - `quota__risk_policy_applied` - RiskPolicyApplied(address,uint256,bytes32,uint256,uint256,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, token, indexedThroughBlock, decisionHash, desiredTightFeeBps, riskSpreadBps, tightFeeBps, wideFeeBps)
 - `quota__usage_recorded` - UsageRecorded(uint256,address,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, humanId, token, amount, day)

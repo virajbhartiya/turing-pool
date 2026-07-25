@@ -58,7 +58,7 @@ export function calculateRevenueNeutralFees(input) {
     'desiredTightFeeBps',
   );
   const maxWideFeeBps = asFee(input.maxWideFeeBps ?? 100, 'maxWideFeeBps');
-  // Validate the legacy field when supplied, but mirror HumanQuota by clamping
+  // Validate the legacy field when supplied, but match HumanQuota by clamping
   // to desiredTightFeeBps rather than this older, lower bound.
   if (input.minTightFeeBps !== undefined) {
     asFee(input.minTightFeeBps, 'minTightFeeBps');

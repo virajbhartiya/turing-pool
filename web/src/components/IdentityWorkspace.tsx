@@ -23,7 +23,7 @@ export function IdentityWorkspace({
   onConnectWallet,
   onIdentityReady,
 }: IdentityWorkspaceProps) {
-  const mirrored = quote?.humanBacked === true;
+  const worldVerified = quote?.humanBacked === true;
 
   return (
     <section className="identity-workspace view-workspace">
@@ -63,7 +63,7 @@ export function IdentityWorkspace({
           ) : (
             <WorldIdentityControl
               account={account}
-              quotedAsHuman={mirrored}
+              quotedAsHuman={worldVerified}
               onIdentityReady={onIdentityReady}
             />
           )}
@@ -83,14 +83,14 @@ export function IdentityWorkspace({
             </div>
             <i>→</i>
             <div>
-              <span>03 · Execution network</span>
-              <b className="mirror-logo">↔</b>
-              <strong>The identity mirror updates</strong>
-              <p>The relayer copies the canonical humanId and source block—never the World proof.</p>
+              <span>03 · World Chain</span>
+              <b className="opcode-logo">34</b>
+              <strong>SwapVM reads AgentBook directly</strong>
+              <p>The instruction receives only the wallet’s pseudonymous humanId—never the World proof.</p>
             </div>
             <i>→</i>
             <div>
-              <span>04 · SwapVM</span>
+              <span>04 · Aqua settlement</span>
               <BrandLogo brand="oneinch" />
               <strong>Opcode 34 selects the rate</strong>
               <p>World ID-verified retail receives a bounded risk lane; searchers receive variable activity-priced execution.</p>

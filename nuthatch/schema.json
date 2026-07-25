@@ -1,5 +1,5 @@
 {
-  "registry_hash": "0x6dc262eec790620cdb601a471a5367385e1e34f7d20c98691a7dca58aebfaa2b",
+  "registry_hash": "0x1a0ff67df7885e491ca6faea4475b134d8f482fe78e85083c02b8fb3988c675a",
   "tables": [
     {
       "alias": "aqua",
@@ -216,80 +216,6 @@
       "event": "Claimed(address,uint256,uint256,uint256)",
       "table": "faucet__claimed",
       "topic0": "0x9cdcf2f7714cca3508c7f0110b04a90a80a3a8dd0e35de99689db74d28c5383e"
-    },
-    {
-      "alias": "identity_mirror",
-      "columns": [
-        {
-          "indexed": false,
-          "name": "block_number",
-          "sol_type": "implicit",
-          "storage": "u64"
-        },
-        {
-          "indexed": false,
-          "name": "block_hash",
-          "sol_type": "implicit",
-          "storage": "bytes32"
-        },
-        {
-          "indexed": false,
-          "name": "block_timestamp",
-          "sol_type": "implicit",
-          "storage": "u64"
-        },
-        {
-          "indexed": false,
-          "name": "tx_hash",
-          "sol_type": "implicit",
-          "storage": "bytes32"
-        },
-        {
-          "indexed": false,
-          "name": "log_index",
-          "sol_type": "implicit",
-          "storage": "u64"
-        },
-        {
-          "indexed": false,
-          "name": "address",
-          "sol_type": "implicit",
-          "storage": "address"
-        },
-        {
-          "indexed": false,
-          "name": "_seq",
-          "sol_type": "implicit",
-          "storage": "u64"
-        },
-        {
-          "indexed": true,
-          "name": "agent",
-          "sol_type": "address",
-          "storage": "address"
-        },
-        {
-          "indexed": true,
-          "name": "humanId",
-          "sol_type": "uint256",
-          "storage": "word32"
-        },
-        {
-          "indexed": true,
-          "name": "sourceBlock",
-          "sol_type": "uint256",
-          "storage": "word32"
-        },
-        {
-          "indexed": false,
-          "name": "sourceBlockHash",
-          "sol_type": "bytes32",
-          "storage": "fixed_bytes"
-        }
-      ],
-      "event": "HumanMirrored(address,uint256,uint256,bytes32)",
-      "table": "identity_mirror__human_mirrored",
-      "topic0": "0x5c1c3c83cbe6e0625c1cb68bf1e5501bd9b52ccc14a75637ee2552d06636e8cf"
     },
     {
       "alias": "quota",

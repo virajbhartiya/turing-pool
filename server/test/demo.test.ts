@@ -160,7 +160,7 @@ test('Vite dashboard exposes judge-facing provenance and trading-terminal struct
   assert.match(source, /Quote ticket/);
   assert.match(source, /Live fee market/);
   assert.match(source, /Activity-priced fee controller/);
-  assert.match(source, /pnpm demo:world/);
+  assert.match(source, /pnpm market:world/);
   assert.match(source, /Aqua transfers inventory/);
   assert.match(source, /On-chain receipts/);
   assert.match(source, /How each fill moves through the protocol/);
@@ -240,8 +240,8 @@ test('Vercel backend serves health, state, direction-aware quotes, and an explic
     vercelApp.request('/'),
     vercelApp.request('/health'),
     vercelApp.request('/state'),
-    vercelApp.request('/demo/quotes'),
-    vercelApp.request('/demo/quotes?amountIn=100000000000000000000&direction=tUSD-to-tETH'),
+    vercelApp.request('/market/quotes'),
+    vercelApp.request('/market/quotes?amountIn=100000000000000000000&direction=tUSD-to-tETH'),
     vercelApp.request('/quote?anonymous=1'),
   ]);
 

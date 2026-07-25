@@ -113,7 +113,7 @@ check "sybil over-cap tier" "$(echo "$human_json" | python3 -c 'import json,sys;
 human_out=$(echo "$human_json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["amountOut"])')
 same_state_wide_out=$(echo "$human_json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["wideAmountOut"])')
 check_gt "human quote beats wide tier at the same pool state" "$human_out" "$same_state_wide_out"
-dashboard_sybil=$(curl -s "$API/demo/quotes" | python3 -c 'import json,sys;print(json.load(sys.stdin)["sybil"]["tier"])')
+dashboard_sybil=$(curl -s "$API/market/quotes" | python3 -c 'import json,sys;print(json.load(sys.stdin)["sybil"]["tier"])')
 check "dashboard reproduces over-cap sybil tier" "$dashboard_sybil" "wide"
 
 echo "==> [7/8] STRATEGIST re-prices from live flow data (dock + ship on Aqua)"
@@ -127,9 +127,9 @@ else
 fi
 
 echo "==> [8/8] post-repricing quotes"
-improv=$(curl -s "$API/demo/quotes" | python3 -c 'import json,sys;print(json.load(sys.stdin)["improvementBps"])')
+improv=$(curl -s "$API/market/quotes" | python3 -c 'import json,sys;print(json.load(sys.stdin)["improvementBps"])')
 check_gt "human price improvement after re-pricing (bps)" "$improv" "0"
-tier_now=$(curl -s "$API/demo/quotes" | python3 -c 'import json,sys;print(json.load(sys.stdin)["human"]["tier"])')
+tier_now=$(curl -s "$API/market/quotes" | python3 -c 'import json,sys;print(json.load(sys.stdin)["human"]["tier"])')
 check "human still tight-tier on re-shipped strategy" "$tier_now" "tight"
 
 echo

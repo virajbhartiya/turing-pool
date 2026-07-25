@@ -1,31 +1,17 @@
 import {
   createPublicClient,
-  createWalletClient,
   getAddress,
   http,
   parseAbi,
   type Address,
-  type Hex,
 } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
 
-import { client, deployments } from './chain.js';
-import {
-  CHAIN_ID,
-  RPC_URL,
-  WORLD_AGENTBOOK_CHAIN_ID,
-  WORLD_RPC_URL,
-} from './config.js';
+import { deployments } from './chain.js';
+import { WORLD_AGENTBOOK_CHAIN_ID, WORLD_RPC_URL } from './config.js';
 
 const WORLD_AGENT_BOOK_ABI = parseAbi([
   'function lookupHuman(address agent) view returns (uint256 humanId)',
   'function getNextNonce(address agent) view returns (uint256 nonce)',
-]);
-
-const MIRROR_ABI = parseAbi([
-  'function lookupHuman(address agent) view returns (uint256 humanId)',
-  'function recordOf(address agent) view returns (uint256 humanId, uint64 sourceBlock, bytes32 sourceBlockHash)',
-  'function mirrorHuman(address agent, uint256 humanId, uint64 sourceBlock, bytes32 sourceBlockHash)',
 ]);
 
 const WORLD_REGISTRATION_RELAY =
@@ -33,18 +19,8 @@ const WORLD_REGISTRATION_RELAY =
 
 const worldClient = createPublicClient({ transport: http(WORLD_RPC_URL) });
 
-function identityContracts() {
-  if (
-    deployments.identityMode !== 'world-agentbook-mirror' ||
-    !deployments.identitySourceAgentBook ||
-    !deployments.identityMirror
-  ) {
-    throw new Error('World identity mirror is not configured for this deployment');
-  }
-  return {
-    source: getAddress(deployments.identitySourceAgentBook),
-    mirror: getAddress(deployments.identityMirror),
-  };
+function canonicalAgentBook(): Address {
+  return getAddress(deployments.agentBook);
 }
 
 export function parseIdentityAddress(value: unknown): Address {
@@ -56,25 +32,19 @@ export function parseIdentityAddress(value: unknown): Address {
 
 export async function worldIdentityStatus(value: unknown) {
   const address = parseIdentityAddress(value);
-  const { source, mirror } = identityContracts();
-  const [sourceBlock, humanId, nonce, mirrorRecord] = await Promise.all([
+  const agentBook = canonicalAgentBook();
+  const [sourceBlock, humanId, nonce] = await Promise.all([
     worldClient.getBlock({ blockTag: 'latest' }),
     worldClient.readContract({
-      address: source,
+      address: agentBook,
       abi: WORLD_AGENT_BOOK_ABI,
       functionName: 'lookupHuman',
       args: [address],
     }),
     worldClient.readContract({
-      address: source,
+      address: agentBook,
       abi: WORLD_AGENT_BOOK_ABI,
       functionName: 'getNextNonce',
-      args: [address],
-    }),
-    client.readContract({
-      address: mirror,
-      abi: MIRROR_ABI,
-      functionName: 'recordOf',
       args: [address],
     }),
   ]);
@@ -82,27 +52,17 @@ export async function worldIdentityStatus(value: unknown) {
     throw new Error('World Chain returned an incomplete block');
   }
 
-  const mirroredHumanId = mirrorRecord[0];
   const worldRegistered = humanId !== 0n;
-  const mirrorReady = worldRegistered && mirroredHumanId === humanId;
   return {
     address,
     worldRegistered,
-    mirrorReady,
-    readyToTradeAsHuman: mirrorReady,
+    readyToTradeAsHuman: worldRegistered,
     humanId: humanId.toString(),
-    mirroredHumanId: mirroredHumanId.toString(),
     nextNonce: nonce.toString(),
     worldBlock: sourceBlock.number.toString(),
     worldBlockHash: sourceBlock.hash,
-    mirrorSourceBlock: mirrorRecord[1].toString(),
-    sourceAgentBook: source,
-    mirror,
-    sourceChainId: Number(
-      deployments.identitySourceChainId ?? WORLD_AGENTBOOK_CHAIN_ID,
-    ),
-    destinationChainId: CHAIN_ID,
-    syncAvailable: Boolean(process.env.MIRROR_RELAYER_PRIVATE_KEY),
+    agentBook,
+    chainId: WORLD_AGENTBOOK_CHAIN_ID,
   };
 }
 
@@ -116,9 +76,9 @@ export interface AgentBookRegistration {
 }
 
 export async function relayAgentBookRegistration(body: AgentBookRegistration) {
-  const { source } = identityContracts();
+  const agentBook = canonicalAgentBook();
   const agent = parseIdentityAddress(body.agent);
-  if (getAddress(body.contract) !== source) {
+  if (getAddress(body.contract) !== agentBook) {
     throw new Error('registration targets a different AgentBook');
   }
   if (
@@ -139,7 +99,7 @@ export async function relayAgentBookRegistration(body: AgentBookRegistration) {
   const response = await fetch(`${WORLD_REGISTRATION_RELAY.replace(/\/$/, '')}/register`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ...body, agent, contract: source }),
+    body: JSON.stringify({ ...body, agent, contract: agentBook }),
     signal: AbortSignal.timeout(30_000),
   });
   const responseBody = await response.text();
@@ -153,48 +113,4 @@ export async function relayAgentBookRegistration(body: AgentBookRegistration) {
     throw new Error('World AgentKit relay returned an invalid response');
   }
   return result;
-}
-
-export async function syncWorldIdentity(value: unknown) {
-  const status = await worldIdentityStatus(value);
-  if (!status.worldRegistered || status.humanId === '0') {
-    throw new Error('wallet is not registered in the canonical World AgentBook yet');
-  }
-  if (status.mirrorReady) {
-    return { ...status, status: 'already-synchronized' as const, transactionHash: null };
-  }
-
-  const privateKey = process.env.MIRROR_RELAYER_PRIVATE_KEY as Hex | undefined;
-  if (!privateKey || !/^0x[0-9a-fA-F]{64}$/.test(privateKey)) {
-    throw new Error('identity synchronization is not enabled on this server');
-  }
-  const account = privateKeyToAccount(privateKey);
-  const { mirror } = identityContracts();
-  const wallet = createWalletClient({
-    account,
-    transport: http(RPC_URL),
-  });
-  const transactionHash = await wallet.writeContract({
-    chain: undefined,
-    address: mirror,
-    abi: MIRROR_ABI,
-    functionName: 'mirrorHuman',
-    args: [
-      status.address,
-      BigInt(status.humanId),
-      BigInt(status.worldBlock),
-      status.worldBlockHash as Hex,
-    ],
-  });
-  const receipt = await client.waitForTransactionReceipt({ hash: transactionHash });
-  const updated = await worldIdentityStatus(status.address);
-  if (!updated.mirrorReady) {
-    throw new Error('Base mirror transaction mined without publishing the World humanId');
-  }
-  return {
-    ...updated,
-    status: 'synchronized' as const,
-    transactionHash,
-    destinationBlock: receipt.blockNumber.toString(),
-  };
 }

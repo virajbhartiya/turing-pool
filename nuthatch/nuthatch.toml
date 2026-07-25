@@ -1,55 +1,48 @@
 [nest]
-name = "turing-pool-base-sepolia"
-chain = "base-sepolia"
-chain_id = 84532
-rpc_urls = ["https://base-sepolia-rpc.publicnode.com", "https://sepolia.base.org"]
+name = "turing-pool-world"
+chain = "world-chain"
+chain_id = 480
+rpc_urls = ["https://worldchain-mainnet.g.alchemy.com/public"]
 schema_version = 1
 
 [[contracts]]
 alias = "router"
-address = "0xc8c614C5Ef7823F4E0E6baf3EbC4593d089c7F22"
-start_block = 44616718
+address = "0x237726Cdf497794357D4BcB0bCDBD04437F0eAa3"
+start_block = 32814381
 abi = "abis/router.json"
 events = ["HumanGated", "Swapped"]
 
 [[contracts]]
 alias = "quota"
-address = "0xEE987052Ac1840AAd96eF322822C664616c15C66"
-start_block = 44616718
+address = "0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B"
+start_block = 32814381
 abi = "abis/quota.json"
 events = ["UsageRecorded", "FeeScheduleUpdated", "RiskPolicyApplied"]
 
 [[contracts]]
 alias = "aqua"
 address = "0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec"
-start_block = 44605284
+start_block = 32814381
 abi = "abis/aqua.json"
 events = ["Shipped", "Docked"]
 
 [[contracts]]
 alias = "vault_router"
-address = "0x503a9d46da9a9b1d7edf798f4cef2e49f296e0ce"
-start_block = 44616783
+address = "0x4f09A6EbB5772D4c4BDf90F717AB0C7ee4bb908f"
+start_block = 32814381
 abi = "abis/router.json"
 events = ["HumanGated", "Swapped"]
 
 [[contracts]]
 alias = "vault_quota"
-address = "0x83644E4C17BA1ffDf38436a10a610F1325d9Bb0a"
-start_block = 44616818
+address = "0xCF45724b94DB62263ac23dbce922C45fB15deeA2"
+start_block = 32836238
 abi = "abis/quota.json"
 events = ["UsageRecorded", "FeeScheduleUpdated", "RiskPolicyApplied"]
 
 [[contracts]]
-alias = "identity_mirror"
-address = "0x70b9FE7Bd162B0014df1E1f435dB47765Db62455"
-start_block = 44605233
-abi = "abis/mirror.json"
-events = ["HumanMirrored"]
-
-[[contracts]]
 alias = "faucet"
-address = "0x1aA651B3fd14F8242b13759c56d73E48800fEF2a"
-start_block = 44614019
+address = "0x8DE77C94983ACDaE8f08d558804068cA24FF4fC6"
+start_block = 32836272
 abi = "abis/faucet.json"
 events = ["Claimed"]

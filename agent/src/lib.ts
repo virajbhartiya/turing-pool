@@ -74,7 +74,8 @@ export const KEYS = resolveAgentKeys(process.env);
 
 export function loadDeployments() {
   const path =
-    process.env.DEPLOYMENTS_PATH ?? resolve(here, '../../contracts/deployments/demo.json');
+    process.env.DEPLOYMENTS_PATH ??
+    resolve(here, '../../contracts/deployments/world-mainnet.json');
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 

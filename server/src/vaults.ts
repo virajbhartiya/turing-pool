@@ -190,7 +190,7 @@ export async function vaultDirectionForPair(
   ) {
     return 'token1-to-token0';
   }
-  throw new Error('configured website vault does not contain the demo trading pair');
+  throw new Error('configured website vault does not contain the active trading pair');
 }
 
 function slippageBps(): bigint {

@@ -28,18 +28,14 @@ export interface Deployments {
   deployBlock?: string | number;
   vaultFactory?: `0x${string}`;
   vaultRouter?: `0x${string}`;
-  demoVault?: `0x${string}`;
-  demoVaultQuota?: `0x${string}`;
-  identityMirror?: `0x${string}`;
-  identityMode?: 'world-agentbook-mirror';
-  identitySourceAgentBook?: `0x${string}`;
-  identitySourceBlock?: string | number;
-  identitySourceChainId?: string | number;
+  activeVault?: `0x${string}`;
+  activeVaultQuota?: `0x${string}`;
   faucet?: `0x${string}`;
 }
 
 export const DEPLOYMENTS_PATH =
-  process.env.DEPLOYMENTS_PATH ?? resolve(here, '../../contracts/deployments/demo.json');
+  process.env.DEPLOYMENTS_PATH ??
+  resolve(here, '../../contracts/deployments/world-mainnet.json');
 
 export function loadDeployments(): Deployments {
   const inline = process.env.DEPLOYMENTS_JSON;

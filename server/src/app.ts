@@ -39,9 +39,9 @@ import { faucetState, prepareFaucetClaim } from './faucet.js';
 import { hostedDemoQuotes, hostedState } from './hosted-snapshot.js';
 import { loadNuthatchActivity, type NuthatchActivity } from './nuthatch.js';
 import {
-  demoTradesEnabled,
+  marketTradesEnabled,
   directionFromZeroForOne,
-  executeDemoTrade,
+  executeMarketTrade,
   parseDemoTradeDirection,
   quoteRouterFor,
   routerOpcode,
@@ -65,7 +65,6 @@ import {
 import {
   parseIdentityAddress,
   relayAgentBookRegistration,
-  syncWorldIdentity,
   worldIdentityStatus,
   type AgentBookRegistration,
 } from './world-identity.js';
@@ -77,9 +76,7 @@ const SNAPSHOT_MODE = process.env.HOSTED_DEMO_MODE === 'snapshot';
 const storage = new InMemoryAgentKitStorage();
 const canonicalAgentBook = createAgentBookVerifier({
   rpcUrl: WORLD_RPC_URL,
-  ...(deployments.identitySourceAgentBook
-    ? { contractAddress: deployments.identitySourceAgentBook }
-    : {}),
+  contractAddress: deployments.agentBook,
 });
 const STATEMENT =
   'Prove this trading wallet belongs to a unique World ID-verified trader so a shared quota can bound LP risk and unlock tighter pricing.';
@@ -126,7 +123,7 @@ function liveReadErrorResponse(c: Context, error: unknown) {
 }
 
 function vaultOriginAllowed(c: Context): boolean {
-  const allowedOrigin = process.env.DEMO_TRADE_ORIGIN;
+  const allowedOrigin = process.env.MARKET_TRADE_ORIGIN;
   return !allowedOrigin || c.req.header('origin') === allowedOrigin;
 }
 
@@ -149,7 +146,7 @@ function vaultRequestError(c: Context, error: unknown) {
       400,
     );
   }
-  const safeError = describeTradeError(error, 'base');
+  const safeError = describeTradeError(error);
   return c.json(safeError, safeError.status);
 }
 
@@ -414,7 +411,7 @@ app.get('/quote', async (c) => {
       identity: {
         verified: false,
         simulated: true,
-        note: 'Hosted preview snapshot; run the fork demo for cryptographic verification',
+        note: 'Hosted preview snapshot; use the live World Chain market for cryptographic verification',
       },
       tier: quote.tier,
       feeBps: quote.feeBps,
@@ -425,7 +422,7 @@ app.get('/quote', async (c) => {
       feeSchedule: preview.feeSchedule,
       execute: {
         available: false,
-        note: 'Snapshot quotes are not executable; use pnpm demo:fork for live execution',
+        note: 'Snapshot quotes are not executable; use the live World Chain market',
       },
     });
   }
@@ -498,9 +495,9 @@ app.get('/quote', async (c) => {
   });
 });
 
-/// Dashboard helper: live quotes for the three demo takers (on-chain eth_calls;
-/// the tier shown is exactly what each taker would receive on-chain right now).
-app.get('/demo/quotes', async (c) => {
+/// Live market comparison: the tier shown is exactly what each reference taker
+/// would receive from the on-chain router right now.
+const marketQuotes = async (c: Context) => {
   let amountIn: bigint;
   let direction: DemoTradeDirection;
   try {
@@ -510,7 +507,7 @@ app.get('/demo/quotes', async (c) => {
     return c.json(
       {
         code: 'invalid_trade_request',
-        error: error instanceof Error ? error.message : 'invalid demo quote request',
+        error: error instanceof Error ? error.message : 'invalid market quote request',
         retryable: false,
         status: 400,
       },
@@ -582,7 +579,9 @@ app.get('/demo/quotes', async (c) => {
   } catch (error) {
     return liveReadErrorResponse(c, error);
   }
-});
+};
+
+app.get('/market/quotes', marketQuotes);
 
 app.get('/wallet/quote', async (c) => {
   if (SNAPSHOT_MODE) {
@@ -657,40 +656,8 @@ app.post('/identity/register', async (c) => {
   }
 });
 
-app.post('/identity/sync', async (c) => {
-  if (!vaultOriginAllowed(c)) {
-    return c.json(
-      {
-        code: 'identity_sync_forbidden',
-        error: 'identity synchronization must be requested from the configured dashboard',
-        retryable: false,
-        status: 403,
-      },
-      403,
-    );
-  }
-  try {
-    const body = (await c.req.json()) as { address?: unknown };
-    return c.json(await syncWorldIdentity(body.address));
-  } catch (error) {
-    const description = errorDescription(error);
-    const status = /not registered|not enabled|wallet address|not configured/i.test(description)
-      ? 400
-      : 503;
-    return c.json(
-      {
-        code: 'identity_sync_failed',
-        error: error instanceof Error ? error.message : 'identity synchronization failed',
-        retryable: status === 503,
-        status,
-      },
-      status,
-    );
-  }
-});
-
 app.post('/wallet/prepare', async (c) => {
-  const allowedOrigin = process.env.DEMO_TRADE_ORIGIN;
+  const allowedOrigin = process.env.MARKET_TRADE_ORIGIN;
   const requestOrigin = c.req.header('origin');
   if (allowedOrigin && requestOrigin !== allowedOrigin) {
     return c.json(
@@ -731,13 +698,13 @@ app.post('/wallet/prepare', async (c) => {
         400,
       );
     }
-    const safeError = describeTradeError(error, 'base');
+    const safeError = describeTradeError(error);
     return c.json(safeError, safeError.status);
   }
 });
 
 app.post('/wallet/confirm', async (c) => {
-  const allowedOrigin = process.env.DEMO_TRADE_ORIGIN;
+  const allowedOrigin = process.env.MARKET_TRADE_ORIGIN;
   const requestOrigin = c.req.header('origin');
   if (allowedOrigin && requestOrigin !== allowedOrigin) {
     return c.json(
@@ -779,25 +746,25 @@ app.post('/wallet/confirm', async (c) => {
         400,
       );
     }
-    const safeError = describeTradeError(error, 'base');
+    const safeError = describeTradeError(error);
     return c.json(safeError, safeError.status);
   }
 });
 
-app.post('/demo/trade', async (c) => {
-  if (!demoTradesEnabled()) {
+app.post('/market/trade', async (c) => {
+  if (!marketTradesEnabled()) {
     const safeError = describeTradeError(
-      new Error('interactive demo trades are disabled on this runtime'),
+      new Error('server-operated market trades are disabled on this runtime'),
     );
     return c.json(safeError, safeError.status);
   }
-  const allowedOrigin = process.env.DEMO_TRADE_ORIGIN;
+  const allowedOrigin = process.env.MARKET_TRADE_ORIGIN;
   const requestOrigin = c.req.header('origin');
   if (allowedOrigin && requestOrigin !== allowedOrigin) {
     return c.json(
       {
         code: 'trade_forbidden',
-        error: 'demo trades must be submitted from the configured dashboard',
+        error: 'market trades must be submitted from the configured dashboard',
         retryable: false,
         status: 403,
       },
@@ -855,7 +822,7 @@ app.post('/demo/trade', async (c) => {
         await stream.write(`${JSON.stringify(event)}\n`);
       };
       try {
-        const result = await executeDemoTrade(
+        const result = await executeMarketTrade(
           body.lane as DemoTradeLane,
           amountIn,
           direction,
@@ -863,16 +830,16 @@ app.post('/demo/trade', async (c) => {
         );
         await send({ type: 'result', result });
       } catch (error) {
-        console.error('[turing-pool] streamed demo trade failed', error);
+        console.error('[turing-pool] streamed market trade failed', error);
         await send({ type: 'error', error: describeTradeError(error) });
       }
     });
   }
 
   try {
-    return c.json(await executeDemoTrade(body.lane as DemoTradeLane, amountIn, direction));
+    return c.json(await executeMarketTrade(body.lane as DemoTradeLane, amountIn, direction));
   } catch (error) {
-    console.error('[turing-pool] demo trade failed', error);
+    console.error('[turing-pool] market trade failed', error);
     const safeError = describeTradeError(error);
     if (safeError.retryAfterSeconds !== undefined) {
       c.header('Retry-After', safeError.retryAfterSeconds.toString());
@@ -895,6 +862,10 @@ app.get('/state', async (c) => {
     ]);
   const strategies = configuredStrategyHistory(state.strategy, state.strategyHash);
   let swaps: Awaited<ReturnType<typeof recentSwaps>>;
+  const feeHistory =
+    index.mode === 'sql+mcp' && index.status === 'connected'
+      ? index.feeHistory
+      : [];
   if (index.mode === 'sql+mcp' && index.status === 'connected') {
     swaps = index.swaps;
   } else {
@@ -941,19 +912,12 @@ app.get('/state', async (c) => {
       mockAgentBook: deployments.mockAgentBook,
       vaultFactory: process.env.VAULT_FACTORY ?? deployments.vaultFactory,
       vaultRouter: deployments.vaultRouter,
-      demoVault: deployments.demoVault,
-      demoVaultQuota: deployments.demoVaultQuota,
-      identityMirror: deployments.identityMirror,
-      identityMode: deployments.identityMode,
-      identitySourceAgentBook: deployments.identitySourceAgentBook,
-      identitySourceBlock: deployments.identitySourceBlock?.toString(),
-      identitySourceChainId: deployments.identitySourceChainId === undefined
-        ? undefined
-        : Number(deployments.identitySourceChainId),
+      activeVault: deployments.activeVault,
+      activeVaultQuota: deployments.activeVaultQuota,
       faucet: process.env.FAUCET_ADDRESS ?? deployments.faucet,
     },
     execution: {
-      enabled: demoTradesEnabled(),
+      enabled: marketTradesEnabled(),
       venue: 'SwapVM',
       opcode,
       instruction: '_humanGate',
@@ -1042,6 +1006,7 @@ app.get('/state', async (c) => {
     },
     strategyHistory: strategies,
     swaps,
+    feeHistory,
     });
   } catch (error) {
     return liveReadErrorResponse(c, error);

@@ -1,5 +1,5 @@
-export const EXECUTION_CHAIN_ID = 84532;
-export const EXECUTION_CHAIN_HEX = '0x14a34';
+export const EXECUTION_CHAIN_ID = 480;
+export const EXECUTION_CHAIN_HEX = '0x1e0';
 
 export interface Eip1193Provider {
   request(args: {
@@ -58,10 +58,10 @@ export async function ensureExecutionChain(provider: Eip1193Provider): Promise<v
       params: [
         {
           chainId: EXECUTION_CHAIN_HEX,
-          chainName: 'Turing Pool Testnet',
+          chainName: 'World Chain',
           nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-          rpcUrls: ['https://sepolia.base.org'],
-          blockExplorerUrls: ['https://sepolia.basescan.org'],
+          rpcUrls: ['https://worldchain-mainnet.g.alchemy.com/public'],
+          blockExplorerUrls: ['https://worldscan.org'],
         },
       ],
     });

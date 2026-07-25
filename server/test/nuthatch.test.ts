@@ -61,6 +61,37 @@ test('loads correlated SwapVM activity and preserves Nuthatch provenance', async
         },
       });
     }
+    if (url.searchParams.get('q')?.includes('turing_fee_history')) {
+      return jsonResponse({
+        count: 2,
+        rows: [
+          {
+            pool: 'vault',
+            block_number: 32811009,
+            tx_hash: TX_HASH,
+            token: TOKEN_IN,
+            tight_fee_bps: 12,
+            wide_fee_bps: 48,
+            human_share_bps: 5000,
+          },
+          {
+            pool: 'vault',
+            block_number: 32811008,
+            tx_hash: `0x${'de'.repeat(32)}`,
+            token: TOKEN_IN,
+            tight_fee_bps: 10,
+            wide_fee_bps: 50,
+            human_share_bps: 5000,
+          },
+        ],
+        provenance: {
+          as_of: 32811009,
+          sealed_through: 32810900,
+          source: 'hot+sealed',
+          registry_hash: REGISTRY_HASH,
+        },
+      });
+    }
     return jsonResponse({
       count: 1,
       rows: [{
@@ -93,6 +124,26 @@ test('loads correlated SwapVM activity and preserves Nuthatch provenance', async
   assert.equal(activity.registryHash, REGISTRY_HASH);
   assert.equal(activity.summary.fills, 8);
   assert.equal(activity.summary.tightVolume, '5000000000000000000');
+  assert.deepEqual(activity.feeHistory, [
+    {
+      pool: 'vault',
+      blockNumber: '32811008',
+      transactionHash: `0x${'de'.repeat(32)}`,
+      token: TOKEN_IN,
+      tightFeeBps: 10,
+      wideFeeBps: 50,
+      humanShareBps: 5000,
+    },
+    {
+      pool: 'vault',
+      blockNumber: '32811009',
+      transactionHash: TX_HASH,
+      token: TOKEN_IN,
+      tightFeeBps: 12,
+      wideFeeBps: 48,
+      humanShareBps: 5000,
+    },
+  ]);
   assert.deepEqual(activity.swaps[0], {
     blockNumber: '32811009',
     transactionHash: TX_HASH,
@@ -106,10 +157,14 @@ test('loads correlated SwapVM activity and preserves Nuthatch provenance', async
     feeBps: '5',
     source: 'swapvm',
   });
-  assert.equal(requested.length, 4);
+  assert.equal(requested.length, 5);
   assert.ok(
     requested.some((url) => decodeURIComponent(url).includes('FROM turing_all_trades')),
     'the terminal chart must include both primary-maker and permissionless-vault fills',
+  );
+  assert.ok(
+    requested.some((url) => decodeURIComponent(url).includes('FROM turing_fee_history')),
+    'the fee chart must load both verified and non-verified executable rates after every fill',
   );
 });
 

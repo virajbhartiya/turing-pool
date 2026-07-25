@@ -232,10 +232,10 @@ function policyTargets(): Array<{ quota: Address; token: Address; label: string 
     { quota: deployments.quota, token: deployments.tETH, label: 'primary/tETH' },
     { quota: deployments.quota, token: deployments.tUSD, label: 'primary/tUSD' },
   ];
-  if (deployments.demoVaultQuota) {
+  if (deployments.activeVaultQuota) {
     targets.push(
-      { quota: deployments.demoVaultQuota, token: deployments.tETH, label: 'vault/tETH' },
-      { quota: deployments.demoVaultQuota, token: deployments.tUSD, label: 'vault/tUSD' },
+      { quota: deployments.activeVaultQuota, token: deployments.tETH, label: 'vault/tETH' },
+      { quota: deployments.activeVaultQuota, token: deployments.tUSD, label: 'vault/tUSD' },
     );
   }
   return targets as Array<{ quota: Address; token: Address; label: string }>;

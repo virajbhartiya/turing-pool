@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 API_URL="${API_URL:-http://localhost:4021}"
-ORIGIN="${DEMO_TRADE_ORIGIN:-$API_URL}"
+ORIGIN="${MARKET_TRADE_ORIGIN:-$API_URL}"
 AMOUNT_IN="${AMOUNT_IN:-100000000000000000}" # executed notional; try 1e18 to move fees 10× more
 
 require_command() {
@@ -59,7 +59,7 @@ router_quote_out() {
     sed -n '2s/ .*//p'
 }
 
-quotes_before="$(curl -sf "$API_URL/demo/quotes?amountIn=$AMOUNT_IN")"
+quotes_before="$(curl -sf "$API_URL/market/quotes?amountIn=$AMOUNT_IN")"
 expected_bot_out="$(router_quote_out "$bot_wallet")"
 expected_human_out="$(router_quote_out "$human_wallet")"
 jq -e \
@@ -97,7 +97,7 @@ jq -e \
 trade() {
   local lane="$1"
   curl -sf \
-    -X POST "$API_URL/demo/trade" \
+    -X POST "$API_URL/market/trade" \
     -H "Origin: $ORIGIN" \
     -H "Content-Type: application/json" \
     --data "{\"lane\":\"$lane\",\"amountIn\":\"$AMOUNT_IN\"}"

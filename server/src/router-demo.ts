@@ -577,13 +577,13 @@ export function decodeRouterReceipt(
     swap.args.tokenIn.toLowerCase() !== route.tokenIn.toLowerCase() ||
     swap.args.tokenOut.toLowerCase() !== route.tokenOut.toLowerCase()
   ) {
-    throw new Error('router receipt does not match the configured order, route, and demo wallet');
+    throw new Error('router receipt does not match the configured order, route, and execution wallet');
   }
   return { gate, swap };
 }
 
-export function demoTradesEnabled(): boolean {
-  return process.env.DEMO_TRADES_ENABLED === '1';
+export function marketTradesEnabled(): boolean {
+  return process.env.MARKET_TRADES_ENABLED === '1';
 }
 
 let cachedRouterOpcode: number | undefined;
@@ -605,8 +605,8 @@ export async function routerOpcode(): Promise<number> {
 function executionLimit(direction: DemoTradeDirection): bigint {
   const configuredMax =
     direction === 'tETH-to-tUSD'
-      ? process.env.DEMO_TRADE_MAX_TETH_IN ?? process.env.DEMO_TRADE_MAX_AMOUNT_IN
-      : process.env.DEMO_TRADE_MAX_TUSD_IN;
+      ? process.env.MARKET_TRADE_MAX_TETH_IN ?? process.env.MARKET_TRADE_MAX_AMOUNT_IN
+      : process.env.MARKET_TRADE_MAX_TUSD_IN;
   return BigInt(
     configuredMax ??
       (direction === 'tETH-to-tUSD' ? DEFAULT_MAX_TETH_IN : DEFAULT_MAX_TUSD_IN),
@@ -690,7 +690,7 @@ export async function prepareConnectedWalletTrade(
   amountIn: bigint,
   direction: DemoTradeDirection = 'tETH-to-tUSD',
 ): Promise<ConnectedWalletPreparation> {
-  if (!demoTradesEnabled()) throw new Error('interactive demo trades are disabled');
+  if (!marketTradesEnabled()) throw new Error('server-operated market trades are disabled');
   const wallet = parseWalletAddress(walletInput);
   const quote = await quoteConnectedWallet(wallet, amountIn, direction);
   if (!quote.sufficientBalance) {
@@ -813,13 +813,13 @@ export async function confirmConnectedWalletTrade(
   };
 }
 
-export async function executeDemoTrade(
+export async function executeMarketTrade(
   lane: DemoTradeLane,
   amountIn: bigint,
   direction: DemoTradeDirection = 'tETH-to-tUSD',
   reportProgress?: DemoTradeProgressReporter,
 ): Promise<DemoTradeResult> {
-  if (!demoTradesEnabled()) throw new Error('interactive demo trades are disabled');
+  if (!marketTradesEnabled()) throw new Error('server-operated market trades are disabled');
   const view = routerExecutionView();
   const route = selectDemoTradeRoute(view, direction);
   assertExecutableAmount(amountIn, direction);
@@ -832,7 +832,7 @@ export async function executeDemoTrade(
     await reportProgress?.({
       stage: 'wallet',
       status: 'active',
-      title: 'Authenticate demo signer',
+      title: 'Authenticate execution signer',
       detail: `Loading the configured ${lane} execution wallet`,
     });
     const key = privateKeyForLane(lane);
@@ -844,7 +844,7 @@ export async function executeDemoTrade(
     await reportProgress?.({
       stage: 'wallet',
       status: 'complete',
-      title: 'Demo signer matched',
+      title: 'Execution signer matched',
       detail: `${account.address.slice(0, 8)}…${account.address.slice(-6)} matches the configured ${lane} wallet`,
     });
 
@@ -855,7 +855,7 @@ export async function executeDemoTrade(
       stage: 'identity',
       status: 'active',
       title: 'Resolve identity and quote',
-      detail: `Calling SwapVM opcode ${opcode}, the Base identity mirror, and HumanQuota`,
+      detail: `Calling SwapVM opcode ${opcode}, canonical AgentBook, and HumanQuota on World Chain`,
     });
     const quote = await quoteRouterFor(account.address, amountIn, view, direction);
     await reportProgress?.({
@@ -864,8 +864,8 @@ export async function executeDemoTrade(
       title: quote.humanId === 0n ? 'HFT / arbitrage flow resolved' : 'Human backing resolved',
       detail:
         quote.humanId === 0n
-          ? `World mirror returned humanId 0 · WIDE lane · ${quote.feeBps} bps`
-          : `World mirror returned humanId ${quote.humanId.toString().slice(0, 12)}… · TIGHT lane · ${quote.feeBps} bps`,
+          ? `AgentBook returned humanId 0 · WIDE lane · ${quote.feeBps} bps`
+          : `AgentBook returned humanId ${quote.humanId.toString().slice(0, 12)}… · TIGHT lane · ${quote.feeBps} bps`,
     });
 
     await reportProgress?.({

@@ -60,7 +60,7 @@ function tradeErrorHeadline(error: DemoTradeError): string {
   if (error.code === 'rpc_rate_limited') return 'Network busy · no trade sent';
   if (error.code === 'trade_busy') return 'Trade already processing';
   if (error.code === 'execution_unavailable') return 'Execution unavailable';
-  if (error.code === 'insufficient_balance') return 'Insufficient demo asset balance';
+  if (error.code === 'insufficient_balance') return 'Insufficient asset balance';
   if (error.code === 'wallet_rejected') return 'Wallet request cancelled';
   if (error.code === 'wallet_unavailable') return 'Wallet unavailable';
   if (error.code === 'wrong_network') return 'Execution network required';
@@ -70,10 +70,10 @@ function tradeErrorHeadline(error: DemoTradeError): string {
 
 const EXECUTION_SERVICES = {
   wallet: { brand: 'turing', label: 'Turing Pool execution service' },
-  identity: { brand: 'world', label: 'World → Base mirror' },
+  identity: { brand: 'world', label: 'Canonical World AgentBook' },
   allowance: { brand: 'oneinch', label: '1inch SwapVM Router' },
   simulation: { brand: 'oneinch', label: '1inch SwapVM' },
-  submission: { brand: 'oneinch', label: 'Base + SwapVM' },
+  submission: { brand: 'oneinch', label: 'World Chain + SwapVM' },
   settlement: { brand: 'oneinch', label: '1inch Aqua settlement' },
   receipt: { brand: 'oneinch', label: 'SwapVM receipt decoder' },
   repricing: { brand: 'turing', label: 'Turing fee controller' },
@@ -309,9 +309,15 @@ export function TradingTerminal({
             </div>
             <FeeChart
               controller={state.feeController}
+              feeHistory={state.feeHistory ?? []}
               mode={chartMode}
               pool={state.pool}
               swaps={state.swaps}
+              tokenIn={
+                direction === 'tETH-to-tUSD'
+                  ? state.pool.token0
+                  : state.pool.token1
+              }
             />
           </div>
         </div>

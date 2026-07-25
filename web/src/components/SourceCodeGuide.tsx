@@ -33,7 +33,7 @@ export function SourceCodeGuide() {
           <span className="eyebrow">Implementation map</span>
           <h2>Read the protocol in source.</h2>
           <p>
-            These are the exact integration points behind the live demo—not illustrative
+            These are the exact integration points behind the live market—not illustrative
             pseudocode. Each module links to the implementation that judges can inspect.
           </p>
         </div>
@@ -51,8 +51,8 @@ export function SourceCodeGuide() {
           <h3>Resolve World ID verification</h3>
           <p>
             The API returns an AgentKit 402 challenge. The agent signs the SIWE payload,
-            the server verifies it, then resolves the signer in canonical AgentBook.
-            Only the resulting human ID and finalized source block reach execution.
+            the server verifies it, and opcode 34 resolves the same signer directly in
+            canonical AgentBook on World Chain during execution.
           </p>
           <pre><code>{`const validation = await validateAgentkitMessage(payload, resourceUri, {
   maxAge: 5 * 60_000,
@@ -65,7 +65,7 @@ const verification = await verifyAgentkitSignature(
 const humanId = await lookupHuman(verification.address as \`0x\${string}\`);`}</code></pre>
           <footer>
             <SourceLink path="server/src/app.ts" lines="L305-L360">AgentKit challenge + verification</SourceLink>
-            <SourceLink path="contracts/src/identity/WorldAgentBookMirror.sol" lines="L58-L78">Finalized AgentBook mirror</SourceLink>
+            <SourceLink path="contracts/src/swapvm/HumanGate.sol" lines="L45-L83">Direct AgentBook lookup</SourceLink>
             <SourceLink path="agent/src/human-agent.ts">World ID-verified client</SourceLink>
           </footer>
         </article>
@@ -167,7 +167,7 @@ emit FeeScheduleUpdated(
           </div>
           <h3>Turn receipts into an agent-readable signal</h3>
           <p>
-            Nuthatch indexes HumanGated, Swapped, vault, mirror, and Aqua lifecycle
+            Nuthatch indexes HumanGated, Swapped, vault, and Aqua lifecycle
             events from the live deployment. SQL views aggregate volume by lane and MCP
             exposes the same schema to agents. The strategist consumes activity and can
             dock and re-ship a re-parameterized Aqua strategy; settlement safety remains

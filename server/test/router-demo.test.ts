@@ -82,7 +82,7 @@ test('program parsing rejects anything that is not opcode 34 with 48-byte argume
   );
 });
 
-test('terminal tier labels mirror _humanGate identity and quota resolution', () => {
+test('terminal tier labels match _humanGate identity and quota resolution', () => {
   const program = parseHumanGateProgram(BASE_SEPOLIA_PROGRAM);
 
   assert.deepEqual(resolveHumanGateTier(program, 0n, undefined, 1n), {

@@ -1,16 +1,15 @@
 # Turing Pool Nuthatch nest
 
-This nest indexes the live Base Sepolia execution deployment used by the demo:
+This nest indexes the live World Chain market:
 
-- canonical World AgentBook results published by the Base mirror
+- canonical World AgentBook identity reads
 - identity decisions emitted by `_humanGate` on the primary and vault routers
 - real SwapVM fills settled from Aqua virtual balances
 - HumanQuota usage and activity-priced fee updates
 - Aqua strategy shipping and docking
 
-The contracts use demo `tETH/tUSD` assets. They exercise the real deployed Aqua
-and SwapVM code paths, but they do not claim production 1inch Pathfinder
-liquidity.
+The contracts use World Chain `tETH/tUSD` test assets. They exercise the real
+deployed Aqua and SwapVM code paths, but do not claim Pathfinder liquidity.
 
 ## Run
 
@@ -20,18 +19,18 @@ Install Nuthatch 0.6.1 or newer, then start the nest from the repository root:
 pnpm nuthatch:dev
 ```
 
-The checked-in public Base Sepolia RPCs are fallbacks. For a reliable judge
-demo, supply a dedicated Base Sepolia RPC:
+The checked-in public World Chain RPC is a fallback. For a reliable live
+market, supply a dedicated World Chain RPC:
 
 ```bash
-NUTHATCH_RPC_URL=https://your-base-sepolia-rpc.example pnpm nuthatch:dev
+NUTHATCH_RPC_URL=https://your-world-chain-rpc.example pnpm nuthatch:dev
 ```
 
 If a provider limits `eth_getLogs`, run the checked-in proxy. It splits
 Nuthatch's adaptive ranges, spaces requests, and merges the responses:
 
 ```bash
-RPC_UPSTREAM_URL=https://your-base-sepolia-rpc.example \
+RPC_UPSTREAM_URL=https://your-world-chain-rpc.example \
 RPC_PROXY_PORT=8547 \
 pnpm rpc-proxy
 
@@ -48,7 +47,7 @@ chain events.
 
 The project command honors each contract's checked-in deployment block. Set
 `NUTHATCH_BACKFILL_BLOCKS` only when you explicitly want recent-history mode.
-Start Nuthatch, execute trades in the terminal, and watch those Base receipts
+Start Nuthatch, execute trades in the terminal, and watch those World receipts
 arrive.
 
 Useful queries:
@@ -61,5 +60,5 @@ nuthatch sql --dir nuthatch \
   'SELECT * FROM turing_activity_mix'
 
 nuthatch sql --dir nuthatch \
-  'SELECT agent, "humanId", "sourceBlock", "sourceBlockHash" FROM identity_mirror__human_mirrored'
+  'SELECT * FROM turing_fee_history ORDER BY block_number DESC, log_index DESC'
 ```

@@ -21,13 +21,13 @@ app.get('/api', (c) =>
   c.json({
     name: 'Turing Pool hosted preview API',
     mode: 'hosted-preview-snapshot',
-    note: 'Use pnpm demo:fork for cryptographic AgentKit verification and executable swaps',
+    note: 'Use the live World Chain deployment for verified executable swaps',
   }),
 );
 
 app.get('/state', (c) => c.json(hostedState()));
 
-app.get('/demo/quotes', (c) => {
+app.get('/market/quotes', (c) => {
   try {
     const amountIn = parseQuoteAmount(c.req.query('amountIn'));
     const direction = parseDemoTradeDirection(c.req.query('direction'));
@@ -52,7 +52,7 @@ app.get('/quote', (c) => {
       {
         error: 'agentkit_proof_requires_live_chain',
         mode: 'hosted-preview-snapshot',
-        note: 'Run pnpm demo:fork for the full 402 → SIWE → on-chain AgentBook flow',
+        note: 'Use the live World Chain API for the full 402 → SIWE → on-chain AgentBook flow',
       },
       402,
     );
@@ -80,7 +80,7 @@ app.get('/quote', (c) => {
     feeSchedule: preview.feeSchedule,
     execute: {
       available: false,
-      note: 'Snapshot quotes are not executable; use pnpm demo:fork for live execution',
+      note: 'Snapshot quotes are not executable; use the live World Chain API',
     },
   });
 });

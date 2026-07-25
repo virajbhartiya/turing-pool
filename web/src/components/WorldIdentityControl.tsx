@@ -15,13 +15,12 @@ const WORLD_AGENT_BOOK = '0xA23aB2712eA7BBa896930544C7d6636a96b944dA' as const;
 interface IdentityStatus {
   address: string;
   worldRegistered: boolean;
-  mirrorReady: boolean;
   readyToTradeAsHuman: boolean;
   humanId: string;
   nextNonce: string;
   worldBlock: string;
-  mirrorSourceBlock: string;
-  syncAvailable: boolean;
+  agentBook: string;
+  chainId: number;
 }
 
 type VerificationPhase =
@@ -29,7 +28,6 @@ type VerificationPhase =
   | 'preparing'
   | 'awaiting-world'
   | 'registering'
-  | 'mirroring'
   | 'complete'
   | 'error';
 
@@ -75,11 +73,9 @@ export function WorldIdentityControl({
   const refreshStatus = useCallback(async () => {
     const next = await readStatus(account);
     setStatus(next);
-    if (next.mirrorReady) {
+    if (next.readyToTradeAsHuman) {
       setPhase('complete');
-      setMessage('World ID is linked and live on the execution mirror.');
-    } else if (next.worldRegistered) {
-      setMessage('World registration found. Execution mirror synchronization is pending.');
+      setMessage('World ID is linked directly to this trading wallet.');
     } else {
       setPhase('idle');
       setMessage('Verify once in World App to unlock identity-priced execution.');
@@ -100,25 +96,6 @@ export function WorldIdentityControl({
     });
   }, [refreshStatus]);
 
-  async function synchronize(run: number) {
-    setPhase('mirroring');
-    setMessage('Publishing the canonical World humanId to the execution mirror…');
-    const response = await fetch(`${apiBase()}/identity/sync`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ address: account }),
-    });
-    const body = (await response.json()) as IdentityStatus & { error?: string };
-    if (!response.ok) throw new Error(body.error ?? 'Execution identity mirror could not synchronize');
-    if (run !== activeRun.current) return;
-    setStatus(body);
-    setPhase('complete');
-    setMessage('Verified by World · the retail lane is active.');
-    setConnectorUri(undefined);
-    setQrCode(undefined);
-    await onIdentityReady();
-  }
-
   async function verify() {
     const run = ++activeRun.current;
     setPhase('preparing');
@@ -126,13 +103,9 @@ export function WorldIdentityControl({
     try {
       const current = await readStatus(account);
       setStatus(current);
-      if (current.mirrorReady) {
+      if (current.readyToTradeAsHuman) {
         setPhase('complete');
-        setMessage('World ID is linked and live on the execution mirror.');
-        return;
-      }
-      if (current.worldRegistered) {
-        await synchronize(run);
+        setMessage('World ID is linked directly to this trading wallet.');
         return;
       }
 
@@ -183,8 +156,12 @@ export function WorldIdentityControl({
             await new Promise((resolve) => window.setTimeout(resolve, 2_000));
             const registered = await readStatus(account);
             setStatus(registered);
-            if (registered.worldRegistered) {
-              await synchronize(run);
+            if (registered.readyToTradeAsHuman) {
+              setPhase('complete');
+              setMessage('Verified by World · the retail lane is active.');
+              setConnectorUri(undefined);
+              setQrCode(undefined);
+              await onIdentityReady();
               return;
             }
           }
@@ -200,18 +177,18 @@ export function WorldIdentityControl({
     }
   }
 
-  const ready = quotedAsHuman || status?.mirrorReady;
-  const working = ['preparing', 'awaiting-world', 'registering', 'mirroring'].includes(phase);
+  const ready = quotedAsHuman || status?.readyToTradeAsHuman;
+  const working = ['preparing', 'awaiting-world', 'registering'].includes(phase);
 
   return (
     <section className={`world-identity-control ${ready ? 'ready' : ''}`}>
       <header>
         <BrandLogo brand="world" />
         <div>
-          <span>World human backing</span>
+          <span>World ID verification</span>
           <strong>{ready ? 'World ID-verified retail lane active' : 'Connect wallet to World ID'}</strong>
         </div>
-        <b>{ready ? 'VERIFIED' : status?.worldRegistered ? 'SYNCING' : 'VERIFY'}</b>
+        <b>{ready ? 'VERIFIED' : 'VERIFY'}</b>
       </header>
       <p>{message}</p>
       {status?.worldRegistered && (
@@ -263,9 +240,7 @@ export function WorldIdentityControl({
         >
           {working
             ? 'Verifying with World…'
-            : status?.worldRegistered
-              ? 'Sync verified identity to execution'
-              : phase === 'error'
+            : phase === 'error'
                 ? 'Retry World verification'
                 : 'Connect wallet to World ID'}
         </button>

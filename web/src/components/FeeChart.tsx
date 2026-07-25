@@ -1,11 +1,13 @@
 import { unitsAsNumber } from '../lib/format';
-import type { FeeController, Pool, Swap } from '../types';
+import type { FeeController, FeeHistoryPoint, Pool, Swap } from '../types';
 
 export type MarketChartMode = 'price' | 'fee';
 
 interface FeeChartProps {
   controller: FeeController;
   swaps: Swap[];
+  feeHistory: FeeHistoryPoint[];
+  tokenIn: string;
   pool: Pool;
   mode: MarketChartMode;
 }
@@ -25,6 +27,18 @@ function pathFor(points: ChartPoint[]): { line: string; area: string } {
     ? `${line} L ${points.at(-1)?.x.toFixed(1)} 208 L ${points[0]?.x.toFixed(1)} 208 Z`
     : '';
   return { line, area };
+}
+
+function stepPathFor(points: ChartPoint[]): string {
+  if (points.length === 0) return '';
+  return points.slice(1).reduce(
+    (path, point, index) => {
+      const previous = points[index];
+      const midpoint = (previous.x + point.x) / 2;
+      return `${path} H ${midpoint.toFixed(1)} V ${point.y.toFixed(1)} H ${point.x.toFixed(1)}`;
+    },
+    `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`,
+  );
 }
 
 function xFor(index: number, count: number): number {
@@ -110,31 +124,67 @@ function PriceChart({ swaps, pool }: { swaps: Swap[]; pool: Pool }) {
 
 function AdaptiveFeeChart({
   controller,
-  swaps,
+  feeHistory,
+  tokenIn,
 }: {
   controller: FeeController;
-  swaps: Swap[];
+  feeHistory: FeeHistoryPoint[];
+  tokenIn: string;
 }) {
-  const chartMax = Math.max(40, Math.ceil(controller.wideFeeBps / 10) * 10);
-  const plotted = swaps.slice(-24);
-  const points = plotted.map((swap, index) => {
-    const fee = Number(swap.feeBps);
-    return {
-      x: xFor(index, plotted.length),
-      y: 10 + (1 - Math.min(fee, chartMax) / chartMax) * 184,
-      tight: swap.tight,
-      hash: swap.transactionHash ?? `${swap.blockNumber}-${index}`,
-    };
-  });
-  const paths = pathFor(points);
+  const tokenHistory = feeHistory.filter(
+    (point) => point.token.toLowerCase() === tokenIn.toLowerCase(),
+  );
+  const vaultHistory = tokenHistory.filter((point) => point.pool === 'vault');
+  const matchingHistory = (vaultHistory.length > 0 ? vaultHistory : tokenHistory).slice(-24);
+  const plotted = matchingHistory.length > 0
+    ? matchingHistory
+    : [{
+        blockNumber: 'current',
+        transactionHash: 'current',
+        pool: 'vault' as const,
+        token: tokenIn,
+        tightFeeBps: controller.tightFeeBps,
+        wideFeeBps: controller.wideFeeBps,
+        humanShareBps: controller.humanShareBps,
+      }];
+  const latestSchedule = plotted.at(-1);
+  const currentTightFeeBps = latestSchedule?.tightFeeBps ?? controller.tightFeeBps;
+  const currentWideFeeBps = latestSchedule?.wideFeeBps ?? controller.wideFeeBps;
+  const observedMax = Math.max(
+    currentWideFeeBps,
+    ...plotted.flatMap((point) => [point.tightFeeBps, point.wideFeeBps]),
+  );
+  const chartMax = Math.max(40, Math.ceil(observedMax / 10) * 10);
+  const yForFee = (fee: number) =>
+    10 + (1 - Math.min(fee, chartMax) / chartMax) * 184;
+  const humanPoints = plotted.map((point, index) => ({
+    x: xFor(index, plotted.length),
+    y: yForFee(point.tightFeeBps),
+    tight: true,
+    hash: `${point.transactionHash}-human`,
+  }));
+  const botPoints = plotted.map((point, index) => ({
+    x: xFor(index, plotted.length),
+    y: yForFee(point.wideFeeBps),
+    tight: false,
+    hash: `${point.transactionHash}-bot`,
+  }));
+  const band = botPoints.length
+    ? `${botPoints
+        .map((point, index) =>
+          `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`,
+        )
+        .join(' ')} ${[...humanPoints]
+        .reverse()
+        .map((point) => `L ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+        .join(' ')} Z`
+    : '';
   const references = [
-    { label: 'Searcher', value: controller.wideFeeBps, tone: 'bot' },
     { label: 'Configured LP target', value: controller.targetFeeBps, tone: 'target' },
-    { label: 'Verified retail', value: controller.tightFeeBps, tone: 'human' },
   ];
 
   return (
-    <div className="fee-chart" aria-label="Observed fees and active fee schedule">
+    <div className="fee-chart" aria-label="Verified retail and searcher executable fee history">
       <div className="chart-axis" aria-hidden="true">
         <span>{chartMax}</span>
         <span>{Math.round(chartMax * 0.75)}</span>
@@ -144,20 +194,30 @@ function AdaptiveFeeChart({
       </div>
       <svg viewBox="0 0 800 220" preserveAspectRatio="none" aria-hidden="true">
         <defs>
-          <linearGradient id="activity-area" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#e8933a" stopOpacity=".28" />
-            <stop offset="100%" stopColor="#e8933a" stopOpacity="0" />
+          <linearGradient id="fee-spread-band" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ff645f" stopOpacity=".16" />
+            <stop offset="100%" stopColor="#26d2c0" stopOpacity=".08" />
           </linearGradient>
         </defs>
-        <path className="fill-area" d={paths.area} />
-        <path className="fill-line" d={paths.line} />
-        {points.map((point) => (
+        <path className="fee-spread-band" d={band} />
+        <path className="fee-series bot" d={stepPathFor(botPoints)} />
+        <path className="fee-series human" d={stepPathFor(humanPoints)} />
+        {botPoints.map((point) => (
           <circle
-            className={`fill-dot ${point.tight ? 'human' : 'bot'}`}
+            className="fee-series-dot bot"
             cx={point.x}
             cy={point.y}
             key={point.hash}
-            r="5"
+            r="3"
+          />
+        ))}
+        {humanPoints.map((point) => (
+          <circle
+            className="fee-series-dot human"
+            cx={point.x}
+            cy={point.y}
+            key={point.hash}
+            r="3"
           />
         ))}
       </svg>
@@ -170,19 +230,43 @@ function AdaptiveFeeChart({
           <span>{reference.label} · {reference.value} bps</span>
         </div>
       ))}
+      <div
+        className="fee-endpoint bot"
+        style={{ top: `${8 + (1 - currentWideFeeBps / chartMax) * 78}%` }}
+      >
+        Searcher / HFT · {currentWideFeeBps} bps
+      </div>
+      <div
+        className="fee-endpoint human"
+        style={{ top: `${8 + (1 - currentTightFeeBps / chartMax) * 78}%` }}
+      >
+        World ID-verified · {currentTightFeeBps} bps
+      </div>
       <div className="chart-legend">
-        <span><i className="human" />verified retail fill</span>
-        <span><i className="bot" />searcher fill</span>
+        <span><i className="human" />verified-wallet rate</span>
+        <span><i className="bot" />non-verified-wallet rate</span>
         <span><i className="target" />configured LP target</span>
+        <span>{matchingHistory.length} mined repricings</span>
       </div>
     </div>
   );
 }
 
-export function FeeChart({ controller, swaps, pool, mode }: FeeChartProps) {
+export function FeeChart({
+  controller,
+  feeHistory,
+  mode,
+  pool,
+  swaps,
+  tokenIn,
+}: FeeChartProps) {
   return mode === 'price' ? (
     <PriceChart pool={pool} swaps={swaps} />
   ) : (
-    <AdaptiveFeeChart controller={controller} swaps={swaps} />
+    <AdaptiveFeeChart
+      controller={controller}
+      feeHistory={feeHistory}
+      tokenIn={tokenIn}
+    />
   );
 }

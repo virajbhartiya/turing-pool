@@ -21,7 +21,7 @@ import {
 export interface WebsiteTradeVenueConfig {
   primaryRouter: Address;
   vaultRouter?: Address;
-  demoVault?: Address;
+  activeVault?: Address;
   vaultFactory?: Address;
 }
 
@@ -32,11 +32,11 @@ export type WebsiteTradeVenue =
 export function resolveWebsiteTradeVenue(
   config: WebsiteTradeVenueConfig,
 ): WebsiteTradeVenue {
-  if (config.vaultFactory && config.vaultRouter && config.demoVault) {
+  if (config.vaultFactory && config.vaultRouter && config.activeVault) {
     return {
       kind: 'vault',
       router: config.vaultRouter,
-      vault: config.demoVault,
+      vault: config.activeVault,
     };
   }
   return {
@@ -54,7 +54,7 @@ export function websiteTradeVenue(): WebsiteTradeVenue {
     primaryRouter: deployments.router,
     vaultFactory: optionalAddress(process.env.VAULT_FACTORY ?? deployments.vaultFactory),
     vaultRouter: optionalAddress(deployments.vaultRouter),
-    demoVault: optionalAddress(deployments.demoVault),
+    activeVault: optionalAddress(deployments.activeVault),
   });
 }
 

@@ -65,19 +65,14 @@ function errorDescription(error: unknown): string {
  */
 export function describeTradeError(
   error: unknown,
-  rpcContext: 'world' | 'base' = 'world',
 ): TradeErrorDescription {
   const description = errorDescription(error);
 
   if (/(?:\b429\b|too many requests|rate[ -]?limit|compute units per second)/i.test(description)) {
-    const baseSepoliaRpc =
-      rpcContext === 'base' ||
-      /https?:\/\/[^\s/]*(?:base-sepolia|sepolia\.base)[^\s/]*/i.test(description);
     return {
       code: 'rpc_rate_limited',
-      error: baseSepoliaRpc
-        ? 'The execution RPC is temporarily busy. No transaction was submitted; wait a few seconds and retry.'
-        : 'World Chain RPC is temporarily busy. No confirmed result was received; check the explorer before retrying.',
+      error:
+        'World Chain RPC is temporarily busy. No confirmed result was received; check the explorer before retrying.',
       retryable: true,
       retryAfterSeconds: 5,
       status: 503,
@@ -103,17 +98,17 @@ export function describeTradeError(
     return {
       code: 'network_error',
       error:
-        'The transaction is not visible to the backend RPC yet. It may already be mined; check BaseScan before retrying.',
+        'The transaction is not visible to the backend RPC yet. It may already be mined; check Worldscan before retrying.',
       retryable: true,
       retryAfterSeconds: 5,
       status: 503,
     };
   }
 
-  if (/interactive demo trades are disabled|not configured|signing key resolves to/i.test(description)) {
+  if (/server-operated market trades are disabled|not configured|signing key resolves to/i.test(description)) {
     return {
       code: 'execution_unavailable',
-      error: 'Interactive on-chain execution is not available for this demo runtime.',
+      error: 'Server-operated on-chain execution is not available for this runtime.',
       retryable: false,
       status: 503,
     };
@@ -177,13 +172,6 @@ export function classifyRuntime(
     return {
       mode: 'base',
       label: 'Base mainnet',
-      agentBook: 'live',
-    };
-  }
-  if (chainId === 84532) {
-    return {
-      mode: 'chain',
-      label: 'Execution testnet · World AgentBook mirror',
       agentBook: 'live',
     };
   }

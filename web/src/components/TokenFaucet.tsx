@@ -137,7 +137,7 @@ export function TokenFaucet({
           : state?.claimable
             ? 'Claim test assets'
             : availabilityLabel(state);
-  const receipt = transactionExplorer(state?.chainId ?? 84532, transactionHash);
+  const receipt = transactionExplorer(state?.chainId ?? 480, transactionHash);
 
   return (
     <article className="token-faucet">

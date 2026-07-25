@@ -39,7 +39,7 @@ function ContractLink({ address, chainId, label }: ContractLinkProps) {
 export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) {
   const controller = state.feeController;
   const executionChainId = state.runtime.chainId;
-  const identityChainId = state.contracts.identitySourceChainId ?? 480;
+  const identityChainId = 480;
   const humanShare = controller.humanShareBps / 100;
   const searcherShare = 100 - humanShare;
   const latestSwap = state.swaps.at(-1);
@@ -117,7 +117,7 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
           <h2>Resolve the taker</h2>
           <p>
             World verification registers the trading wallet in AgentBook.
-            The execution mirror returns only its canonical human ID; no proof or
+            Opcode 34 reads its canonical human ID on the same chain; no proof or
             biometric data enters the swap.
           </p>
           <dl>
@@ -266,14 +266,9 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
           <section>
             <h3>Identity</h3>
             <ContractLink
-              address={state.contracts.identitySourceAgentBook}
+              address={state.contracts.agentBook}
               chainId={identityChainId}
               label="Canonical AgentBook"
-            />
-            <ContractLink
-              address={state.contracts.identityMirror ?? state.contracts.agentBook}
-              chainId={executionChainId}
-              label="World identity mirror"
             />
           </section>
           <section>
@@ -281,7 +276,7 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
             <ContractLink address={state.contracts.router} chainId={executionChainId} label="SwapVM router + opcode 34" />
             <ContractLink address={state.contracts.aqua} chainId={executionChainId} label="Aqua" />
             <ContractLink address={state.contracts.quota} chainId={executionChainId} label="HumanQuota controller" />
-            <ContractLink address={state.contracts.demoVault} chainId={executionChainId} label="LP vault / maker" />
+            <ContractLink address={state.contracts.activeVault} chainId={executionChainId} label="LP vault / maker" />
           </section>
           <section>
             <h3>Strategy</h3>

@@ -118,7 +118,7 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
               </div>
             </div>
             <strong>Resolve the trader</strong>
-            <p>AgentBook resolves the wallet’s World ID status, then the execution mirror selects its bounded risk lane.</p>
+            <p>Opcode 34 reads the canonical AgentBook directly on World Chain and selects the wallet’s bounded risk lane.</p>
             <div className="event-output">
               <span>Output</span>
               <b>humanId → risk lane</b>
