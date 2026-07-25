@@ -6,15 +6,14 @@ if ! command -v nuthatch >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ -n "${NUTHATCH_RPC_URL:-}" ]]; then
-  exec nuthatch dev \
-    --dir nuthatch \
-    --backfill "${NUTHATCH_BACKFILL_BLOCKS:-100}" \
-    --window "${NUTHATCH_LOG_WINDOW:-5}" \
-    --rpc "$NUTHATCH_RPC_URL"
+args=(dev --dir nuthatch --window "${NUTHATCH_LOG_WINDOW:-50}")
+
+if [[ -n "${NUTHATCH_BACKFILL_BLOCKS:-}" ]]; then
+  args+=(--backfill "$NUTHATCH_BACKFILL_BLOCKS")
 fi
 
-exec nuthatch dev \
-  --dir nuthatch \
-  --backfill "${NUTHATCH_BACKFILL_BLOCKS:-100}" \
-  --window "${NUTHATCH_LOG_WINDOW:-5}"
+if [[ -n "${NUTHATCH_RPC_URL:-}" ]]; then
+  args+=(--rpc "$NUTHATCH_RPC_URL")
+fi
+
+exec nuthatch "${args[@]}"

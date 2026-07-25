@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  ensureWorldChain,
+  ensureExecutionChain,
   normalizeAccounts,
   parseChainId,
-  WORLD_CHAIN_ID,
+  EXECUTION_CHAIN_ID,
   type Eip1193Provider,
 } from '../src/lib/wallet';
 
@@ -18,11 +18,11 @@ test('wallet account and chain parsing rejects malformed provider responses', ()
     ]),
     ['0x0000000000000000000000000000000000000001'],
   );
-  assert.equal(parseChainId('0x1e0'), WORLD_CHAIN_ID);
+  assert.equal(parseChainId('0x14a34'), EXECUTION_CHAIN_ID);
   assert.equal(parseChainId('480'), undefined);
 });
 
-test('World Chain is added and selected when MetaMask does not know the network', async () => {
+test('Base Sepolia is added and selected when MetaMask does not know the network', async () => {
   const methods: string[] = [];
   const provider: Eip1193Provider = {
     async request({ method }) {
@@ -36,7 +36,7 @@ test('World Chain is added and selected when MetaMask does not know the network'
     },
   };
 
-  await ensureWorldChain(provider);
+  await ensureExecutionChain(provider);
   assert.deepEqual(methods, [
     'eth_chainId',
     'wallet_switchEthereumChain',

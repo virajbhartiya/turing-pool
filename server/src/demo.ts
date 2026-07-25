@@ -157,6 +157,13 @@ export function classifyRuntime(
       agentBook: 'live',
     };
   }
+  if (chainId === 84532) {
+    return {
+      mode: 'chain',
+      label: 'Base Sepolia · World AgentBook mirror',
+      agentBook: 'live',
+    };
+  }
   if (chainId === 480) {
     return {
       mode: 'chain',

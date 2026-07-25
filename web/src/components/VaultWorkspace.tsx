@@ -4,7 +4,7 @@ import { apiBase } from '../hooks/useProtocol';
 import { responseJson } from '../lib/apiResponse';
 import { formatUnits, parseUnits, shortAddress, transactionExplorer } from '../lib/format';
 import {
-  ensureWorldChain,
+  ensureExecutionChain,
   sendWalletTransaction,
   waitForWalletReceipt,
   type Eip1193Provider,
@@ -205,7 +205,7 @@ export function VaultWorkspace({
       await onConnectWallet(false);
       return null;
     }
-    await ensureWorldChain(provider);
+    await ensureExecutionChain(provider);
     return { account, provider };
   }
 
@@ -236,7 +236,7 @@ export function VaultWorkspace({
           title: approval ? 'Approve token in MetaMask' : 'Confirm action in MetaMask',
           detail: approval
             ? 'This one-time allowance is scoped to the selected vault or SwapVM router.'
-            : 'The simulated transaction is ready to broadcast on World Chain.',
+            : 'The simulated transaction is ready to broadcast on Base Sepolia.',
         });
         const transactionHash = await sendWalletTransaction(
           connected.provider,
@@ -245,7 +245,7 @@ export function VaultWorkspace({
         setStatus({
           state: 'mining',
           title: approval ? 'Mining token approval' : 'Mining on-chain action',
-          detail: `${transactionHash.slice(0, 12)}… is pending on World Chain.`,
+          detail: `${transactionHash.slice(0, 12)}… is pending on Base Sepolia.`,
           transactionHash,
         });
         const receipt = await waitForWalletReceipt(connected.provider, transactionHash);
@@ -260,7 +260,7 @@ export function VaultWorkspace({
                   : prepared.action === 'redeem'
                     ? 'LP shares redeemed'
                     : 'New vault created',
-            detail: `Confirmed in World Chain block ${BigInt(receipt.blockNumber)}.`,
+            detail: `Confirmed in Base Sepolia block ${BigInt(receipt.blockNumber)}.`,
             transactionHash,
           });
           await Promise.all([refreshAll(), onProtocolRefresh()]);
@@ -465,7 +465,7 @@ export function VaultWorkspace({
                       <div className={`vault-quote ${quote?.tight ? 'human' : 'bot'}`}>
                         <span>{quoteLoading ? 'Quoting on-chain…' : quote ? `${quote.tier.toUpperCase()} · ${quote.feeBps} bps` : 'Connect wallet for identity-priced quote'}</span>
                         <strong>{quote ? formatUnits(quote.amountOut, quote.tokenOut.decimals, 6) : '—'} <small>{outputToken?.symbol}</small></strong>
-                        <p>{quote?.humanBacked ? `World AgentBook humanId ${quote.humanId.slice(0, 12)}…` : quote ? 'AgentBook returned humanId 0 · anonymous lane' : quoteError}</p>
+                        <p>{quote?.humanBacked ? `World mirror humanId ${quote.humanId.slice(0, 12)}…` : quote ? 'World mirror returned humanId 0 · anonymous lane' : quoteError}</p>
                       </div>
                       <button
                         className="vault-primary"
@@ -556,7 +556,7 @@ function VaultStatus({
         <li className={status.state === 'idle' ? undefined : 'complete'}><i>1</i><span>Factory + vault state</span><b>Turing Pool</b></li>
         <li className={['wallet', 'mining', 'confirmed'].includes(status.state) ? 'complete' : undefined}><i>2</i><span>Wallet approval</span><b>MetaMask</b></li>
         <li className={status.state === 'confirmed' ? 'complete' : undefined}><i>3</i><span>Aqua order migration / settlement</span><b>1inch</b></li>
-        <li className={status.state === 'confirmed' ? 'complete' : undefined}><i>4</i><span>Position + fee state refreshed</span><b>World Chain</b></li>
+        <li className={status.state === 'confirmed' ? 'complete' : undefined}><i>4</i><span>Position + fee state refreshed</span><b>Base Sepolia</b></li>
       </ol>
       {explorerUrl && <a href={explorerUrl} rel="noreferrer" target="_blank">Open transaction receipt ↗</a>}
     </article>

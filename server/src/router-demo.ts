@@ -820,7 +820,7 @@ export async function executeDemoTrade(
       stage: 'identity',
       status: 'active',
       title: 'Resolve identity and quote',
-      detail: `Calling SwapVM opcode ${opcode}, AgentBook, and HumanQuota`,
+      detail: `Calling SwapVM opcode ${opcode}, the Base identity mirror, and HumanQuota`,
     });
     const quote = await quoteRouterFor(account.address, amountIn, view, direction);
     await reportProgress?.({
@@ -829,8 +829,8 @@ export async function executeDemoTrade(
       title: quote.humanId === 0n ? 'Anonymous flow resolved' : 'Human backing resolved',
       detail:
         quote.humanId === 0n
-          ? `AgentBook returned humanId 0 · WIDE lane · ${quote.feeBps} bps`
-          : `AgentBook returned humanId ${quote.humanId.toString().slice(0, 12)}… · TIGHT lane · ${quote.feeBps} bps`,
+          ? `World mirror returned humanId 0 · WIDE lane · ${quote.feeBps} bps`
+          : `World mirror returned humanId ${quote.humanId.toString().slice(0, 12)}… · TIGHT lane · ${quote.feeBps} bps`,
     });
 
     await reportProgress?.({
@@ -914,7 +914,7 @@ export async function executeDemoTrade(
       stage: 'submission',
       status: 'complete',
       title: 'Transaction broadcast',
-      detail: `${transactionHash.slice(0, 12)}… is pending on World Chain`,
+      detail: `${transactionHash.slice(0, 12)}… is pending on the execution chain`,
       transactionHash,
     });
     await reportProgress?.({
@@ -930,7 +930,7 @@ export async function executeDemoTrade(
       stage: 'settlement',
       status: 'complete',
       title: 'Aqua settlement mined',
-      detail: `World Chain block ${receipt.blockNumber} confirmed the inventory movement`,
+      detail: `Execution block ${receipt.blockNumber} confirmed the inventory movement`,
       transactionHash,
     });
 

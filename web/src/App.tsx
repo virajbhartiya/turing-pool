@@ -12,7 +12,7 @@ import { useInjectedWallet } from './hooks/useInjectedWallet';
 import { apiBase, demoTradeAmounts, useProtocol } from './hooks/useProtocol';
 import { unitsAsNumber } from './lib/format';
 import {
-  ensureWorldChain,
+  ensureExecutionChain,
   providerErrorCode,
   sendWalletTransaction,
   waitForWalletReceipt,
@@ -78,7 +78,7 @@ function connectedWalletError(error: unknown): DemoTradeError {
   if (code === 4902) {
     return {
       code: 'wrong_network',
-      error: 'World Chain could not be added to MetaMask.',
+      error: 'Base Sepolia could not be added to MetaMask.',
       retryable: false,
       status: 400,
     };
@@ -103,7 +103,7 @@ function connectedWalletError(error: unknown): DemoTradeError {
   return {
     code: 'network_error',
     error:
-      'The wallet transaction could not be confirmed. Check MetaMask and Worldscan before retrying.',
+      'The wallet transaction could not be confirmed. Check MetaMask and BaseScan before retrying.',
     retryable: true,
     retryAfterSeconds: 5,
     status: 0,
@@ -211,18 +211,18 @@ export function App() {
         stage: 'wallet',
         status: 'active',
         title: 'Verify connected wallet',
-        detail: 'Checking MetaMask account and World Chain network',
+        detail: 'Checking MetaMask account and Base Sepolia network',
       },
     ]);
     let approvalTransactionHash: string | undefined;
     try {
-      await ensureWorldChain(walletProvider);
+      await ensureExecutionChain(walletProvider);
       setTradeProgress((current) =>
         upsertProgress(current, {
           stage: 'wallet',
           status: 'complete',
           title: 'MetaMask wallet connected',
-          detail: `${walletAccount.slice(0, 8)}…${walletAccount.slice(-6)} on World Chain`,
+          detail: `${walletAccount.slice(0, 8)}…${walletAccount.slice(-6)} on Base Sepolia`,
         }),
       );
       setTradeProgress((current) =>
@@ -230,7 +230,7 @@ export function App() {
           stage: 'identity',
           status: 'active',
           title: 'Resolve identity and prepare quote',
-          detail: 'Reading World AgentBook, HumanQuota, and live SwapVM state',
+          detail: 'Reading the World AgentBook mirror, HumanQuota, and live Base SwapVM state',
         }),
       );
 
@@ -298,7 +298,7 @@ export function App() {
           await new Promise((resolve) => window.setTimeout(resolve, 500));
         }
         if (prepared.action !== 'swap') {
-          throw new Error('The World Chain RPC has not observed the mined token approval yet.');
+          throw new Error('The Base Sepolia RPC has not observed the mined token approval yet.');
         }
       }
 
@@ -327,7 +327,7 @@ export function App() {
           stage: 'submission',
           status: 'complete',
           title: 'Transaction broadcast',
-          detail: `${transactionHash.slice(0, 12)}… is pending on World Chain`,
+          detail: `${transactionHash.slice(0, 12)}… is pending on Base Sepolia`,
           transactionHash,
         }),
       );
@@ -346,7 +346,7 @@ export function App() {
           stage: 'settlement',
           status: 'complete',
           title: 'Aqua settlement mined',
-          detail: `World Chain block ${BigInt(receipt.blockNumber)} confirmed the trade`,
+          detail: `Base Sepolia block ${BigInt(receipt.blockNumber)} confirmed the trade`,
           transactionHash,
         }),
       );

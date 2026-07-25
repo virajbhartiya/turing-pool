@@ -1,27 +1,48 @@
 [nest]
-name = "turing-pool-world"
-chain = "worldchain"
-chain_id = 480
-rpc_urls = ["https://worldchain-mainnet.g.alchemy.com/public"]
+name = "turing-pool-base-sepolia"
+chain = "base-sepolia"
+chain_id = 84532
+rpc_urls = ["https://base-sepolia-rpc.publicnode.com", "https://sepolia.base.org"]
 schema_version = 1
 
 [[contracts]]
 alias = "router"
-address = "0x237726Cdf497794357D4BcB0bCDBD04437F0eAa3"
-start_block = 32814398
+address = "0x02467E79C0aa8458F4552d427771D72C30F5a484"
+start_block = 44605284
 abi = "abis/router.json"
 events = ["HumanGated", "Swapped"]
 
 [[contracts]]
 alias = "quota"
 address = "0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B"
-start_block = 32814381
+start_block = 44605284
 abi = "abis/quota.json"
 events = ["UsageRecorded", "FeeScheduleUpdated"]
 
 [[contracts]]
 alias = "aqua"
 address = "0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec"
-start_block = 32800812
+start_block = 44605284
 abi = "abis/aqua.json"
 events = ["Shipped", "Docked"]
+
+[[contracts]]
+alias = "vault_router"
+address = "0x797670993d2E81266F8512C7438d5b3B1E9a49d6"
+start_block = 44605334
+abi = "abis/router.json"
+events = ["HumanGated", "Swapped"]
+
+[[contracts]]
+alias = "vault_quota"
+address = "0xAe701d6FB0Bf32E7D50Ea0bbc37C3d02192BF495"
+start_block = 44605360
+abi = "abis/quota.json"
+events = ["UsageRecorded", "FeeScheduleUpdated"]
+
+[[contracts]]
+alias = "identity_mirror"
+address = "0x70b9FE7Bd162B0014df1E1f435dB47765Db62455"
+start_block = 44605233
+abi = "abis/mirror.json"
+events = ["HumanMirrored"]

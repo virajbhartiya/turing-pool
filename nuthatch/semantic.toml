@@ -5,7 +5,7 @@
 schema_version = 1
 
 [nest]
-description = "Live World Chain activity for Turing Pool's World AgentBook-gated Aqua and SwapVM market."
+description = "Live Base Sepolia Aqua and SwapVM activity gated by canonical World AgentBook results published through the authenticated Base mirror."
 
 [table.aqua__docked]
 description = "A strategy was removed from the live Aqua deployment's virtual-balance namespace."
@@ -25,6 +25,26 @@ app = "The `app` address parameter. (seeded from the ABI - edit semantic.toml to
 maker = "The `maker` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
 strategy = "The `strategy` bytes parameter. (seeded from the ABI - edit semantic.toml to improve this)"
 strategyHash = "The `strategyHash` bytes32 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+
+[table.identity_mirror__human_mirrored]
+description = "`HumanMirrored(address,uint256,uint256,bytes32)` events emitted by the `identity_mirror` contract. (seeded from the ABI - edit semantic.toml to improve this)"
+grain = "one row per HumanMirrored(address,uint256,uint256,bytes32) event"
+
+[table.identity_mirror__human_mirrored.columns]
+agent = "The `agent` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+humanId = "The `humanId` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+sourceBlock = "The `sourceBlock` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+sourceBlockHash = "The `sourceBlockHash` bytes32 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+
+[table.identity_mirror__human_mirrored.footguns]
+big_ints = [
+    "humanId",
+    "sourceBlock",
+]
+overflows_dec = [
+    "humanId",
+    "sourceBlock",
+]
 
 [table.quota__fee_schedule_updated]
 description = "The on-chain HumanQuota controller repriced the next trade from cumulative executed volume."
@@ -111,6 +131,100 @@ tokenIn = "The `tokenIn` address parameter. (seeded from the ABI - edit semantic
 tokenOut = "The `tokenOut` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
 
 [table.router__swapped.footguns]
+big_ints = [
+    "amountIn",
+    "amountOut",
+]
+overflows_dec = [
+    "amountIn",
+    "amountOut",
+]
+
+[table.vault_quota__fee_schedule_updated]
+description = "`FeeScheduleUpdated(address,uint256,uint256,uint256,uint256,uint256)` events emitted by the `vault_quota` contract. (seeded from the ABI - edit semantic.toml to improve this)"
+grain = "one row per FeeScheduleUpdated(address,uint256,uint256,uint256,uint256,uint256) event"
+
+[table.vault_quota__fee_schedule_updated.columns]
+humanShareBps = "The `humanShareBps` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+tightFeeBps = "The `tightFeeBps` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+tightVolume = "The `tightVolume` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+token = "The `token` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+wideFeeBps = "The `wideFeeBps` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+wideVolume = "The `wideVolume` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+
+[table.vault_quota__fee_schedule_updated.footguns]
+big_ints = [
+    "tightFeeBps",
+    "wideFeeBps",
+    "tightVolume",
+    "wideVolume",
+    "humanShareBps",
+]
+overflows_dec = [
+    "tightFeeBps",
+    "wideFeeBps",
+    "tightVolume",
+    "wideVolume",
+    "humanShareBps",
+]
+
+[table.vault_quota__usage_recorded]
+description = "`UsageRecorded(uint256,address,uint256,uint256)` events emitted by the `vault_quota` contract. (seeded from the ABI - edit semantic.toml to improve this)"
+grain = "one row per UsageRecorded(uint256,address,uint256,uint256) event"
+
+[table.vault_quota__usage_recorded.columns]
+amount = "The `amount` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+day = "The `day` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+humanId = "The `humanId` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+token = "The `token` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+
+[table.vault_quota__usage_recorded.footguns]
+big_ints = [
+    "humanId",
+    "amount",
+    "day",
+]
+overflows_dec = [
+    "humanId",
+    "amount",
+    "day",
+]
+
+[table.vault_router__human_gated]
+description = "`HumanGated(bytes32,address,uint256,bool,uint256)` events emitted by the `vault_router` contract. (seeded from the ABI - edit semantic.toml to improve this)"
+grain = "one row per HumanGated(bytes32,address,uint256,bool,uint256) event"
+
+[table.vault_router__human_gated.columns]
+feeE9 = "The `feeE9` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+humanId = "The `humanId` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+orderHash = "The `orderHash` bytes32 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+taker = "The `taker` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+tight = "The `tight` bool parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+
+[table.vault_router__human_gated.footguns]
+big_ints = [
+    "humanId",
+    "feeE9",
+]
+overflows_dec = [
+    "humanId",
+    "feeE9",
+]
+
+[table.vault_router__swapped]
+description = "`Swapped(bytes32,address,address,address,address,uint256,uint256)` events emitted by the `vault_router` contract. (seeded from the ABI - edit semantic.toml to improve this)"
+grain = "one row per Swapped(bytes32,address,address,address,address,uint256,uint256) event"
+
+[table.vault_router__swapped.columns]
+amountIn = "The `amountIn` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+amountOut = "The `amountOut` uint256 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+maker = "The `maker` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+orderHash = "The `orderHash` bytes32 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+taker = "The `taker` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+tokenIn = "The `tokenIn` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+tokenOut = "The `tokenOut` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+
+[table.vault_router__swapped.footguns]
 big_ints = [
     "amountIn",
     "amountOut",

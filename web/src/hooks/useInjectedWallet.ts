@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
-  ensureWorldChain,
+  ensureExecutionChain,
   normalizeAccounts,
   parseChainId,
-  WORLD_CHAIN_ID,
+  EXECUTION_CHAIN_ID,
   type Eip1193Provider,
 } from '../lib/wallet';
 
@@ -71,9 +71,9 @@ export function useInjectedWallet() {
           });
         }
         const connectedAccounts = await provider.request({ method: 'eth_requestAccounts' });
-        await ensureWorldChain(provider);
+        await ensureExecutionChain(provider);
         applyAccounts(connectedAccounts);
-        setChainId(WORLD_CHAIN_ID);
+        setChainId(EXECUTION_CHAIN_ID);
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : 'Wallet connection was cancelled.');
       } finally {
@@ -103,7 +103,7 @@ export function useInjectedWallet() {
       account,
       chainId,
       connected: account !== undefined,
-      correctChain: chainId === WORLD_CHAIN_ID,
+      correctChain: chainId === EXECUTION_CHAIN_ID,
       connecting,
       error,
       connect,

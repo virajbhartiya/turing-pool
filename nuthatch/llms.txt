@@ -1,19 +1,27 @@
-# nuthatch nest on worldchain
+# nuthatch nest on base-sepolia
 
 A self-hosted blockchain index. Query it locally; there is no third-party API.
 
 ## Contracts
-- `router` = 0x0492E6325Aa7d26592444F0dAaF0AF9E6aA188C0
-- `quota` = 0x0D0B45E2dC957EAe99AbdcEFC5B9D311DB63701d
+- `router` = 0x02467E79C0aa8458F4552d427771D72C30F5a484
+- `quota` = 0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B
 - `aqua` = 0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec
+- `vault_router` = 0x797670993d2E81266F8512C7438d5b3B1E9a49d6
+- `vault_quota` = 0xAe701d6FB0Bf32E7D50Ea0bbc37C3d02192BF495
+- `identity_mirror` = 0x70b9FE7Bd162B0014df1E1f435dB47765Db62455
 
 ## Tables (one per contract event)
 - `aqua__docked` - Docked(address,address,bytes32) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, maker, app, strategyHash)
 - `aqua__shipped` - Shipped(address,address,bytes32,bytes) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, maker, app, strategyHash, strategy)
+- `identity_mirror__human_mirrored` - HumanMirrored(address,uint256,uint256,bytes32) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, agent, humanId, sourceBlock, sourceBlockHash)
 - `quota__fee_schedule_updated` - FeeScheduleUpdated(address,uint256,uint256,uint256,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, token, tightFeeBps, wideFeeBps, tightVolume, wideVolume, humanShareBps)
 - `quota__usage_recorded` - UsageRecorded(uint256,address,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, humanId, token, amount, day)
 - `router__human_gated` - HumanGated(bytes32,address,uint256,bool,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, orderHash, taker, humanId, tight, feeE9)
 - `router__swapped` - Swapped(bytes32,address,address,address,address,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, orderHash, maker, taker, tokenIn, tokenOut, amountIn, amountOut)
+- `vault_quota__fee_schedule_updated` - FeeScheduleUpdated(address,uint256,uint256,uint256,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, token, tightFeeBps, wideFeeBps, tightVolume, wideVolume, humanShareBps)
+- `vault_quota__usage_recorded` - UsageRecorded(uint256,address,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, humanId, token, amount, day)
+- `vault_router__human_gated` - HumanGated(bytes32,address,uint256,bool,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, orderHash, taker, humanId, tight, feeE9)
+- `vault_router__swapped` - Swapped(bytes32,address,address,address,address,uint256,uint256) (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, orderHash, maker, taker, tokenIn, tokenOut, amountIn, amountOut)
 
 ## Live HTTP API (run `nuthatch dev`)
 - `GET /`                    index status

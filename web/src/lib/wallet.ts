@@ -1,5 +1,5 @@
-export const WORLD_CHAIN_ID = 480;
-export const WORLD_CHAIN_HEX = '0x1e0';
+export const EXECUTION_CHAIN_ID = 84532;
+export const EXECUTION_CHAIN_HEX = '0x14a34';
 
 export interface Eip1193Provider {
   request(args: {
@@ -42,14 +42,14 @@ export function parseChainId(value: unknown): number | undefined {
   return Number.parseInt(value.slice(2), 16);
 }
 
-export async function ensureWorldChain(provider: Eip1193Provider): Promise<void> {
+export async function ensureExecutionChain(provider: Eip1193Provider): Promise<void> {
   const current = parseChainId(await provider.request({ method: 'eth_chainId' }));
-  if (current === WORLD_CHAIN_ID) return;
+  if (current === EXECUTION_CHAIN_ID) return;
 
   try {
     await provider.request({
       method: 'wallet_switchEthereumChain',
-      params: [{ chainId: WORLD_CHAIN_HEX }],
+      params: [{ chainId: EXECUTION_CHAIN_HEX }],
     });
   } catch (error) {
     if (providerErrorCode(error) !== 4902) throw error;
@@ -57,11 +57,11 @@ export async function ensureWorldChain(provider: Eip1193Provider): Promise<void>
       method: 'wallet_addEthereumChain',
       params: [
         {
-          chainId: WORLD_CHAIN_HEX,
-          chainName: 'World Chain',
+          chainId: EXECUTION_CHAIN_HEX,
+          chainName: 'Base Sepolia',
           nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-          rpcUrls: ['https://worldchain-mainnet.g.alchemy.com/public'],
-          blockExplorerUrls: ['https://worldscan.org'],
+          rpcUrls: ['https://sepolia.base.org'],
+          blockExplorerUrls: ['https://sepolia.basescan.org'],
         },
       ],
     });

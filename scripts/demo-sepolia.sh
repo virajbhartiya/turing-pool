@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 API_URL="${API_URL:-http://localhost:4021}"
 RPC_URL="${RPC_URL:-https://base-sepolia-rpc.publicnode.com}"
 CHAIN_ID=84532
-DEPLOYMENTS_PATH="${DEPLOYMENTS_PATH:-$PWD/contracts/deployments/base-sepolia.json}"
+DEPLOYMENTS_PATH="${DEPLOYMENTS_PATH:-$PWD/contracts/deployments/base-sepolia-mirrored.json}"
 AMOUNT_IN="${AMOUNT_IN:-100000000000000000}" # 0.1 tETH per executable beat
 EXPLORER_URL="${EXPLORER_URL:-https://sepolia.basescan.org}"
 
@@ -130,7 +130,7 @@ strategist_json="$(tail -n 1 <<<"$strategist_output")"
 jq -e '
   .role == "strategist" and
   .to.tight < .to.wide and
-  .targetBlendedFeeBps == 19 and
+  .targetBlendedFeeBps == 30 and
   .revenueDeltaBps >= -0.5 and
   .revenueDeltaBps <= 0.5
 ' <<<"$strategist_json" >/dev/null
@@ -194,9 +194,9 @@ if [ -n "$strategist_tx" ]; then
 else
   printf 'Re-price:    already balanced at %s/%s bps\n' "$expected_tight" "$expected_wide"
 fi
-printf 'LP target:   19 bps blended · projected %s bps\n' \
+printf 'LP target:   30 bps blended · projected %s bps\n' \
   "$(jq -r '.projectedBlendedFeeBps' <<<"$strategist_json")"
 printf 'State:       %s/state\n' "$API_URL"
 printf 'Quotes:      %s/demo/quotes\n' "$API_URL"
 echo
-echo "Truth label: public Base Sepolia; test Aqua + test AgentBook contracts."
+echo "Truth label: canonical World AgentBook mirrored to Base Sepolia; Aqua + SwapVM execute on Base."

@@ -47,6 +47,7 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
   const remaining = BigInt(state.demoHuman.quotaRemainingToken0);
   const quotaUsed = cap > 0n ? Number(((cap - remaining) * 100n) / cap) : 0;
   const isSnapshot = state.runtime.mode === 'hosted-preview';
+  const mirroredIdentity = state.contracts.identityMode === 'world-agentbook-mirror';
   const canonicalAqua = '0x499943e74fb0ce105688beee8ef2abec5d936d31';
   const aquaLabel = isSnapshot
     ? '1inch Aqua (recorded)'
@@ -55,7 +56,13 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
       : 'Aqua protocol deployment';
   const contracts = [
     [aquaLabel, state.contracts.aqua],
-    [`World AgentBook (${state.runtime.agentBook})`, state.contracts.agentBook],
+    [
+      mirroredIdentity ? 'Base AgentBook mirror' : `World AgentBook (${state.runtime.agentBook})`,
+      state.contracts.agentBook,
+    ],
+    ...(state.contracts.identitySourceAgentBook
+      ? [['World source AgentBook', state.contracts.identitySourceAgentBook]]
+      : []),
     ['TuringPoolApp', state.contracts.app],
     ['SwapVM Router', state.contracts.router],
     ['HumanQuota', state.contracts.quota],
@@ -97,7 +104,7 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
 
       <section className="market-header" id="market">
         <div>
-          <div className="breadcrumb">Risk markets / World Chain / <span>TETH–TUSD</span></div>
+          <div className="breadcrumb">Risk markets / Base Sepolia / <span>TETH–TUSD</span></div>
           <div className="pair-title">
             <span className="pair-icon" aria-hidden="true"><i>Ξ</i><i>$</i></span>
             <div>
@@ -158,7 +165,7 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
             <i className="deployment-status" />
             {isSnapshot
               ? 'Recorded market snapshot'
-              : `World Chain ${state.runtime.chainId} · ${state.stats.totalSwaps} settled fills · RPC live`}
+              : `Base Sepolia ${state.runtime.chainId} · ${state.stats.totalSwaps} settled fills · RPC live`}
           </span>
           <span>Inspect contracts +</span>
         </summary>

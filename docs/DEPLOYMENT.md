@@ -1,6 +1,33 @@
 # Deployment
 
-## World Chain mainnet
+## World identity + Base Sepolia execution
+
+The current live demo keeps the canonical AgentBook on World Chain and deploys
+the AgentBook mirror, Aqua, SwapVM, quotas, assets, and vaults on Base Sepolia.
+See [BASE_MIRROR.md](./BASE_MIRROR.md) for the trust boundary and relay flow.
+
+| Contract | Address |
+|---|---|
+| World AgentBook (chain 480) | `0xA23aB2712eA7BBa896930544C7d6636a96b944dA` |
+| Base AgentBook mirror | `0x70b9FE7Bd162B0014df1E1f435dB47765Db62455` |
+| Base Aqua | `0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec` |
+| Base primary SwapVM router | `0x02467E79C0aa8458F4552d427771D72C30F5a484` |
+| Base HumanQuota | `0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B` |
+| Base vault router | `0x797670993d2E81266F8512C7438d5b3B1E9a49d6` |
+| Base vault factory | `0x6B5dA84980f3205F0a6aCc9469c7b8279575cd10` |
+
+Run the server:
+
+```bash
+RPC_URL=https://base-sepolia-rpc.publicnode.com \
+CHAIN_ID=84532 \
+DEPLOYMENTS_PATH="$PWD/contracts/deployments/base-sepolia-mirrored.json" \
+VAULT_FACTORY=0x6B5dA84980f3205F0a6aCc9469c7b8279575cd10 \
+NUTHATCH_URL=http://127.0.0.1:8288 \
+pnpm --filter @turing-pool/server start
+```
+
+## Previous World Chain deployment
 
 The executable protocol is deployed on World Chain (chain `480`). Identity
 resolution uses the canonical World AgentBook; `mockAgentBook` is false in the
@@ -50,14 +77,14 @@ The Vercel project serves:
   backend routes.
 - `/vaults` and its prepare routes expose the optional permissionless LP
   factory to connected wallets without moving signing keys into the server.
-- The production runtime reads World Chain and can execute capped demo trades.
+- The production runtime reads Base Sepolia and can execute capped demo trades.
 
 ```bash
 vercel link --project turing-pool
 vercel deploy . -y
 ```
 
-Use `pnpm demo:world` to execute and assert both lanes through the same HTTP
+Use `pnpm demo:sepolia` to execute and assert both lanes through the same HTTP
 route as the browser.
 
 ## Live-chain production
@@ -69,10 +96,10 @@ required for pricing or settlement.
 
 ## Required production inputs
 
-- `RPC_URL`: a World Chain mainnet RPC endpoint.
+- `RPC_URL`: a Base Sepolia RPC endpoint.
 - `DEPLOYMENTS_JSON`: the complete JSON emitted by
   `contracts/script/DeployDemo.s.sol`.
-- `CHAIN_ID=480`.
+- `CHAIN_ID=84532`.
 - `DEMO_TRADES_ENABLED=1`, `DEMO_TRADE_ORIGIN`, and
   `DEMO_TRADE_MAX_AMOUNT_IN=1000000000000000000`.
 - `BOT_PRIVATE_KEY` and `HUMAN_AGENT_PRIVATE_KEY`: disposable, minimally funded
@@ -89,9 +116,9 @@ required for pricing or settlement.
 ```bash
 docker build -t turing-pool .
 docker run --rm -p 4021:4021 \
-  -e RPC_URL=https://worldchain-mainnet.g.alchemy.com/public \
-  -e CHAIN_ID=480 \
-  -e DEPLOYMENTS_JSON="$(cat contracts/deployments/world-mainnet.json)" \
+  -e RPC_URL=https://base-sepolia-rpc.publicnode.com \
+  -e CHAIN_ID=84532 \
+  -e DEPLOYMENTS_JSON="$(cat contracts/deployments/base-sepolia-mirrored.json)" \
   turing-pool
 ```
 
@@ -110,12 +137,14 @@ SIWE domain and HTTPS resource URL from it. For another host, set
 
 ## Release order
 
-1. Deploy the contracts on World Chain with `REQUIRE_REAL_AGENT_BOOK=true`.
-2. Save the emitted deployment file outside git and provide it as
+1. Synchronize canonical World AgentBook records into the authenticated Base
+   mirror and verify their source block/hash.
+2. Deploy the Base execution contracts against the mirror.
+3. Save the emitted deployment file and provide it as
    `DEPLOYMENTS_JSON`.
-3. Configure the World RPC, capped trade route, and disposable server keys.
-4. Optionally deploy and verify the HumanGate v2 router/factory, then set
+4. Configure the Base RPC, capped trade route, and disposable server keys.
+5. Deploy and verify the HumanGate v2 router/factory, then set
    `VAULT_FACTORY`; never configure a local or fork-only address in production.
-5. Start Nuthatch and verify its `/ready` and `turing_trades` SQL view.
-6. Verify `/health`, `/state`, `/demo/quotes`, `POST /demo/trade`, `/vaults`,
+6. Start Nuthatch and verify its `/ready`, mirror table, and `turing_trades`.
+7. Verify `/health`, `/state`, `/demo/quotes`, `POST /demo/trade`, `/vaults`,
    and the dashboard.

@@ -16,6 +16,13 @@ export interface Contracts {
   mockAgentBook: boolean;
   vaultFactory?: string;
   vaultRouter?: string;
+  demoVault?: string;
+  demoVaultQuota?: string;
+  identityMirror?: string;
+  identityMode?: 'world-agentbook-mirror';
+  identitySourceAgentBook?: string;
+  identitySourceBlock?: string;
+  identitySourceChainId?: number;
 }
 
 export interface Pool {

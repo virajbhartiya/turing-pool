@@ -3,8 +3,9 @@
 ## 90-second three-system proof
 
 This is the fastest way to prove the product is executing rather than showing
-mocked UI. It runs real transactions through SwapVM and Aqua on World Chain
-mainnet. The dashboard prepares calldata but MetaMask signs connected-wallet
+mocked UI. It runs real transactions through SwapVM and Aqua on Base Sepolia,
+using identity mirrored from the canonical World Chain AgentBook. The dashboard
+prepares calldata but MetaMask signs connected-wallet
 trades; the legacy replay script keeps its disposable actor keys server-side.
 No private key is in the repository or browser bundle. Start Nuthatch before
 the API so the indexer observes every new judge-demo receipt.
@@ -18,9 +19,9 @@ pnpm nuthatch:dev
 Terminal two:
 
 ```bash
-RPC_URL=https://worldchain-mainnet.g.alchemy.com/public \
-CHAIN_ID=480 \
-DEPLOYMENTS_PATH="$PWD/contracts/deployments/world-mainnet.json" \
+RPC_URL=https://base-sepolia-rpc.publicnode.com \
+CHAIN_ID=84532 \
+DEPLOYMENTS_PATH="$PWD/contracts/deployments/base-sepolia-mirrored.json" \
 DEMO_TRADES_ENABLED=1 \
 DEMO_TRADE_ORIGIN=http://localhost:4021 \
 DEMO_TRADE_MAX_AMOUNT_IN=1000000000000000000 \
@@ -31,15 +32,15 @@ PORT=4021 \
 pnpm --filter @turing-pool/server start
 ```
 
-Nuthatch starts from the recent World Chain tip, follows the real router, quota,
-and Aqua contracts, and exposes correlated SwapVM trades through SQL and MCP.
+Nuthatch follows the Base mirror, routers, quotas, and Aqua contract, and
+exposes correlated SwapVM trades through SQL and MCP.
 The API falls back to narrow direct event scans if the indexer is unavailable;
 settlement and fee enforcement never depend on the off-chain indexer.
 
 Open [http://localhost:4021](http://localhost:4021), then run in terminal three:
 
 ```bash
-pnpm demo:world
+pnpm demo:sepolia
 ```
 
 ## Connected-wallet demo
@@ -47,27 +48,27 @@ pnpm demo:world
 1. Add both funded demo accounts to MetaMask and connect both accounts to the
    dashboard.
 2. Open the dashboard in two tabs. Use the account selector to pin the
-   World-verified address in one tab and the anonymous address in the other;
+   World-backed address in one tab and the anonymous address in the other;
    the selection is stored per tab.
-3. MetaMask switches to World Chain (`480`) automatically. The terminal calls
-   the canonical AgentBook for the selected address and assigns `TIGHT` or
-   `WIDE`; there is no manual human/bot toggle.
+3. MetaMask switches to Base Sepolia (`84532`) automatically. The terminal
+   calls the Base AgentBook mirror and assigns `TIGHT` or `WIDE`; there is no
+   manual human/bot toggle.
 4. Click buy or sell. If needed, MetaMask first requests a token approval. A
    second prompt signs the actual SwapVM trade. The backend never signs for the
    connected account.
 5. The terminal verifies `HumanGated` and `Swapped`, refreshes the LP book and
-   controller, and links the mined Worldscan receipt.
+   controller, and links the mined BaseScan receipt.
 
 The connected address must hold the deployed fixed-supply `tETH` or `tUSD`
-demo asset selected as input, plus enough World Chain ETH for gas. An arbitrary
+demo asset selected as input, plus enough Base Sepolia ETH for gas. An arbitrary
 new MetaMask account can connect and be classified, but cannot trade until it
 receives the demo input asset.
 
-The command asserts the execution claims and prints Worldscan transaction links:
+The command asserts the execution claims and prints BaseScan transaction links:
 
-1. The anonymous wallet resolves to zero in the canonical AgentBook,
+1. The anonymous wallet resolves to zero in the Base mirror,
    `_humanGate` selects the wide lane, and Aqua settles the trade.
-2. The World-verified wallet resolves to its canonical `humanId`,
+2. The World-backed wallet resolves to its canonical mirrored `humanId`,
    `_humanGate` selects the tight lane, and the same Aqua order settles.
 3. Both receipts contain `HumanGated` from opcode 34 and the SwapVM `Swapped`
    event. Nuthatch correlates them by transaction and order hash, then exposes
@@ -77,13 +78,14 @@ The command asserts the execution claims and prints Worldscan transaction links:
 
 Narrate it in one sentence per terminal beat, then return to the dashboard and
 point at the size selector, quote difference, notional mix, and decoded swap feed.
-Truthful label: “World Chain mainnet; canonical AgentBook; Turing Pool-deployed
-Aqua implementation; custom SwapVM router; maker-owned demo ERC-20 assets.”
+Truthful label: “Canonical World AgentBook identity mirrored with source-block
+provenance; Aqua, SwapVM, quotas, vaults, and demo assets execute on Base
+Sepolia.”
 
 ## Preflight
 
 - `pnpm check`
-- `pnpm demo:world`
+- `pnpm demo:sepolia`
 - App, router, quota, Aqua, and AgentBook addresses are in the submission.
 - `/state.feeController.source` is `on-chain-volume-controller`.
 - `/state.dataSources.activity.name` is `Nuthatch · SQL + MCP`, its lag is zero

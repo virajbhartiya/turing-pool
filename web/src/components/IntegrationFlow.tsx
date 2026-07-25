@@ -8,6 +8,7 @@ interface IntegrationFlowProps {
 }
 
 export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
+  const mirroredIdentity = state.contracts.identityMode === 'world-agentbook-mirror';
   const activity = state.dataSources.activity;
   const usesNuthatch = activity.mode === 'sql+mcp';
   const nuthatchConnected = usesNuthatch && activity.status === 'connected';
@@ -35,7 +36,7 @@ export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
         <div className="integration-step world">
           <div className="integration-brand">
             <BrandLogo brand="world" />
-            <span><b>World</b><small>AgentBook</small></span>
+            <span><b>World</b><small>{mirroredIdentity ? 'AgentBook → Base mirror' : 'AgentBook'}</small></span>
             <i aria-hidden="true" className="status-dot" />
           </div>
           <strong>Resolve the trader</strong>
@@ -46,7 +47,11 @@ export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
                 : 'anonymous wallet · humanId 0'
               : `${shortAddress(state.execution?.humanWallet ?? '')} is human-backed`}
           </p>
-          <small>Canonical identity lookup on World Chain</small>
+          <small>
+            {mirroredIdentity
+              ? `Canonical World lookup mirrored from block ${state.contracts.identitySourceBlock ?? '—'}`
+              : 'Canonical identity lookup on World Chain'}
+          </small>
         </div>
         <div className="flow-arrow" aria-hidden="true">→</div>
         <div className="integration-step swapvm">
@@ -61,7 +66,7 @@ export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
               ? `block ${lastTrade.blockNumber} · ${lastTrade.feeBps} bps`
               : `router ${shortAddress(state.contracts.router)} · opcode ${state.execution?.opcode ?? 34}`}
           </p>
-          <small>Deployed contracts · maker-owned demo assets</small>
+          <small>Base Sepolia contracts · Aqua inventory</small>
         </div>
         <div className="flow-arrow" aria-hidden="true">→</div>
         <div className={`integration-step nuthatch ${nuthatchConnected ? 'connected' : 'waiting'}`}>

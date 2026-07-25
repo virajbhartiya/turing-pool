@@ -2,7 +2,7 @@
 
 **An AMM that prices bounded order-flow risk using proof of unique human backing.**
 
-On-chain market makers can't tell retail flow from toxic arb-bot flow, so every taker pays the worst-case spread. TradFi solved this decades ago — brokers segment retail flow and it gets price improvement. Turing Pool brings that to DeFi with cryptography instead of brokers: World's **AgentBook** registry maps agent wallets to a persistent, sybil-resistant `humanId` (a World ID nullifier), and our pool reads it **on-chain, at quote time** to price personhood.
+On-chain market makers can't tell retail flow from toxic arb-bot flow, so every taker pays the worst-case spread. TradFi solved this decades ago — brokers segment retail flow and it gets price improvement. Turing Pool brings that to DeFi with cryptography instead of brokers: World's canonical **AgentBook** maps agent wallets to a persistent, sybil-resistant `humanId`; an authenticated mirror publishes those results onto Base, where SwapVM reads them atomically at quote and execution time.
 
 - **Human-backed agents** (within a per-human daily quota): dynamically priced tight fee
 - **Anonymous bots**: the compensating activity-priced surcharge
@@ -16,30 +16,32 @@ Built at **ETHGlobal Lisbon 2026** for the World AgentKit, 1inch Aqua, and The G
 
 ## What's real
 
-The executable demo is deployed on **World Chain mainnet (chain 480)**:
+Identity originates on **World Chain mainnet (chain 480)**. Trading, liquidity,
+fees, quotas, vaults, and indexing run on **Base Sepolia (chain 84532)**:
 
 | Piece | Address |
 |---|---|
-| Aqua protocol deployment | `0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec` |
-| Canonical World AgentBook | `0xA23aB2712eA7BBa896930544C7d6636a96b944dA` |
-| TuringPoolApp | `0xA4CECe31cA7A7fb79f4A0ffCfd219d1BF92fD46b` |
-| Adaptive SwapVM + `_humanGate` router | `0x237726Cdf497794357D4BcB0bCDBD04437F0eAa3` |
-| Volume controller + shared HumanQuota | `0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B` |
-| HumanGate v2 vault router | `0x4f09A6EbB5772D4c4BDf90F717AB0C7ee4bb908f` |
-| Permissionless vault factory | `0xA07f3f966568bd8dFD503B616c68f39D2e2d3a8B` |
+| Canonical World AgentBook · World Chain | `0xA23aB2712eA7BBa896930544C7d6636a96b944dA` |
+| Authenticated AgentBook mirror · Base Sepolia | `0x70b9FE7Bd162B0014df1E1f435dB47765Db62455` |
+| Aqua · Base Sepolia | `0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec` |
+| Adaptive SwapVM + `_humanGate` router · Base Sepolia | `0x02467E79C0aa8458F4552d427771D72C30F5a484` |
+| Volume controller + shared HumanQuota · Base Sepolia | `0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B` |
+| HumanGate v2 vault router · Base Sepolia | `0x797670993d2E81266F8512C7438d5b3B1E9a49d6` |
+| Permissionless vault factory · Base Sepolia | `0x6B5dA84980f3205F0a6aCc9469c7b8279575cd10` |
+| Seeded public LP vault · Base Sepolia | `0x3f0B4a7d12D368Db1F56a39F907C20Eb04809160` |
 
 The Aqua contract is the actual 1inch Aqua implementation compiled from the
-project dependency and deployed on World Chain; it is not a mocked registry or
-an HTML simulation. The router executes the actual SwapVM program shipped into
-Aqua. Its first instruction is `_humanGate` at opcode 34, which reads the
-canonical AgentBook during the transaction.
+project dependency and deployed on Base Sepolia. The router executes the actual
+SwapVM program shipped into Aqua. Its first instruction is `_humanGate` at
+opcode 34, which reads the Base mirror synchronously. The mirror records the
+World source block and block hash and rejects stale relay updates.
 
 Two World-verified wallets resolve to the same canonical `humanId`; the bot
 wallet resolves to zero. The deployment script refuses mainnet deployment
 unless those invariants hold. Example public receipts:
 
-- [1.0 tETH World-verified fill · 5 bps](https://worldscan.org/tx/0x3ac295603a541e1b7cb74e13f25175e25f04b152148e7114295ee719c7af8ce4)
-- [Next anonymous fill · automatically repriced to 68 bps](https://worldscan.org/tx/0x59ce1c66e1d081c2a6488de13388407218b87594fb467ab3cbffe4f19498118f)
+- [World-backed Base fill · tight lane](https://sepolia.basescan.org/tx/0x44458ed078c027d326edb5dd1bf0e6d1f74c4062b9be9f1a7720dc7ab58b264e)
+- [Anonymous Base fill · wide lane](https://sepolia.basescan.org/tx/0xb8bd8b72e2c9b36d47b6855feb8abbcbda2174c9bb3fc14baceb6405d9f35547)
 
 ## Architecture
 
@@ -50,18 +52,16 @@ Agent (@worldcoin/agentkit client)          Anonymous bot
 Quote API (Hono + viem) ──────────── eth_call quotes per taker
    │
    ▼ swaps hit the chain directly
-┌──────────────────────────── World Chain ─────────────────────────────────┐
-│                                                                          │
-│  TuringPoolApp (custom Aqua app) ──reads──► AgentBook (World)            │
-│      │ pull / push                          HumanQuota (cap + fee state)│
-│      ▼                                                                   │
-│  Aqua (1inch) — LP funds never leave the maker's wallet                  │
-│                                                                          │
-│  TuringPoolRouter = SwapVM + one new opcode: _humanGate (0x22)           │
-│      continuation-style instruction: resolves taker's humanity + quota,  │
-│      applies live fees, records executed notional, reprices the next fill │
-│      (swap ctx only — quotes are static & honest by construction)        │
-└──────────────────────────────────────────────────────────────────────────┘
+World Chain: canonical AgentBook
+   │ finalized lookup + source block/hash
+   ▼
+Base: WorldAgentBookMirror ──lookupHuman──► opcode 34
+   │
+   ▼
+TuringPoolRouter = SwapVM + _humanGate
+   │ applies live fee + records executed notional
+   ▼
+Aqua inventory + HumanQuota + permissionless LP vaults
    ▲ HumanGated + Swapped + fee events
    │
 Nuthatch (The Graph) ◄── correlates live fills into SQL + MCP agent context.
@@ -97,8 +97,8 @@ cd contracts && RUN_FORK_TESTS=1 forge test --match-contract Fork -vv && cd ..
 # asserted end-to-end demos
 pnpm e2e               # local Aqua + mock AgentBook
 pnpm e2e:fork          # deployed Aqua + AgentBook bytecode on a Base fork
-pnpm nuthatch:dev       # terminal 1: follow the live World contracts
-pnpm demo:world         # terminal 3: trade → index → reprice proof
+pnpm nuthatch:dev       # terminal 1: follow Base execution + mirror events
+pnpm demo:sepolia       # terminal 3: trade → index → reprice proof
 
 # optional local/fork rehearsals
 pnpm demo:fork
@@ -111,10 +111,11 @@ analytics; the executable fee controller reads its authoritative state from
 
 ## Deployment readiness
 
-The full mock-free stack is deployed on World Chain. Its checked-in deployment
-manifest is `contracts/deployments/world-mainnet.json`. The private repository
+The cross-chain demo is deployed across World Chain and Base Sepolia. Its
+checked-in execution manifest is
+`contracts/deployments/base-sepolia-mirrored.json`. The private repository
 is linked to Vercel; the Vite/React terminal and Hono backend share one origin.
-`/state` reads World Chain, `/demo/quotes` performs live calls, and
+`/state` reads Base, `/demo/quotes` performs live calls, and
 `POST /demo/trade` signs a tightly capped transaction from a disposable human
 or bot demo wallet. Signing keys remain server-side.
 
@@ -131,7 +132,7 @@ release checks.
 
 ## Track integration map
 
-**World — AgentKit New Use Cases.** Human backing changes risk limits and execution terms in an adversarial market. The lower spread is justified by a sybil-resistant, per-human exposure cap; it is not an arbitrary identity benefit. AgentKit runs off-chain through the full 402→SIWE→verify loop and on-chain through `AgentBook.lookupHuman`. Integration feedback is in [FEEDBACK.md](./FEEDBACK.md).
+**World — AgentKit New Use Cases.** Human backing changes risk limits and execution terms in an adversarial market. AgentKit performs the 402→SIWE→verify loop; the canonical World `lookupHuman` result is relayed with source-block provenance into the Base mirror consumed by SwapVM.
 
 **1inch — Build an Aqua App.** A custom dual-tier Aqua app plus a modified SwapVM router with `_humanGate` at opcode 34. The live receipts execute the custom router and verify its `HumanGated` event. Aqua owns the strategy namespace and virtual balances; SwapVM executes the fill while the maker retains asset ownership.
 
@@ -143,7 +144,7 @@ release checks.
 contracts/   Foundry: app, quota, HumanGate router, LP vaults, and vault factory
 server/      AgentKit quote API plus the Vercel hosted-preview Function
 agent/       bot.ts, human-agent.ts (SIWE loop + sybil demo), strategist.ts
-nuthatch/    The Graph Nuthatch nest: World contracts, SQL views, semantics
+nuthatch/    The Graph Nuthatch nest: Base execution + mirror events, SQL views
 subgraph/    Legacy Graph subgraph experiment
 web/         Vite + React trading terminal (market, quote ticket, fee chart, ledger)
 scripts/     e2e.sh — the whole demo, asserted, local or Base-fork mode

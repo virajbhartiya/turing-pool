@@ -89,7 +89,7 @@ function describeLiveReadError(error: unknown) {
   return {
     code: rateLimited ? 'rpc_rate_limited' : 'live_data_unavailable',
     error: rateLimited
-      ? 'World Chain is temporarily busy. Wait a few seconds and try again.'
+      ? 'The execution chain is temporarily busy. Wait a few seconds and try again.'
       : 'Live on-chain data is temporarily unavailable. Please try again.',
     retryable: true,
     retryAfterSeconds: 5,
@@ -534,7 +534,7 @@ app.get('/wallet/quote', async (c) => {
     return c.json(
       {
         code: 'execution_unavailable',
-        error: 'Connected-wallet execution requires the live World Chain runtime.',
+        error: 'Connected-wallet execution requires a live chain runtime.',
         retryable: false,
         status: 503,
       },
@@ -814,6 +814,15 @@ app.get('/state', async (c) => {
       mockAgentBook: deployments.mockAgentBook,
       vaultFactory: process.env.VAULT_FACTORY ?? deployments.vaultFactory,
       vaultRouter: deployments.vaultRouter,
+      demoVault: deployments.demoVault,
+      demoVaultQuota: deployments.demoVaultQuota,
+      identityMirror: deployments.identityMirror,
+      identityMode: deployments.identityMode,
+      identitySourceAgentBook: deployments.identitySourceAgentBook,
+      identitySourceBlock: deployments.identitySourceBlock?.toString(),
+      identitySourceChainId: deployments.identitySourceChainId === undefined
+        ? undefined
+        : Number(deployments.identitySourceChainId),
     },
     execution: {
       enabled: demoTradesEnabled(),
@@ -855,7 +864,7 @@ app.get('/state', async (c) => {
         fallback:
           index.status === 'connected'
             ? null
-            : 'Direct World Chain event reads',
+            : 'Direct execution-chain event reads',
       },
       strategist: {
         ...indexMetadata,

@@ -28,6 +28,13 @@ export interface Deployments {
   deployBlock?: string | number;
   vaultFactory?: `0x${string}`;
   vaultRouter?: `0x${string}`;
+  demoVault?: `0x${string}`;
+  demoVaultQuota?: `0x${string}`;
+  identityMirror?: `0x${string}`;
+  identityMode?: 'world-agentbook-mirror';
+  identitySourceAgentBook?: `0x${string}`;
+  identitySourceBlock?: string | number;
+  identitySourceChainId?: string | number;
 }
 
 export const DEPLOYMENTS_PATH =

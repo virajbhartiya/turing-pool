@@ -40,7 +40,7 @@ function QuoteCard({
         <b>{quote.tier.toUpperCase()} LANE</b>
       </div>
       <strong>{formatUnits(quote.amountOut, 18, precision)}<small>{tokenOutSymbol}</small></strong>
-      <p>{human ? 'World AgentBook resolved · shared risk budget' : 'No human ID · repeat-wallet risk'}</p>
+      <p>{human ? 'World identity mirrored · shared risk budget' : 'No mirrored human ID · repeat-wallet risk'}</p>
       <div className="quote-card-foot">
         <span>{formatUnits(quote.amountIn)} {tokenInSymbol} in</span>
         <b>{quote.feeBps} bps</b>
@@ -99,17 +99,17 @@ function tradeErrorHeadline(error: DemoTradeError): string {
   if (error.code === 'insufficient_balance') return 'Insufficient demo asset balance';
   if (error.code === 'wallet_rejected') return 'MetaMask request cancelled';
   if (error.code === 'wallet_unavailable') return 'MetaMask unavailable';
-  if (error.code === 'wrong_network') return 'World Chain required';
+  if (error.code === 'wrong_network') return 'Base Sepolia required';
   if (error.code === 'network_error') return 'Network unavailable · status unknown';
   return 'Trade not completed';
 }
 
 const EXECUTION_SERVICES = {
   wallet: { brand: 'turing', label: 'Turing Pool execution service' },
-  identity: { brand: 'world', label: 'World AgentBook' },
+  identity: { brand: 'world', label: 'World → Base mirror' },
   allowance: { brand: 'oneinch', label: '1inch SwapVM router' },
   simulation: { brand: 'oneinch', label: '1inch SwapVM' },
-  submission: { brand: 'oneinch', label: 'World Chain + SwapVM' },
+  submission: { brand: 'oneinch', label: 'Base + SwapVM' },
   settlement: { brand: 'oneinch', label: '1inch Aqua settlement' },
   receipt: { brand: 'oneinch', label: 'SwapVM receipt decoder' },
   repricing: { brand: 'turing', label: 'Turing fee controller' },
@@ -265,7 +265,7 @@ export function TradingTerminal({
         <div>
           <span>01</span>
           <strong>Connect MetaMask</strong>
-          <small>AgentBook assigns human or bot automatically</small>
+          <small>The World AgentBook mirror assigns the lane automatically</small>
         </div>
         <i aria-hidden="true">→</i>
         <div>
@@ -320,7 +320,7 @@ export function TradingTerminal({
 
         <aside className="terminal-panel quote-ticket" aria-label="Quote ticket">
         <div className="panel-head">
-          <div><strong>Trade</strong><span>Exact input · live World Chain execution</span></div>
+          <div><strong>Trade</strong><span>Exact input · live Base Sepolia execution</span></div>
           <span className="live-tag">LIVE</span>
         </div>
         <div className="ticket-body">
@@ -384,8 +384,8 @@ export function TradingTerminal({
                 <small>
                   {walletQuote
                     ? walletQuote.humanBacked
-                      ? `AgentBook humanId ${walletQuote.humanId.slice(0, 10)}… · ${formatUnits(walletQuote.balance)} ${walletQuote.tokenInSymbol} available`
-                      : `AgentBook returned humanId 0 · ${formatUnits(walletQuote.balance)} ${walletQuote.tokenInSymbol} available`
+                      ? `Mirrored humanId ${walletQuote.humanId.slice(0, 10)}… · ${formatUnits(walletQuote.balance)} ${walletQuote.tokenInSymbol} available`
+                      : `World mirror returned humanId 0 · ${formatUnits(walletQuote.balance)} ${walletQuote.tokenInSymbol} available`
                     : walletQuoteError ?? 'Reading wallet balance, allowance, and identity…'}
                 </small>
                 <a href={companionUrl.toString()} rel="noreferrer" target="_blank">
@@ -499,7 +499,7 @@ export function TradingTerminal({
             {!connectedAccount
               ? 'Connect both MetaMask accounts, then select a different account in each browser tab.'
               : executionEnabled
-                ? `MetaMask signs the real SwapVM transaction. AgentBook selects the lane; mined volume reprices opcode ${state.execution?.opcode}.`
+                ? `MetaMask signs the Base SwapVM transaction. The World mirror selects the lane; mined volume reprices opcode ${state.execution?.opcode}.`
                 : 'Live signing is disabled on this runtime.'}
           </p>
           <ExecutionTrace
