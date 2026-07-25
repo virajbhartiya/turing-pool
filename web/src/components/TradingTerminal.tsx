@@ -181,11 +181,32 @@ export function TradingTerminal({
 
   return (
     <section className="trading-workspace" id="activity">
-      <div className="terminal-panel execution-panel">
+      <div className="demo-guide" aria-label="Interactive demo flow">
+        <div>
+          <span>01</span>
+          <strong>Choose the trader</strong>
+          <small>Verified human or anonymous bot</small>
+        </div>
+        <i aria-hidden="true">→</i>
+        <div>
+          <span>02</span>
+          <strong>Execute a real fill</strong>
+          <small>SwapVM opcode 34 settles through Aqua</small>
+        </div>
+        <i aria-hidden="true">→</i>
+        <div>
+          <span>03</span>
+          <strong>Watch the market reprice</strong>
+          <small>Volume moves both rates around the LP target</small>
+        </div>
+      </div>
+
+      <div className="trading-grid">
+        <div className="terminal-panel execution-panel">
         <div className="panel-head">
           <div>
-            <strong>Fee market · realized order flow</strong>
-            <span>Same pool and order size · only the on-chain identity result changes</span>
+            <strong>Live fee market</strong>
+            <span>Every dot is a mined fill · dashed lines are the next executable rates</span>
           </div>
           <div className="chart-controls" aria-label="Chart interval"><span>1H</span><span className="active">ALL</span></div>
         </div>
@@ -209,11 +230,11 @@ export function TradingTerminal({
           <strong>Verified execution edge <b>+{deltaLabel} {tokenOutSymbol}</b></strong>
           <span>{quotes.human.feeBps} bps human / {quotes.bot.feeBps} bps bot · both move with mined volume</span>
         </div>
-      </div>
+        </div>
 
-      <aside className="terminal-panel quote-ticket" aria-label="Quote ticket">
+        <aside className="terminal-panel quote-ticket" aria-label="Quote ticket">
         <div className="panel-head">
-          <div><strong>Quote ticket</strong><span>Exact input · live on-chain execution</span></div>
+          <div><strong>Trade</strong><span>Exact input · live World Chain execution</span></div>
           <span className="live-tag">LIVE</span>
         </div>
         <div className="ticket-tabs" aria-label="Order-flow identity">
@@ -302,7 +323,7 @@ export function TradingTerminal({
             <div><dt>Live LP rate</dt><dd>{selected.feeBps} bps</dd></div>
             <div><dt>Settlement</dt><dd>Aqua · maker inventory</dd></div>
             <div>
-              <dt>Execution edge</dt>
+              <dt>Your price improvement</dt>
               <dd className={lane === 'human' ? 'positive' : 'negative'}>
                 {lane === 'human' ? `+${deltaLabel}` : `−${deltaLabel}`} {tokenOutSymbol}
               </dd>
@@ -322,7 +343,7 @@ export function TradingTerminal({
               : selectedTradePending
               ? `Mining ${lane} trade…`
               : executionEnabled
-                ? `${direction === 'tUSD-to-tETH' ? 'Buy' : 'Sell'} as ${lane} on-chain`
+                ? `${direction === 'tUSD-to-tETH' ? 'Buy' : 'Sell'} as ${lane === 'human' ? 'verified human' : 'anonymous bot'}`
                 : 'Interactive execution unavailable'}
           </button>
           <p className="ticket-note">
@@ -361,13 +382,16 @@ export function TradingTerminal({
             </a>
           )}
         </div>
-        <div className="sybil-alert">
-          <span>Shared identity risk check</span>
-          <strong>{quotes.sybil.tier.toUpperCase()}</strong>
-          <p>{formatUnits(quotes.sybil.sharedQuotaRemaining)} {tokenInSymbol} shared remaining</p>
-          <small>Wallet #2 asks for remaining + {sybilOverage.toString()} wei. A new wallet cannot reset risk.</small>
-        </div>
-      </aside>
+          <details className="sybil-alert">
+            <summary>
+              <span>Linked-wallet bypass test</span>
+              <strong>{quotes.sybil.tier.toUpperCase()} ↗</strong>
+            </summary>
+            <p>{formatUnits(quotes.sybil.sharedQuotaRemaining)} {tokenInSymbol} shared remaining</p>
+            <small>Wallet #2 asks for remaining + {sybilOverage.toString()} wei. A new wallet cannot reset the human risk budget.</small>
+          </details>
+        </aside>
+      </div>
     </section>
   );
 }

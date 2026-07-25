@@ -1,5 +1,5 @@
 import { formatUnits } from '../lib/format';
-import { deriveLpEconomics, type TierLpEconomics } from '../lib/lpEconomics';
+import { deriveLpEconomics } from '../lib/lpEconomics';
 import type { DemoQuotes, DemoTokenSymbol, ProtocolState } from '../types';
 
 export interface LPEconomicsPanelProps {
@@ -31,66 +31,6 @@ function tokenPairLabel(
     token1Decimals,
     6,
   )} ${token1Symbol}`;
-}
-
-function TierCard({
-  label,
-  tone,
-  tier,
-  token0Symbol,
-  token1Symbol,
-  token0Decimals,
-  token1Decimals,
-  currentFeeBps,
-}: {
-  label: string;
-  tone: 'human' | 'bot';
-  tier: TierLpEconomics;
-  token0Symbol: string;
-  token1Symbol: string;
-  token0Decimals: number;
-  token1Decimals: number;
-  currentFeeBps: number;
-}) {
-  return (
-    <article className={`quote-card ${tone}`}>
-      <div className="quote-card-head">
-        <span><i />{label}</span>
-        <b>{currentFeeBps} BPS NOW</b>
-      </div>
-      <strong>
-        {formatUnits(tier.normalizedVolumeToken0, token0Decimals, 4)}
-        <small>{token0Symbol}-notional</small>
-      </strong>
-      <p>
-        Receipt analytics use {token0Symbol}-equivalent volume; reverse fills use
-        received {token0Symbol}. Controllers stay input-token specific.
-      </p>
-      <div className="quote-card-foot">
-        <span>{tier.swapCount} mined fills</span>
-        <b>
-          Input: {tokenPairLabel(
-            tier.inputVolume.token0,
-            tier.inputVolume.token1,
-            token0Symbol,
-            token1Symbol,
-            token0Decimals,
-            token1Decimals,
-          )}
-        </b>
-      </div>
-      <em>
-        Implied LP fee: {tokenPairLabel(
-          tier.impliedFees.token0,
-          tier.impliedFees.token1,
-          token0Symbol,
-          token1Symbol,
-          token0Decimals,
-          token1Decimals,
-        )}
-      </em>
-    </article>
-  );
 }
 
 export function LPEconomicsPanel({
@@ -134,42 +74,33 @@ export function LPEconomicsPanel({
       <div className="terminal-panel">
         <div className="panel-head">
           <div>
-            <strong>LP economics · executed fee ledger</strong>
-            <span>
-              Receipt-implied fees stay separated by input token · cross-token values use
-              receipt notional
-            </span>
+            <strong>LP book</strong>
+            <span>What the pool is charging now and what executed flow has earned</span>
           </div>
           <span className="live-tag">{economics.total.swapCount} FILLS</span>
         </div>
 
-        <div className="metric-strip">
+        <div className="metric-strip lp-metrics">
           <div className="metric">
-            <span>Live {activeTokenInSymbol} input rates</span>
+            <span>Current rates</span>
             <strong>
               {activeHumanFee} / {activeBotFee} bps
             </strong>
-            <small>human-backed / anonymous · next executable quote</small>
+            <small>verified / anonymous · next {activeTokenInSymbol} quote</small>
           </div>
           <div className="metric">
-            <span>Executed notional</span>
-            <strong>
-              {formatUnits(
-                economics.total.normalizedVolumeToken0,
-                token0Decimals,
-                4,
-              )}
-            </strong>
-            <small>{token0Symbol}-notional · receipt window</small>
+            <span>LP target / projected</span>
+            <strong>{activeTargetFee} / {bpsLabel(economics.projectedBlendedFeeBps)}</strong>
+            <small>controller target / current volume-weighted rate</small>
           </div>
           <div className="metric">
-            <span>Cumulative implied fees</span>
+            <span>Estimated fees earned</span>
             <strong>
               {formatUnits(economics.total.impliedFees.token0, token0Decimals, 6)} /{' '}
               {formatUnits(economics.total.impliedFees.token1, token1Decimals, 6)}
             </strong>
             <small>
-              {token0Symbol} / {token1Symbol} · not directly summed
+              {token0Symbol} / {token1Symbol}
               {economics.estimatedImpliedFeesToken1 === undefined
                 ? ''
                 : ` · ≈ ${economics.estimatedImpliedFeesToken1.toLocaleString('en-US', {
@@ -178,69 +109,48 @@ export function LPEconomicsPanel({
             </small>
           </div>
           <div className="metric">
-            <span>Realized blended rate</span>
-            <strong>{bpsLabel(economics.realizedBlendedFeeBps)}</strong>
-            <small>historical receipt rates × normalized notional</small>
-          </div>
-          <div className="metric">
-            <span>Projected fee revenue</span>
-            <strong>~{projectedToken0}</strong>
+            <span>Executed volume</span>
+            <strong>{formatUnits(economics.total.normalizedVolumeToken0, token0Decimals, 4)}</strong>
             <small>
-              {token0Symbol}-notional on controller volume
-              {projectedToken1 === undefined
-                ? ''
-                : ` · ≈ ${projectedToken1} ${token1Symbol}`}
+              {token0Symbol}-notional · realized {bpsLabel(economics.realizedBlendedFeeBps)}
             </small>
           </div>
         </div>
 
-        <div className="quote-comparison">
-          <TierCard
-            label="Human-backed flow"
-            tone="human"
-            tier={economics.human}
-            token0Symbol={token0Symbol}
-            token1Symbol={token1Symbol}
-            token0Decimals={token0Decimals}
-            token1Decimals={token1Decimals}
-            currentFeeBps={activeHumanFee}
-          />
-          <TierCard
-            label="Anonymous flow"
-            tone="bot"
-            tier={economics.bot}
-            token0Symbol={token0Symbol}
-            token1Symbol={token1Symbol}
-            token0Decimals={token0Decimals}
-            token1Decimals={token1Decimals}
-            currentFeeBps={activeBotFee}
-          />
+        <div className="lp-flow-book">
+          <div className="lp-flow-head">
+            <span>Flow</span><span>Volume</span><span>Fills</span><span>Live rate</span><span>Implied fee earned</span>
+          </div>
+          <div className="lp-flow-row human">
+            <strong><i />Verified human</strong>
+            <span>{formatUnits(economics.human.normalizedVolumeToken0, token0Decimals, 4)} {token0Symbol}</span>
+            <span>{economics.human.swapCount}</span>
+            <b>{activeHumanFee} bps</b>
+            <span>{tokenPairLabel(economics.human.impliedFees.token0, economics.human.impliedFees.token1, token0Symbol, token1Symbol, token0Decimals, token1Decimals)}</span>
+          </div>
+          <div className="lp-flow-row bot">
+            <strong><i />Anonymous bot</strong>
+            <span>{formatUnits(economics.bot.normalizedVolumeToken0, token0Decimals, 4)} {token0Symbol}</span>
+            <span>{economics.bot.swapCount}</span>
+            <b>{activeBotFee} bps</b>
+            <span>{tokenPairLabel(economics.bot.impliedFees.token0, economics.bot.impliedFees.token1, token0Symbol, token1Symbol, token0Decimals, token1Decimals)}</span>
+          </div>
         </div>
 
-        <div className="comparison-tape">
+        <div className="comparison-tape lp-projection">
           <strong>
-            Controller projection{' '}
-            <b>{bpsLabel(economics.projectedBlendedFeeBps)}</b>
+            Next-window projection <b>~{projectedToken0} {token0Symbol}</b>
           </strong>
           <span>
             {formatUnits(economics.controllerVolumeToken0, token0Decimals, 4)}{' '}
-            {token0Symbol} controller base · target {state.feeController.targetFeeBps} bps
-            {activeTokenInSymbol === token0Symbol ? '' : ` · active ${activeTokenInSymbol} target ${activeTargetFee} bps`}
-            {token0PriceInToken1 === undefined
-              ? ' · supply a live mid-price for token1 estimate'
-              : ` · ${token0PriceInToken1.toLocaleString('en-US')} ${token1Symbol}/${token0Symbol}`}
+            {token0Symbol} controller base
+            {projectedToken1 === undefined ? '' : ` · ≈ ${projectedToken1} ${token1Symbol}`}
           </span>
         </div>
       </div>
-      <div className="connection-bar">
-        <span>
-          <i />
-          Implied fees apply each mined receipt’s fee rate to its input amount.
-        </span>
-        <span>
-          Estimated notional is directional and is not realized accounting P&amp;L.
-        </span>
-      </div>
+      <p className="lp-disclaimer">
+        Fee estimates apply each mined receipt’s rate to its input amount; cross-token values are indicative, not realized accounting P&amp;L.
+      </p>
     </section>
   );
 }

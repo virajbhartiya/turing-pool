@@ -1,5 +1,6 @@
 import { shortAddress } from '../lib/format';
 import type { DemoTradeResult, ProtocolState } from '../types';
+import { BrandLogo } from './BrandLogo';
 
 interface IntegrationFlowProps {
   state: ProtocolState;
@@ -25,45 +26,58 @@ export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
       : 'Chain fallback active';
 
   return (
-    <section className="integration-flow" aria-label="Live sponsor integration flow">
-      <div className="integration-intro">
-        <span>One executable loop</span>
-        <strong>Three systems, one receipt.</strong>
-        <p>Identity selects risk, SwapVM settles it through Aqua, and Nuthatch makes the activity queryable.</p>
+    <section className="integration-section" aria-label="Live integration flow">
+      <div className="section-head">
+        <div><span>Execution path</span><h2>One trade, three verifiable systems</h2></div>
+        <p>Identity → settlement → indexed proof</p>
       </div>
-      <div className="integration-step world">
-        <div><span>01 · WORLD</span><i aria-hidden="true" className="status-dot" /></div>
-        <strong>AgentBook resolves the taker</strong>
-        <p>
-          {lastTrade
-            ? lastTrade.humanBacked
-              ? `humanId ${lastTrade.humanId.slice(0, 10)}…`
-              : 'anonymous wallet · humanId 0'
-            : `${shortAddress(state.execution?.humanWallet ?? '')} is human-backed`}
-        </p>
-        <small>canonical on-chain lookup</small>
-      </div>
-      <div className="flow-arrow" aria-hidden="true">→</div>
-      <div className="integration-step swapvm">
-        <div><span>02 · 1INCH</span><i aria-hidden="true" className="status-dot" /></div>
-        <strong>Aqua + SwapVM execute</strong>
-        <p>
-          {lastTrade
-            ? `block ${lastTrade.blockNumber} · ${lastTrade.feeBps} bps`
-            : `router ${shortAddress(state.contracts.router)} · opcode ${state.execution?.opcode ?? 34}`}
-        </p>
-        <small>real contracts · demo assets</small>
-      </div>
-      <div className="flow-arrow" aria-hidden="true">→</div>
-      <div className={`integration-step nuthatch ${nuthatchConnected ? 'connected' : 'waiting'}`}>
-        <div><span>03 · THE GRAPH</span><i aria-hidden="true" className="status-dot" /></div>
-        <strong>Nuthatch indexes activity</strong>
-        <p>{indexLabel}</p>
-        <small>
-          {nuthatchConnected
-            ? `SQL + MCP · ${activity.lagBlocks ?? 0} block lag`
-            : activity.error ?? 'direct event reads preserve the demo'}
-        </small>
+      <div className="integration-flow">
+        <div className="integration-step world">
+          <div className="integration-brand">
+            <BrandLogo brand="world" />
+            <span><b>World</b><small>AgentBook</small></span>
+            <i aria-hidden="true" className="status-dot" />
+          </div>
+          <strong>Resolve the trader</strong>
+          <p>
+            {lastTrade
+              ? lastTrade.humanBacked
+                ? `humanId ${lastTrade.humanId.slice(0, 10)}…`
+                : 'anonymous wallet · humanId 0'
+              : `${shortAddress(state.execution?.humanWallet ?? '')} is human-backed`}
+          </p>
+          <small>Canonical identity lookup on World Chain</small>
+        </div>
+        <div className="flow-arrow" aria-hidden="true">→</div>
+        <div className="integration-step swapvm">
+          <div className="integration-brand">
+            <BrandLogo brand="oneinch" />
+            <span><b>1inch</b><small>Aqua + SwapVM</small></span>
+            <i aria-hidden="true" className="status-dot" />
+          </div>
+          <strong>Price risk and settle</strong>
+          <p>
+            {lastTrade
+              ? `block ${lastTrade.blockNumber} · ${lastTrade.feeBps} bps`
+              : `router ${shortAddress(state.contracts.router)} · opcode ${state.execution?.opcode ?? 34}`}
+          </p>
+          <small>Deployed contracts · maker-owned demo assets</small>
+        </div>
+        <div className="flow-arrow" aria-hidden="true">→</div>
+        <div className={`integration-step nuthatch ${nuthatchConnected ? 'connected' : 'waiting'}`}>
+          <div className="integration-brand">
+            <BrandLogo brand="thegraph" />
+            <span><b>The Graph</b><small>Nuthatch</small></span>
+            <i aria-hidden="true" className="status-dot" />
+          </div>
+          <strong>Index the receipt</strong>
+          <p>{indexLabel}</p>
+          <small>
+            {nuthatchConnected
+              ? `SQL + MCP · ${activity.lagBlocks ?? 0} block lag`
+              : activity.error ?? 'Direct event reads preserve the demo'}
+          </small>
+        </div>
       </div>
     </section>
   );

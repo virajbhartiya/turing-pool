@@ -1,5 +1,6 @@
 import { compactUsd, formatUnits, shortAddress, unitsAsNumber } from '../lib/format';
 import type { DemoQuotes, ProtocolState } from '../types';
+import { BrandLogo } from './BrandLogo';
 
 interface MarketHeaderProps {
   state: ProtocolState;
@@ -72,7 +73,7 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
             </span>
           </a>
           <nav className="primary-nav" aria-label="Primary navigation">
-            <a className="active" href="#market"><kbd>F1</kbd> Market</a>
+            <a aria-current="page" className="active" href="#market"><kbd>F1</kbd> Market</a>
             <a href="#activity"><kbd>F2</kbd> Execution</a>
             <a href="#lp"><kbd>F3</kbd> LP book</a>
             <a href="#risk"><kbd>F4</kbd> Risk</a>
@@ -94,8 +95,22 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
             <span className="pair-icon" aria-hidden="true"><i>Ξ</i><i>$</i></span>
             <div>
               <h1>tETH / tUSD <span>Turing Pool</span></h1>
-              <p>IDENTITY-PRICED MAKER LIQUIDITY · ADAPTIVE FEE MARKET · {state.runtime.label}</p>
+              <p>One liquidity pool that prices bounded human flow and anonymous flow differently.</p>
             </div>
+          </div>
+          <div className="integration-ribbon" aria-label="Integrated products">
+            <a href="https://world.org/" rel="noreferrer" target="_blank">
+              <BrandLogo brand="world" />
+              <span><b>World</b><small>Identity</small></span>
+            </a>
+            <a href="https://1inch.io/" rel="noreferrer" target="_blank">
+              <BrandLogo brand="oneinch" />
+              <span><b>1inch</b><small>Aqua + SwapVM</small></span>
+            </a>
+            <a href="https://thegraph.com/" rel="noreferrer" target="_blank">
+              <BrandLogo brand="thegraph" />
+              <span><b>The Graph</b><small>Nuthatch indexer</small></span>
+            </a>
           </div>
         </div>
         <div className="market-price">
@@ -128,20 +143,18 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
           value={`${quotaUsed}%`}
           detail="shared across linked wallets"
         />
-        <Metric
-          label="Settled fills"
-          value={String(state.stats.totalSwaps)}
-          detail={`block ${state.runtime.latestBlock}`}
-        />
       </section>
 
-      <div className={`connection-bar ${isSnapshot ? 'snapshot' : 'connected'}`} role="status">
-        <span><i />{isSnapshot ? 'Deterministic preview · no executable funds' : `RPC connected · chain ${state.runtime.chainId} · every quote is an on-chain eth_call`}</span>
-        <strong>Market open · controller active</strong>
-      </div>
-
       <details className="deployment-details">
-        <summary><span>Protocol deployment</span><span>Inspect contracts +</span></summary>
+        <summary>
+          <span>
+            <i className="deployment-status" />
+            {isSnapshot
+              ? 'Recorded market snapshot'
+              : `World Chain ${state.runtime.chainId} · ${state.stats.totalSwaps} settled fills · RPC live`}
+          </span>
+          <span>Inspect contracts +</span>
+        </summary>
         <div className="contract-chips">
           {contracts.map(([name, address]) => (
             <span className="contract-chip" key={name} title={address}>

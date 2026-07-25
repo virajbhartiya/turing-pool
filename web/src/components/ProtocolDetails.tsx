@@ -9,11 +9,14 @@ export function ProtocolDetails({ state }: { state: ProtocolState }) {
   const indexer = state.dataSources.activity;
 
   return (
-    <section className="protocol-section">
-      <div className="section-head">
-        <div><span>Protocol state</span><h2>Liquidity and risk controls</h2></div>
-        <p>Live Aqua inventory, per-human quota, and executed-volume fee state</p>
-      </div>
+    <details className="protocol-section protocol-disclosure">
+      <summary>
+        <span>
+          <b>Technical protocol state</b>
+          <small>Aqua inventory, shared quota, controller, and data provenance</small>
+        </span>
+        <em>Inspect +</em>
+      </summary>
       <div className="protocol-grid">
         <article>
           <span>Active fee schedule</span>
@@ -58,6 +61,6 @@ export function ProtocolDetails({ state }: { state: ProtocolState }) {
           </dl>
         </article>
       </div>
-    </section>
+    </details>
   );
 }
