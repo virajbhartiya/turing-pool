@@ -79,7 +79,7 @@ export function DexHeader({
             <div className={`header-wallet ${human ? 'human' : 'bot'}`}>
               <span>
                 <i />
-                {human ? 'Human-backed' : 'Searcher / HFT'}
+                {human ? 'Verified retail' : 'Searcher / HFT'}
               </span>
               {accounts.length > 1 ? (
                 <select

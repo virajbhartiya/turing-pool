@@ -20,14 +20,14 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
         <div>
           <span className="eyebrow">Identity-priced liquidity</span>
           <h1>
-            Human-backed agents trade tighter.
+            Better prices for humans.
             <br />
-            LP economics stay whole.
+            The same target yield for LPs.
           </h1>
           <p>
-            World AgentKit proves accountable agency. A custom SwapVM instruction turns
-            that proof into bounded economic risk, Aqua settles against LP inventory,
-            and Nuthatch makes every fill available to the pricing loop.
+            World AgentKit connects a trading wallet to a unique World ID. Verified
+            retail flow receives the tighter rate, while HFT and arbitrage flow gets
+            always-on execution at a variable risk price. Both rates move with volume.
           </p>
           <div className="landing-actions">
             <button onClick={() => onNavigate('trade')} type="button">Open live market</button>
@@ -36,8 +36,8 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
         </div>
         <div className="landing-market">
           <span>Live adaptive fee schedule</span>
-          <div><small>Human-backed agent</small><strong>{controller.tightFeeBps}<em>bps</em></strong></div>
-          <div><small>Autonomous searcher</small><strong>{controller.wideFeeBps}<em>bps</em></strong></div>
+          <div><small>Verified retail</small><strong>{controller.tightFeeBps}<em>bps</em></strong></div>
+          <div><small>HFT / arbitrage</small><strong>{controller.wideFeeBps}<em>bps</em></strong></div>
           <div className="target"><small>LP target</small><strong>{controller.targetFeeBps}<em>bps</em></strong></div>
         </div>
       </div>
@@ -53,9 +53,9 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
         </div>
         <div className="math-card">
           <div className="math-formula">
-            <span><i>h</i> × <b>f<sub>human</sub></b></span>
+            <span><i>h</i> × <b>f<sub>verified</sub></b></span>
             <em>+</em>
-            <span><i>(1 − h)</i> × <b>f<sub>bot</sub></b></span>
+            <span><i>(1 − h)</i> × <b>f<sub>searcher</sub></b></span>
             <em>=</em>
             <span className="result"><b>f<sub>LP target</sub></b></span>
           </div>
@@ -68,7 +68,7 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
           </div>
           <div className="math-solve">
             <div>
-              <span>Human-backed fee</span>
+              <span>Verified retail fee</span>
               <code>
                 {controller.targetFeeBps} − {(botShare * 100).toFixed(0)}% × {feeSpread}
                 {' = '}<b>{controller.tightFeeBps} bps</b>
@@ -89,10 +89,10 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
           <dl className="math-definitions">
             <div><dt>Input</dt><dd>Realized trade volume by lane</dd></div>
             <div><dt>Constraint</dt><dd>Weighted fee stays at the LP target</dd></div>
-            <div><dt>Output</dt><dd>The next human-backed and searcher fee pair</dd></div>
+            <div><dt>Output</dt><dd>The next verified retail and searcher fee pair</dd></div>
           </dl>
           <p className="math-incentive">
-            More searcher volume lowers both next rates; more human-backed volume raises
+            More searcher volume lowers both next rates; more verified volume raises
             both. The identity signal underwrites a bounded lane rather than granting a
             static perk, while LPs retain the same blended target.
           </p>
@@ -118,7 +118,7 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
               </div>
             </div>
             <strong>Resolve the trader</strong>
-            <p>AgentBook resolves whether the trading agent is backed by a unique human, then the execution mirror selects its bounded risk lane.</p>
+            <p>AgentBook resolves the wallet’s World ID status, then the execution mirror selects its bounded risk lane.</p>
             <div className="event-output">
               <span>Output</span>
               <b>humanId → risk lane</b>
