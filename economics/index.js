@@ -3,7 +3,10 @@ const DISPLAY_SCALE = 1_000_000n;
 
 export const DEFAULT_REVENUE_POLICY = Object.freeze({
   targetFeeBps: 19,
+  riskSpreadBps: 28,
   desiredTightFeeBps: 5,
+  // Retained for backwards compatibility. desiredTightFeeBps is the actual
+  // on-chain floor used by the two-sided controller.
   minTightFeeBps: 2,
   maxWideFeeBps: 100,
 });
@@ -34,16 +37,14 @@ function decimalRatio(numerator, denominator) {
  * Solves a two-tier fee schedule against a fixed blended LP fee target.
  *
  * The controller observes normalized tight- and wide-tier notional over one
- * activity window. It lowers the tight fee toward the desired retail fee, then
- * solves the wide fee so:
+ * activity window. A fixed risk spread defines the continuous two-sided curve:
  *
- *   tightVolume * tightFee + wideVolume * wideFee
- *     ~= (tightVolume + wideVolume) * targetFee
+ *   tightFee = targetFee - riskSpread × wideShare
+ *   wideFee  = targetFee + riskSpread × tightShare
  *
- * Fees are integer basis points, so the result reports any rounding drift.
- * When the observed bot share cannot fund a discount within maxWideFeeBps, the
- * controller raises the tight fee toward the target. If no valid separated
- * schedule exists, it holds the current schedule.
+ * HumanQuota rounds and clamps the tight lane first. The wide lane then absorbs
+ * the remaining target revenue; if it exceeds the cap, the wide fee is capped
+ * and the tight fee is recomputed from the residual.
  */
 export function calculateRevenueNeutralFees(input) {
   const tightVolume = asVolume(input.tightVolume, 'tightVolume');
@@ -51,18 +52,27 @@ export function calculateRevenueNeutralFees(input) {
   const currentTightFeeBps = asFee(input.currentTightFeeBps, 'currentTightFeeBps');
   const currentWideFeeBps = asFee(input.currentWideFeeBps, 'currentWideFeeBps');
   const targetFeeBps = asFee(input.targetFeeBps, 'targetFeeBps');
-  const minTightFeeBps = asFee(input.minTightFeeBps ?? 2, 'minTightFeeBps');
-  const maxWideFeeBps = asFee(input.maxWideFeeBps ?? 100, 'maxWideFeeBps');
-  const desiredTightFeeBps = Math.max(
-    minTightFeeBps,
-    Math.min(asFee(input.desiredTightFeeBps, 'desiredTightFeeBps'), targetFeeBps - 1),
+  const riskSpreadBps = asFee(input.riskSpreadBps ?? 28, 'riskSpreadBps');
+  const desiredTightFeeBps = asFee(
+    input.desiredTightFeeBps ?? 5,
+    'desiredTightFeeBps',
   );
+  const maxWideFeeBps = asFee(input.maxWideFeeBps ?? 100, 'maxWideFeeBps');
+  // Validate the legacy field when supplied, but mirror HumanQuota by clamping
+  // to desiredTightFeeBps rather than this older, lower bound.
+  if (input.minTightFeeBps !== undefined) {
+    asFee(input.minTightFeeBps, 'minTightFeeBps');
+  }
 
   if (currentTightFeeBps > currentWideFeeBps) {
     throw new RangeError('currentTightFeeBps must not exceed currentWideFeeBps');
   }
-  if (targetFeeBps <= minTightFeeBps || maxWideFeeBps <= targetFeeBps) {
-    throw new RangeError('fee bounds must allow tight < target < wide');
+  if (
+    riskSpreadBps === 0 ||
+    targetFeeBps < desiredTightFeeBps ||
+    maxWideFeeBps < targetFeeBps
+  ) {
+    throw new RangeError('fee bounds must allow desired tight <= target <= max wide');
   }
 
   const totalVolume = tightVolume + wideVolume;
@@ -78,6 +88,7 @@ export function calculateRevenueNeutralFees(input) {
       tightFeeBps,
       wideFeeBps,
       targetFeeBps,
+      riskSpreadBps,
       projectedWeightedFeeBps: decimalRatio(projectedFeeUnits, totalVolume),
       revenueDeltaBps: decimalRatio(signedDelta, totalVolume),
       humanShareBps,
@@ -86,7 +97,7 @@ export function calculateRevenueNeutralFees(input) {
       status,
       canAdjust,
       formula:
-        'tightVolume × tightFee + wideVolume × wideFee ≈ totalVolume × targetFee',
+        'tightFee = targetFee - riskSpread × wideShare; wideFee = targetFee + riskSpread × tightShare; volume-weighted fees ≈ targetFee',
     };
   };
 
@@ -94,30 +105,88 @@ export function calculateRevenueNeutralFees(input) {
     return build(currentTightFeeBps, currentWideFeeBps, 'no-activity', false);
   }
   if (tightVolume === 0n) {
-    return build(currentTightFeeBps, currentWideFeeBps, 'insufficient-tight-flow', false);
-  }
-  if (wideVolume === 0n) {
-    return build(currentTightFeeBps, currentWideFeeBps, 'insufficient-wide-flow', false);
-  }
-
-  for (let tightFeeBps = desiredTightFeeBps; tightFeeBps < targetFeeBps; tightFeeBps += 1) {
-    const wideFeeUnits =
-      targetFeeUnits - tightVolume * BigInt(tightFeeBps);
-    const wideFeeBps = Number(roundedDivide(wideFeeUnits, wideVolume));
-    if (wideFeeBps <= targetFeeBps || wideFeeBps > maxWideFeeBps) continue;
-
-    const projectedFeeUnits =
-      tightVolume * BigInt(tightFeeBps) + wideVolume * BigInt(wideFeeBps);
-    const status = projectedFeeUnits === targetFeeUnits ? 'balanced' : 'rounded';
+    const tightFeeBps = Math.max(
+      desiredTightFeeBps,
+      targetFeeBps > riskSpreadBps ? targetFeeBps - riskSpreadBps : 0,
+    );
     const canAdjust =
-      tightFeeBps !== currentTightFeeBps || wideFeeBps !== currentWideFeeBps;
+      tightFeeBps !== currentTightFeeBps ||
+      targetFeeBps !== currentWideFeeBps;
     return build(
       tightFeeBps,
+      targetFeeBps,
+      canAdjust ? 'balanced' : 'already-balanced',
+      canAdjust,
+    );
+  }
+  if (wideVolume === 0n) {
+    const wideFeeBps = Math.min(
+      targetFeeBps + riskSpreadBps,
+      maxWideFeeBps,
+    );
+    const canAdjust =
+      targetFeeBps !== currentTightFeeBps ||
+      wideFeeBps !== currentWideFeeBps;
+    return build(
+      targetFeeBps,
       wideFeeBps,
-      canAdjust ? status : 'already-balanced',
+      canAdjust ? 'balanced' : 'already-balanced',
       canAdjust,
     );
   }
 
-  return build(currentTightFeeBps, currentWideFeeBps, 'capacity-limited', false);
+  const spreadRevenueUnits = wideVolume * BigInt(riskSpreadBps);
+  let tightFeeBps = 0;
+  if (targetFeeUnits > spreadRevenueUnits) {
+    tightFeeBps = Number(
+      roundedDivide(targetFeeUnits - spreadRevenueUnits, totalVolume),
+    );
+  }
+  tightFeeBps = Math.max(
+    desiredTightFeeBps,
+    Math.min(tightFeeBps, targetFeeBps),
+  );
+
+  const tightRevenueUnits = tightVolume * BigInt(tightFeeBps);
+  const requiredWideRevenueUnits =
+    targetFeeUnits > tightRevenueUnits
+      ? targetFeeUnits - tightRevenueUnits
+      : 0n;
+  let wideFeeBps = Number(
+    roundedDivide(requiredWideRevenueUnits, wideVolume),
+  );
+
+  if (wideFeeBps > maxWideFeeBps) {
+    wideFeeBps = maxWideFeeBps;
+    const wideRevenueUnits = wideVolume * BigInt(wideFeeBps);
+    const requiredTightRevenueUnits =
+      targetFeeUnits > wideRevenueUnits
+        ? targetFeeUnits - wideRevenueUnits
+        : 0n;
+    tightFeeBps = Number(
+      roundedDivide(requiredTightRevenueUnits, tightVolume),
+    );
+    tightFeeBps = Math.max(
+      desiredTightFeeBps,
+      Math.min(tightFeeBps, targetFeeBps),
+    );
+  }
+
+  const canAdjust =
+    tightFeeBps !== currentTightFeeBps ||
+    wideFeeBps !== currentWideFeeBps;
+  const projectedFeeUnits =
+    tightVolume * BigInt(tightFeeBps) + wideVolume * BigInt(wideFeeBps);
+  const revenueDistance =
+    projectedFeeUnits >= targetFeeUnits
+      ? projectedFeeUnits - targetFeeUnits
+      : targetFeeUnits - projectedFeeUnits;
+  const status = !canAdjust
+    ? 'already-balanced'
+    : projectedFeeUnits === targetFeeUnits
+      ? 'balanced'
+      : revenueDistance * 2n <= totalVolume
+        ? 'rounded'
+        : 'capacity-limited';
+  return build(tightFeeBps, wideFeeBps, status, canAdjust);
 }

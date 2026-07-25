@@ -185,14 +185,14 @@ contract TuringPoolRouterTest is AquaSwapVMTest, HumanGate {
         assertEq(wideVolume, amountIn);
         assertEq((tightVolume * tightFee + wideVolume * wideFee) / (tightVolume + wideVolume), 19);
 
-        // One more large human fill shifts the volume ratio to 2:1. The next
-        // anonymous trade is automatically priced at 47bps:
-        // (2 × 5 + 1 × 47) / 3 = 19.
+        // One more large human fill shifts the volume ratio to 2:1. Both lanes
+        // move around the 19bps target while preserving the 28bps risk spread:
+        // (2 × 10 + 1 × 37) / 3 = 19.
         mintTokenInToTaker(humanSwap);
         swap(humanSwap, order);
         (tightFee, wideFee,, humanShare, tightVolume, wideVolume) = quota.feeSchedule(address(tokenA));
-        assertEq(tightFee, 5);
-        assertEq(wideFee, 47);
+        assertEq(tightFee, 10);
+        assertEq(wideFee, 37);
         assertEq(humanShare, 6_666);
         assertEq(tightVolume, amountIn * 2);
         assertEq(wideVolume, amountIn);
@@ -201,7 +201,7 @@ contract TuringPoolRouterTest is AquaSwapVMTest, HumanGate {
         (, uint256 repricedBotQuote) = _quoteAs(address(taker2), order, amountIn, true);
         assertEq(
             repricedBotQuote,
-            _expectedOut(balanceA, balanceB, amountIn, 4_700_000),
+            _expectedOut(balanceA, balanceB, amountIn, 3_700_000),
             "next bot quote uses volume-priced fee"
         );
     }
@@ -218,13 +218,25 @@ contract TuringPoolRouterTest is AquaSwapVMTest, HumanGate {
         assertEq(wideVolume, 20e18, "static bot quote must not alter volume");
     }
 
+    function test_SwapVM_SingleLaneStillMeetsLpTarget() public {
+        quota.configureFeeController(address(tokenA), 19, 5, 100, 5, 33, 100e18, 0);
+        (uint256 tightFee, uint256 wideFee,,,,) = quota.feeSchedule(address(tokenA));
+        assertEq(tightFee, 19, "human-only flow must fund the LP target");
+        assertEq(wideFee, 47, "unused bot lane preserves the risk spread");
+
+        quota.configureFeeController(address(tokenA), 19, 5, 100, 5, 33, 0, 100e18);
+        (tightFee, wideFee,,,,) = quota.feeSchedule(address(tokenA));
+        assertEq(tightFee, 5, "unused human lane keeps the discount floor");
+        assertEq(wideFee, 19, "bot-only flow must fund the LP target");
+    }
+
     function test_SwapVM_UsesNotionalVolumeRatherThanSwapCount() public {
         quota.configureFeeController(address(tokenA), 19, 5, 100, 5, 33, 0, 0);
         (ISwapVM.Order memory order,) = _shipTuringStrategy(42);
 
         // Exactly one fill per lane, but the human fill is twice the size.
         // A count-based controller would see 50/50 and stay at 5/33. The
-        // executed notional is 2:1, so revenue neutrality requires 5/47.
+        // executed notional is 2:1, so the balanced curve moves to 10/37.
         SwapProgram memory botSwap = SwapProgram({
             amount: 100e18, taker: taker2, tokenA: tokenA, tokenB: tokenB, zeroForOne: true, isExactIn: true
         });
@@ -239,8 +251,8 @@ contract TuringPoolRouterTest is AquaSwapVMTest, HumanGate {
 
         (uint256 tightFee, uint256 wideFee,, uint256 humanShare, uint256 tightVolume, uint256 wideVolume) =
             quota.feeSchedule(address(tokenA));
-        assertEq(tightFee, 5);
-        assertEq(wideFee, 47);
+        assertEq(tightFee, 10);
+        assertEq(wideFee, 37);
         assertEq(humanShare, 6_666);
         assertEq(tightVolume, 200e18);
         assertEq(wideVolume, 100e18);

@@ -62,7 +62,7 @@ test('upstream RPC rate limits become a safe, actionable trade error', () => {
   assert.deepEqual(describeTradeError(raw), {
     code: 'rpc_rate_limited',
     error:
-      'World Chain is temporarily busy. No transaction was submitted. Wait a few seconds and try again.',
+      'World Chain RPC is temporarily busy. No confirmed result was received; check the explorer before retrying.',
     retryable: true,
     retryAfterSeconds: 5,
     status: 503,

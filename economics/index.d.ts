@@ -4,7 +4,10 @@ export interface RevenueNeutralFeeInput {
   currentTightFeeBps: number;
   currentWideFeeBps: number;
   targetFeeBps: number;
-  desiredTightFeeBps: number;
+  riskSpreadBps?: number;
+  /** Tight-lane floor used after rounding the two-sided curve. */
+  desiredTightFeeBps?: number;
+  /** @deprecated HumanQuota uses desiredTightFeeBps as its tight floor. */
   minTightFeeBps?: number;
   maxWideFeeBps?: number;
 }
@@ -22,6 +25,7 @@ export interface RevenueNeutralFeeDecision {
   tightFeeBps: number;
   wideFeeBps: number;
   targetFeeBps: number;
+  riskSpreadBps: number;
   projectedWeightedFeeBps: number;
   revenueDeltaBps: number;
   humanShareBps: number;
@@ -34,6 +38,7 @@ export interface RevenueNeutralFeeDecision {
 
 export const DEFAULT_REVENUE_POLICY: Readonly<{
   targetFeeBps: 19;
+  riskSpreadBps: 28;
   desiredTightFeeBps: 5;
   minTightFeeBps: 2;
   maxWideFeeBps: 100;

@@ -53,6 +53,7 @@ contract HumanQuota {
         uint32 targetFeeBps;
         uint32 desiredTightFeeBps;
         uint32 maxWideFeeBps;
+        uint32 riskSpreadBps;
         uint32 tightFeeBps;
         uint32 wideFeeBps;
         bool enabled;
@@ -105,6 +106,7 @@ contract HumanQuota {
             targetFeeBps: targetFeeBps,
             desiredTightFeeBps: desiredTightFeeBps,
             maxWideFeeBps: maxWideFeeBps,
+            riskSpreadBps: initialWideFeeBps - initialTightFeeBps,
             tightFeeBps: initialTightFeeBps,
             wideFeeBps: initialWideFeeBps,
             enabled: true
@@ -203,15 +205,58 @@ contract HumanQuota {
         FeeController storage controller = _feeControllers[token];
         uint256 tightVolume = controller.tightVolume;
         uint256 wideVolume = controller.wideVolume;
-        if (!controller.enabled || tightVolume == 0 || wideVolume == 0) return;
+        if (!controller.enabled || (tightVolume == 0 && wideVolume == 0)) return;
 
-        uint256 targetRevenueBps = (tightVolume + wideVolume) * controller.targetFeeBps;
-        uint256 desiredTightFeeBps = controller.desiredTightFeeBps;
-        uint256 requiredWideRevenueBps = targetRevenueBps - tightVolume * desiredTightFeeBps;
+        // At a single-lane endpoint the lane carrying all executed volume must
+        // itself meet the LP target. Keep the unused lane separated by the
+        // configured risk spread as far as its floor/cap permits.
+        if (wideVolume == 0) {
+            uint256 endpointWideFeeBps = uint256(controller.targetFeeBps) + controller.riskSpreadBps;
+            if (endpointWideFeeBps > controller.maxWideFeeBps) {
+                endpointWideFeeBps = controller.maxWideFeeBps;
+            }
+            controller.tightFeeBps = controller.targetFeeBps;
+            controller.wideFeeBps = uint32(endpointWideFeeBps);
+            return;
+        }
+        if (tightVolume == 0) {
+            uint256 endpointTightFeeBps = controller.targetFeeBps > controller.riskSpreadBps
+                ? controller.targetFeeBps - controller.riskSpreadBps
+                : 0;
+            if (endpointTightFeeBps < controller.desiredTightFeeBps) {
+                endpointTightFeeBps = controller.desiredTightFeeBps;
+            }
+            controller.tightFeeBps = uint32(endpointTightFeeBps);
+            controller.wideFeeBps = controller.targetFeeBps;
+            return;
+        }
+
+        uint256 totalVolume = tightVolume + wideVolume;
+        uint256 targetRevenueBps = totalVolume * controller.targetFeeBps;
+
+        // Move both lanes around the blended target. In exact arithmetic this
+        // starts from:
+        //   tight = target - spread * wideShare
+        // The tight lane is rounded first, then the wide lane absorbs the
+        // integer remainder so the volume-weighted schedule stays on target.
+        uint256 spreadRevenueBps = wideVolume * controller.riskSpreadBps;
+        uint256 nextTightFeeBps;
+        if (targetRevenueBps > spreadRevenueBps) {
+            nextTightFeeBps = (targetRevenueBps - spreadRevenueBps + totalVolume / 2) / totalVolume;
+        }
+        if (nextTightFeeBps < controller.desiredTightFeeBps) {
+            nextTightFeeBps = controller.desiredTightFeeBps;
+        }
+        if (nextTightFeeBps > controller.targetFeeBps) {
+            nextTightFeeBps = controller.targetFeeBps;
+        }
+
+        uint256 tightRevenueBps = tightVolume * nextTightFeeBps;
+        uint256 requiredWideRevenueBps = targetRevenueBps > tightRevenueBps ? targetRevenueBps - tightRevenueBps : 0;
         uint256 nextWideFeeBps = (requiredWideRevenueBps + wideVolume / 2) / wideVolume;
 
         if (nextWideFeeBps <= controller.maxWideFeeBps) {
-            controller.tightFeeBps = uint32(desiredTightFeeBps);
+            controller.tightFeeBps = uint32(nextTightFeeBps);
             controller.wideFeeBps = uint32(nextWideFeeBps);
             return;
         }
@@ -219,10 +264,12 @@ contract HumanQuota {
         nextWideFeeBps = controller.maxWideFeeBps;
         uint256 wideRevenueBps = wideVolume * nextWideFeeBps;
         uint256 requiredTightRevenueBps = targetRevenueBps > wideRevenueBps ? targetRevenueBps - wideRevenueBps : 0;
-        uint256 nextTightFeeBps = (requiredTightRevenueBps + tightVolume / 2) / tightVolume;
-        if (nextTightFeeBps < desiredTightFeeBps) nextTightFeeBps = desiredTightFeeBps;
-        if (nextTightFeeBps > controller.targetFeeBps) nextTightFeeBps = controller.targetFeeBps;
-        controller.tightFeeBps = uint32(nextTightFeeBps);
+        uint256 cappedTightFeeBps = (requiredTightRevenueBps + tightVolume / 2) / tightVolume;
+        if (cappedTightFeeBps < controller.desiredTightFeeBps) {
+            cappedTightFeeBps = controller.desiredTightFeeBps;
+        }
+        if (cappedTightFeeBps > controller.targetFeeBps) cappedTightFeeBps = controller.targetFeeBps;
+        controller.tightFeeBps = uint32(cappedTightFeeBps);
         controller.wideFeeBps = uint32(nextWideFeeBps);
     }
 }

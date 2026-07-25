@@ -100,6 +100,7 @@ export function onChainFeePolicy(
     tightFeeBps: Number(schedule.tightFeeBps),
     wideFeeBps: Number(schedule.wideFeeBps),
     targetFeeBps: Number(schedule.targetFeeBps),
+    riskSpreadBps: DEFAULT_REVENUE_POLICY.riskSpreadBps,
     projectedWeightedFeeBps: decimalRatio(realizedRevenue, totalVolume),
     revenueDeltaBps: decimalRatio(realizedRevenue - targetRevenue, totalVolume),
     humanShareBps: Number(schedule.humanShareBps),

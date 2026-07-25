@@ -38,8 +38,18 @@ contract DeployAdaptiveRouter is Script {
         bytes32 oldOrderHash = vm.envBytes32("OLD_ORDER_HASH");
         address token0 = vm.envAddress("TOKEN0");
         address token1 = vm.envAddress("TOKEN1");
-        uint128 seedTightVolume = uint128(vm.envUint("SEED_TIGHT_VOLUME"));
-        uint128 seedWideVolume = uint128(vm.envUint("SEED_WIDE_VOLUME"));
+        uint128 seedToken0TightVolume = uint128(
+            vm.envExists("SEED_TOKEN0_TIGHT_VOLUME")
+                ? vm.envUint("SEED_TOKEN0_TIGHT_VOLUME")
+                : vm.envUint("SEED_TIGHT_VOLUME")
+        );
+        uint128 seedToken0WideVolume = uint128(
+            vm.envExists("SEED_TOKEN0_WIDE_VOLUME")
+                ? vm.envUint("SEED_TOKEN0_WIDE_VOLUME")
+                : vm.envUint("SEED_WIDE_VOLUME")
+        );
+        uint128 seedToken1TightVolume = uint128(vm.envOr("SEED_TOKEN1_TIGHT_VOLUME", uint256(0)));
+        uint128 seedToken1WideVolume = uint128(vm.envOr("SEED_TOKEN1_WIDE_VOLUME", uint256(0)));
         uint64 salt = uint64(vm.envUint("ORDER_SALT"));
 
         (uint256 balance0, uint256 balance1) = aqua.safeBalances(maker, oldRouter, oldOrderHash, token0, token1);
@@ -57,8 +67,8 @@ contract DeployAdaptiveRouter is Script {
             MAX_WIDE_FEE_BPS,
             INITIAL_TIGHT_FEE_BPS,
             INITIAL_WIDE_FEE_BPS,
-            seedTightVolume,
-            seedWideVolume
+            seedToken0TightVolume,
+            seedToken0WideVolume
         );
         quota.configureFeeController(
             token1,
@@ -67,8 +77,8 @@ contract DeployAdaptiveRouter is Script {
             MAX_WIDE_FEE_BPS,
             INITIAL_TIGHT_FEE_BPS,
             INITIAL_WIDE_FEE_BPS,
-            0,
-            0
+            seedToken1TightVolume,
+            seedToken1WideVolume
         );
 
         TuringPoolRouter router = new TuringPoolRouter(address(aqua), address(0), maker, "TuringPool", "1");
@@ -134,8 +144,12 @@ contract DeployAdaptiveRouter is Script {
         vm.serializeUint(json, "tightFeeBps", INITIAL_TIGHT_FEE_BPS);
         vm.serializeUint(json, "wideFeeBps", INITIAL_WIDE_FEE_BPS);
         vm.serializeUint(json, "targetFeeBps", TARGET_FEE_BPS);
-        vm.serializeUint(json, "seedTightVolume", seedTightVolume);
-        vm.serializeUint(json, "seedWideVolume", seedWideVolume);
+        vm.serializeUint(json, "seedToken0TightVolume", seedToken0TightVolume);
+        vm.serializeUint(json, "seedToken0WideVolume", seedToken0WideVolume);
+        vm.serializeUint(json, "seedToken1TightVolume", seedToken1TightVolume);
+        vm.serializeUint(json, "seedToken1WideVolume", seedToken1WideVolume);
+        vm.serializeUint(json, "seedTightVolume", seedToken0TightVolume);
+        vm.serializeUint(json, "seedWideVolume", seedToken0WideVolume);
         vm.serializeUint(json, "balance0", balance0);
         vm.serializeUint(json, "balance1", balance1);
         string memory out = vm.serializeUint(json, "deployBlock", block.number);

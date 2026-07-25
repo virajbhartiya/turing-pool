@@ -37,8 +37,8 @@ test('activity policy normalizes both directions and preserves the target blende
 
   assert.equal(policy.tightVolume, '200');
   assert.equal(policy.wideVolume, '100');
-  assert.equal(policy.tightFeeBps, 5);
-  assert.equal(policy.wideFeeBps, 47);
+  assert.equal(policy.tightFeeBps, 10);
+  assert.equal(policy.wideFeeBps, 37);
   assert.equal(policy.projectedWeightedFeeBps, 19);
   assert.equal(policy.revenueDeltaBps, 0);
   assert.equal(policy.observedSwaps, 3);
