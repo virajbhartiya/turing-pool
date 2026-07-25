@@ -106,3 +106,44 @@ test('the built function packages the live-chain backend and its AgentKit depend
     },
   });
 });
+
+test('the built Vercel function serves live World Chain state and quotes', async () => {
+  const deployments = await readFile(
+    resolve('contracts/deployments/world-mainnet.json'),
+    'utf8',
+  );
+  const script = `
+    const app = (await import(${JSON.stringify(pathToFileURL(functionEntry).href)})).default;
+    const request = (path) => app.fetch(new Request('https://turing-pool.test' + path));
+    const [state, quotes] = await Promise.all([
+      request('/state'),
+      request('/demo/quotes?amountIn=100000000000000000'),
+    ]);
+    if (state.status !== 200 || quotes.status !== 200) {
+      throw new Error(JSON.stringify({
+        state: { status: state.status, body: await state.text() },
+        quotes: { status: quotes.status, body: await quotes.text() },
+      }));
+    }
+    const [stateBody, quoteBody] = await Promise.all([state.json(), quotes.json()]);
+    if (
+      stateBody.runtime?.chainId !== 480 ||
+      stateBody.feeController?.source !== 'on-chain-volume-controller' ||
+      quoteBody.human?.tier !== 'tight' ||
+      quoteBody.bot?.tier !== 'wide'
+    ) {
+      throw new Error(JSON.stringify({ stateBody, quoteBody }));
+    }
+  `;
+
+  await execFileAsync(process.execPath, ['--input-type=module', '-e', script], {
+    timeout: 30_000,
+    env: {
+      ...process.env,
+      DEPLOYMENTS_JSON: deployments,
+      NODE_ENV: 'production',
+      RPC_URL: 'https://worldchain-mainnet.g.alchemy.com/public',
+      CHAIN_ID: '480',
+    },
+  });
+});
