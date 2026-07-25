@@ -27,6 +27,7 @@ export function parseDemoTradeDirection(value: unknown): DemoTradeDirection {
 
 export type TradeErrorCode =
   | 'rpc_rate_limited'
+  | 'network_error'
   | 'trade_busy'
   | 'execution_unavailable'
   | 'invalid_trade_request'
@@ -75,7 +76,7 @@ export function describeTradeError(
     return {
       code: 'rpc_rate_limited',
       error: baseSepoliaRpc
-        ? 'Base Sepolia RPC is temporarily busy. No transaction was submitted; wait a few seconds and retry.'
+        ? 'The execution RPC is temporarily busy. No transaction was submitted; wait a few seconds and retry.'
         : 'World Chain RPC is temporarily busy. No confirmed result was received; check the explorer before retrying.',
       retryable: true,
       retryAfterSeconds: 5,
@@ -91,6 +92,21 @@ export function describeTradeError(
       retryable: true,
       retryAfterSeconds: 4,
       status: 429,
+    };
+  }
+
+  if (
+    /TransactionReceiptNotFoundError|transaction receipt.*(?:could not be found|not found)|timed out.*transaction receipt|waitForTransactionReceipt/i.test(
+      description,
+    )
+  ) {
+    return {
+      code: 'network_error',
+      error:
+        'The transaction is not visible to the backend RPC yet. It may already be mined; check BaseScan before retrying.',
+      retryable: true,
+      retryAfterSeconds: 5,
+      status: 503,
     };
   }
 
@@ -137,7 +153,7 @@ export function classifyRuntime(
   if (mockAgentBook) {
     if (!localRpc) {
       const network =
-        chainId === 84532 ? 'Base Sepolia' : chainId === 8453 ? 'Base mainnet' : `Chain ${chainId}`;
+        chainId === 84532 ? 'Execution testnet' : chainId === 8453 ? 'Base mainnet' : `Chain ${chainId}`;
       return {
         mode: 'chain',
         label: `${network} · test AgentBook`,
@@ -167,7 +183,7 @@ export function classifyRuntime(
   if (chainId === 84532) {
     return {
       mode: 'chain',
-      label: 'Base Sepolia · World AgentBook mirror',
+      label: 'Execution testnet · World AgentBook mirror',
       agentBook: 'live',
     };
   }

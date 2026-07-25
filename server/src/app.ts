@@ -521,7 +521,7 @@ app.get('/demo/quotes', async (c) => {
       wideVolume: human.feeSchedule.wideVolume.toString(),
     },
     human: row('Human-backed agent', human, deployments.humanAgent, amountIn),
-    bot: row('Anonymous bot', bot, deployments.bot, amountIn),
+    bot: row('HFT / arbitrage flow', bot, deployments.bot, amountIn),
     sybil: {
       ...row('Sybil twin (same human)', sybil, deployments.sybilAgent, sybilAmountIn),
       sharedQuotaRemaining: remaining.toString(),
@@ -683,7 +683,7 @@ app.post('/wallet/prepare', async (c) => {
         400,
       );
     }
-    const safeError = describeTradeError(error);
+    const safeError = describeTradeError(error, 'base');
     return c.json(safeError, safeError.status);
   }
 });
@@ -731,7 +731,7 @@ app.post('/wallet/confirm', async (c) => {
         400,
       );
     }
-    const safeError = describeTradeError(error);
+    const safeError = describeTradeError(error, 'base');
     return c.json(safeError, safeError.status);
   }
 });

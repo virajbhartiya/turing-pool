@@ -16,7 +16,7 @@ test('sybil demo quote is explicitly one wei over the shared remaining quota', (
   assert.equal(amountForOverQuotaQuote(0n), 1n);
 });
 
-test('runtime labels distinguish local mocks, truthful Base forks, and live chains', () => {
+test('runtime labels distinguish local mocks, truthful execution forks, and live chains', () => {
   assert.deepEqual(classifyRuntime(31337, true), {
     mode: 'local',
     label: 'Local Anvil · mock AgentBook',
@@ -24,7 +24,7 @@ test('runtime labels distinguish local mocks, truthful Base forks, and live chai
   });
   assert.deepEqual(classifyRuntime(84532, true, 'https://sepolia.base.org'), {
     mode: 'chain',
-    label: 'Base Sepolia · test AgentBook',
+    label: 'Execution testnet · test AgentBook',
     agentBook: 'mock',
   });
   assert.deepEqual(classifyRuntime(31337, false), {
@@ -69,13 +69,29 @@ test('upstream RPC rate limits become a safe, actionable trade error', () => {
   });
 });
 
-test('Base vault rate limits never blame the World identity chain', () => {
+test('execution rate limits never blame the World identity chain', () => {
   const raw = new Error('HTTP request failed. Status: 429 Details: Too Many Requests');
 
   assert.deepEqual(describeTradeError(raw, 'base'), {
     code: 'rpc_rate_limited',
     error:
-      'Base Sepolia RPC is temporarily busy. No transaction was submitted; wait a few seconds and retry.',
+      'The execution RPC is temporarily busy. No transaction was submitted; wait a few seconds and retry.',
+    retryable: true,
+    retryAfterSeconds: 5,
+    status: 503,
+  });
+});
+
+test('connected-wallet receipt lag is not collapsed into the generic trade failure', () => {
+  const raw = new Error(
+    'TransactionReceiptNotFoundError: Transaction receipt with hash '
+      + '"0x7f54c20cb641deaa7fa6248bd82d043a49c12e1ed5ce84ce82a2a314a2b4f801" could not be found.',
+  );
+
+  assert.deepEqual(describeTradeError(raw, 'base'), {
+    code: 'network_error',
+    error:
+      'The transaction is not visible to the backend RPC yet. It may already be mined; check BaseScan before retrying.',
     retryable: true,
     retryAfterSeconds: 5,
     status: 503,
@@ -145,19 +161,18 @@ test('Vite dashboard exposes judge-facing provenance and trading-terminal struct
   assert.match(source, /Live fee market/);
   assert.match(source, /Activity-priced fee controller/);
   assert.match(source, /pnpm demo:world/);
-  assert.match(source, /Aqua protocol deployment/);
+  assert.match(source, /Aqua transfers inventory/);
   assert.match(source, /On-chain receipts/);
-  assert.match(source, /One trade, three verifiable systems/);
-  assert.match(source, /Index the receipt/);
+  assert.match(source, /How each fill moves through the protocol/);
+  assert.match(source, /Nuthatch indexes proof/);
   assert.match(source, /BrandLogo brand="world"/);
   assert.match(source, /BrandLogo brand="oneinch"/);
   assert.match(source, /BrandLogo brand="nuthatch"/);
-  assert.match(source, /Open second wallet tab/);
   assert.match(source, /Connect MetaMask/);
   assert.match(source, /Buy tETH/);
   assert.match(source, /Sell tETH/);
-  assert.match(source, /LP book/);
-  assert.match(source, /Estimated fees earned/);
+  assert.match(source, /Market fee performance/);
+  assert.match(source, /Estimated fee income/);
   assert.match(viteConfig, /outDir:\s*'\.\.\/public'/);
   assert.doesNotMatch(source, /price improvement for being human/i);
 });

@@ -735,7 +735,12 @@ export async function confirmConnectedWalletTrade(
     approvalTransactionHashInput === undefined
       ? undefined
       : parseTransactionHash(approvalTransactionHashInput);
-  const receipt = await client.getTransactionReceipt({ hash: transactionHash });
+  const receipt = await client.waitForTransactionReceipt({
+    hash: transactionHash,
+    confirmations: 1,
+    pollingInterval: 500,
+    timeout: 10_000,
+  });
   if (receipt.status !== 'success') throw new Error(`SwapVM trade reverted: ${transactionHash}`);
 
   const view = routerExecutionView();
@@ -825,7 +830,7 @@ export async function executeDemoTrade(
     await reportProgress?.({
       stage: 'identity',
       status: 'complete',
-      title: quote.humanId === 0n ? 'Anonymous flow resolved' : 'Human backing resolved',
+      title: quote.humanId === 0n ? 'HFT / arbitrage flow resolved' : 'Human backing resolved',
       detail:
         quote.humanId === 0n
           ? `World mirror returned humanId 0 · WIDE lane · ${quote.feeBps} bps`
