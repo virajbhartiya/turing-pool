@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { EvidenceLedger } from './components/EvidenceLedger';
 import { FeeControllerPanel } from './components/FeeControllerPanel';
+import { IntegrationFlow } from './components/IntegrationFlow';
 import { MarketHeader } from './components/MarketHeader';
 import { ProtocolDetails } from './components/ProtocolDetails';
 import { TradingTerminal } from './components/TradingTerminal';
@@ -126,6 +127,7 @@ export function App() {
         amountIn={amountIn}
         onAmountChange={setAmountIn}
       />
+      <IntegrationFlow state={state} lastTrade={lastTrade} />
       <FeeControllerPanel controller={state.feeController} copied={copied} onReplay={copyReplayCommand} />
       <EvidenceLedger state={state} />
       <ProtocolDetails state={state} />

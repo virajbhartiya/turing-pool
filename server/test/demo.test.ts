@@ -80,16 +80,17 @@ test('anonymous live quotes use the configured bot wallet instead of a zero-addr
 });
 
 test('Vite dashboard exposes judge-facing provenance and trading-terminal structure', async () => {
-  const [app, marketHeader, terminal, controller, evidence, styles, viteConfig] = await Promise.all([
+  const [app, marketHeader, terminal, controller, evidence, integration, styles, viteConfig] = await Promise.all([
     readFile(new URL('../../web/src/App.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../../web/src/components/MarketHeader.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../../web/src/components/TradingTerminal.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../../web/src/components/FeeControllerPanel.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../../web/src/components/EvidenceLedger.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../web/src/components/IntegrationFlow.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../../web/src/styles.css', import.meta.url), 'utf8'),
     readFile(new URL('../../web/vite.config.ts', import.meta.url), 'utf8'),
   ]);
-  const source = [app, marketHeader, terminal, controller, evidence].join('\n');
+  const source = [app, marketHeader, terminal, controller, evidence, integration].join('\n');
   assert.match(
     styles,
     /:root\s*\{[^}]*color-scheme:\s*dark;[^}]*--bg:/s,
@@ -104,6 +105,8 @@ test('Vite dashboard exposes judge-facing provenance and trading-terminal struct
   assert.match(source, /pnpm demo:world/);
   assert.match(source, /Aqua protocol deployment/);
   assert.match(source, /On-chain receipts/);
+  assert.match(source, /Three systems, one receipt/);
+  assert.match(source, /Nuthatch indexes activity/);
   assert.match(viteConfig, /outDir:\s*'\.\.\/public'/);
   assert.doesNotMatch(source, /price improvement for being human/i);
 });

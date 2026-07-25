@@ -343,6 +343,47 @@ h1 span { margin-left: 8px; color: var(--muted); font-weight: 500; }
 .sybil-alert strong { display: block; margin-top: 5px; font-size: 17px; }
 .sybil-alert p, .sybil-alert small { display: block; margin: 4px 0 0; color: var(--muted); font: 8px/1.45 var(--mono); }
 
+.integration-flow {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(180px, 1fr) 20px minmax(180px, 1fr) 20px minmax(180px, 1fr);
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  background: linear-gradient(105deg, rgba(88, 200, 244, 0.035), transparent 46%), var(--panel);
+}
+.integration-intro { display: flex; flex-direction: column; justify-content: center; padding: 5px 10px 5px 4px; }
+.integration-intro > span {
+  color: var(--cyan);
+  font: 800 8px var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.integration-intro strong { margin-top: 6px; font-size: 15px; letter-spacing: -0.02em; }
+.integration-intro p { margin: 6px 0 0; color: var(--muted); font: 8px/1.5 var(--mono); }
+.integration-step {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 11px;
+  background: #090d0e;
+}
+.integration-step > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.integration-step > div > span { color: var(--muted); font: 800 7px var(--mono); letter-spacing: 0.09em; }
+.integration-step .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--human); box-shadow: 0 0 8px rgba(75, 234, 159, 0.72); }
+.integration-step strong { display: block; margin-top: 13px; font-size: 10px; }
+.integration-step p { overflow: hidden; margin: 6px 0 0; color: var(--text-2); font: 8px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.integration-step small { display: block; margin-top: 5px; color: var(--muted); font: 7px var(--mono); }
+.integration-step.world { background: linear-gradient(140deg, var(--human-dim), transparent 65%), #090d0e; }
+.integration-step.swapvm { background: linear-gradient(140deg, rgba(88, 200, 244, 0.09), transparent 65%), #090d0e; }
+.integration-step.swapvm .status-dot { background: var(--cyan); box-shadow: 0 0 8px rgba(88, 200, 244, 0.72); }
+.integration-step.nuthatch { background: linear-gradient(140deg, rgba(168, 132, 255, 0.1), transparent 65%), #090d0e; }
+.integration-step.nuthatch .status-dot { background: #a884ff; box-shadow: 0 0 8px rgba(168, 132, 255, 0.72); }
+.integration-step.nuthatch.waiting .status-dot { background: var(--warn); box-shadow: none; }
+.flow-arrow { display: grid; place-items: center; color: var(--muted); font: 12px var(--mono); }
+
 .controller-section { margin-top: 10px; }
 .controller-panel { display: grid; grid-template-columns: minmax(260px, 0.9fr) 190px minmax(420px, 1.25fr); align-items: center; gap: 22px; padding: 18px; }
 .controller-copy h2, .section-head h2 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -0.02em; }
@@ -446,6 +487,8 @@ footer p { margin: 0; text-align: right; }
   .quote-ticket .sybil-alert { align-self: end; margin-top: 12px; }
   .controller-panel { grid-template-columns: 1fr 180px; }
   .fee-equation { grid-column: 1 / -1; }
+  .integration-flow { grid-template-columns: minmax(180px, 1fr) 20px minmax(180px, 1fr) 20px minmax(180px, 1fr); }
+  .integration-intro { grid-column: 1 / -1; padding: 4px; }
 }
 
 @media (max-width: 760px) {
@@ -457,6 +500,8 @@ footer p { margin: 0; text-align: right; }
   .metric:first-child { grid-column: 1 / -1; }
   .connection-bar { align-items: flex-start; flex-direction: column; gap: 5px; }
   .quote-ticket { display: block; }
+  .integration-flow { grid-template-columns: 1fr; }
+  .flow-arrow { min-height: 10px; transform: rotate(90deg); }
   .controller-panel { grid-template-columns: 1fr; }
   .mix-visual { justify-content: flex-start; }
   .fee-equation { grid-template-columns: 1fr auto auto 1fr; }
