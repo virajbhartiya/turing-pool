@@ -22,7 +22,7 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
           <h1>
             Better prices for humans.
             <br />
-            The same target yield for LPs.
+            The same blended fee target for LPs.
           </h1>
           <p>
             World AgentKit connects a trading wallet to a unique World ID. Verified
