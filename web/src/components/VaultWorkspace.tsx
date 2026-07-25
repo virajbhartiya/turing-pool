@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { apiBase } from '../hooks/useProtocol';
+import { responseJson } from '../lib/apiResponse';
 import { formatUnits, parseUnits, shortAddress, transactionExplorer } from '../lib/format';
 import {
   ensureWorldChain,
@@ -39,12 +40,6 @@ const IDLE_STATUS: ActionStatus = {
 };
 
 const ACTIONS = ['trade', 'deposit', 'redeem', 'create'] as const;
-
-async function responseJson<T>(response: Response): Promise<T> {
-  const body = (await response.json()) as T & { error?: string };
-  if (!response.ok) throw new Error(body.error ?? `Request failed with status ${response.status}`);
-  return body;
-}
 
 function proRataClaim(reserve: string, shares: string, totalSupply: string): bigint {
   const supply = BigInt(totalSupply);
