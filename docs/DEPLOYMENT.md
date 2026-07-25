@@ -11,8 +11,10 @@ checked-in deployment manifest.
 | Aqua | `0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec` |
 | Canonical AgentBook | `0xA23aB2712eA7BBa896930544C7d6636a96b944dA` |
 | TuringPoolApp | `0xA4CECe31cA7A7fb79f4A0ffCfd219d1BF92fD46b` |
-| Adaptive TuringPoolRouter | `0x0492E6325Aa7d26592444F0dAaF0AF9E6aA188C0` |
-| HumanQuota + volume controller | `0x0D0B45E2dC957EAe99AbdcEFC5B9D311DB63701d` |
+| Adaptive TuringPoolRouter | `0x237726Cdf497794357D4BcB0bCDBD04437F0eAa3` |
+| HumanQuota + volume controller | `0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B` |
+| HumanGate v2 vault router | `0x4f09A6EbB5772D4c4BDf90F717AB0C7ee4bb908f` |
+| Permissionless vault factory | `0xA07f3f966568bd8dFD503B616c68f39D2e2d3a8B` |
 
 Run the server against the live deployment:
 

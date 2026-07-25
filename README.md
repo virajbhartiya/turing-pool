@@ -23,8 +23,10 @@ The executable demo is deployed on **World Chain mainnet (chain 480)**:
 | Aqua protocol deployment | `0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec` |
 | Canonical World AgentBook | `0xA23aB2712eA7BBa896930544C7d6636a96b944dA` |
 | TuringPoolApp | `0xA4CECe31cA7A7fb79f4A0ffCfd219d1BF92fD46b` |
-| Adaptive SwapVM + `_humanGate` router | `0x0492E6325Aa7d26592444F0dAaF0AF9E6aA188C0` |
-| Volume controller + shared HumanQuota | `0x0D0B45E2dC957EAe99AbdcEFC5B9D311DB63701d` |
+| Adaptive SwapVM + `_humanGate` router | `0x237726Cdf497794357D4BcB0bCDBD04437F0eAa3` |
+| Volume controller + shared HumanQuota | `0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B` |
+| HumanGate v2 vault router | `0x4f09A6EbB5772D4c4BDf90F717AB0C7ee4bb908f` |
+| Permissionless vault factory | `0xA07f3f966568bd8dFD503B616c68f39D2e2d3a8B` |
 
 The Aqua contract is the actual 1inch Aqua implementation compiled from the
 project dependency and deployed on World Chain; it is not a mocked registry or

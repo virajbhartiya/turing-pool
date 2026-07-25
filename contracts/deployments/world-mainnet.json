@@ -20,5 +20,7 @@
   "tUSD": "0xe57ee4b33C9bAa455EF97EC981e6c7bEE8A86887",
   "targetFeeBps": 30,
   "tightFeeBps": 24,
+  "vaultFactory": "0xA07f3f966568bd8dFD503B616c68f39D2e2d3a8B",
+  "vaultRouter": "0x4f09A6EbB5772D4c4BDf90F717AB0C7ee4bb908f",
   "wideFeeBps": 53
 }
