@@ -1,13 +1,35 @@
 # EC2 deployment
 
-The production server runs as two containers on a private Docker network:
+The production server runs as three containers on a private Docker network:
 
 - `turing-pool-app` serves the Vite client and Hono API on port 4021.
+- `turing-pool-indexer` runs Nuthatch and serves its API internally on port
+  8288.
 - `turing-pool-proxy` terminates HTTPS with Caddy and exposes ports 80 and 443.
 
 The app container receives its runtime configuration from
 `/home/ec2-user/turing-pool.env`. That file is created directly on the host,
 must remain mode `0600`, and must never be committed.
+
+## Install Nuthatch
+
+Nuthatch 0.6.1's Linux binary requires a newer glibc than Amazon Linux 2023
+provides. Download the verified official release to the host, then run it
+inside the Ubuntu container shown below.
+
+```sh
+mkdir -p /home/ec2-user/.local/bin /home/ec2-user/nuthatch-release
+
+curl -fsSL \
+  -o /home/ec2-user/nuthatch-release/nuthatch.tar.gz \
+  https://github.com/nuthatch-indexer/nuthatch/releases/download/v0.6.1/nuthatch-x86_64-unknown-linux-gnu.tar.gz
+
+echo "eb60c7429a0e7576ad09014cdbb13464cee76c35e26ee20a878c256711092ce9  /home/ec2-user/nuthatch-release/nuthatch.tar.gz" |
+  sha256sum --check
+```
+
+Extract the archive and install its `nuthatch` binary at
+`/home/ec2-user/.local/bin/nuthatch`.
 
 ## Start or replace the containers
 
@@ -15,7 +37,20 @@ must remain mode `0600`, and must never be committed.
 sudo docker network inspect turing-pool >/dev/null 2>&1 ||
   sudo docker network create turing-pool
 
-sudo docker rm -f turing-pool-app turing-pool-proxy 2>/dev/null || true
+sudo docker run -d \
+  --name turing-pool-indexer \
+  --restart unless-stopped \
+  --network turing-pool \
+  -v /home/ec2-user/.local/bin/nuthatch:/usr/local/bin/nuthatch:ro \
+  -v /home/ec2-user/turing-pool/nuthatch:/data \
+  ubuntu:24.04 \
+  /usr/local/bin/nuthatch dev \
+  --dir /data \
+  --listen 0.0.0.0:8288 \
+  --rpc https://base-sepolia-rpc.publicnode.com \
+  --seal-direct \
+  --concurrency 4 \
+  --no-admin
 
 sudo docker run -d \
   --name turing-pool-app \
@@ -36,6 +71,10 @@ sudo docker run -d \
   -v turing-pool-caddy-config:/config \
   caddy:2-alpine
 ```
+
+Set `NUTHATCH_URL=http://turing-pool-indexer:8288` in the host runtime
+environment. The indexer is reachable only by containers on the private
+network.
 
 Only ports 80, 443, and restricted SSH should be open in the instance security
 group. Ports 4021 and 8288 stay private.
