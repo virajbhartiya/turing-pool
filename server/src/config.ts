@@ -26,6 +26,8 @@ export interface Deployments {
   orderData: `0x${string}`;
   strategySalt: string | number;
   deployBlock?: string | number;
+  vaultFactory?: `0x${string}`;
+  vaultRouter?: `0x${string}`;
 }
 
 export const DEPLOYMENTS_PATH =

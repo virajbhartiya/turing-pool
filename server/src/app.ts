@@ -44,6 +44,14 @@ import {
   type DemoTradeDirection,
   type DemoTradeLane,
 } from './router-demo.js';
+import {
+  prepareCreateVault,
+  prepareVaultLiquidity,
+  prepareVaultTrade,
+  quoteVaultWallet,
+  vaultRegistry,
+  vaultState,
+} from './vaults.js';
 
 const app = new Hono();
 app.use('*', cors());
@@ -92,6 +100,34 @@ function describeLiveReadError(error: unknown) {
 function liveReadErrorResponse(c: Context, error: unknown) {
   const safeError = describeLiveReadError(error);
   c.header('Retry-After', safeError.retryAfterSeconds.toString());
+  return c.json(safeError, safeError.status);
+}
+
+function vaultOriginAllowed(c: Context): boolean {
+  const allowedOrigin = process.env.DEMO_TRADE_ORIGIN;
+  return !allowedOrigin || c.req.header('origin') === allowedOrigin;
+}
+
+function vaultRequestError(c: Context, error: unknown) {
+  const description = errorDescription(error);
+  if (
+    /must be|not registered|not configured|no active Aqua order|insufficient|returned zero|different contracts/i.test(
+      description,
+    )
+  ) {
+    return c.json(
+      {
+        code: /insufficient/i.test(description)
+          ? 'insufficient_balance'
+          : 'invalid_trade_request',
+        error: error instanceof Error ? error.message : 'invalid vault request',
+        retryable: false,
+        status: 400,
+      },
+      400,
+    );
+  }
+  const safeError = describeTradeError(error);
   return c.json(safeError, safeError.status);
 }
 
@@ -776,6 +812,8 @@ app.get('/state', async (c) => {
       router: deployments.router,
       quota: deployments.quota,
       mockAgentBook: deployments.mockAgentBook,
+      vaultFactory: process.env.VAULT_FACTORY ?? deployments.vaultFactory,
+      vaultRouter: deployments.vaultRouter,
     },
     execution: {
       enabled: demoTradesEnabled(),
@@ -860,6 +898,113 @@ app.get('/state', async (c) => {
     });
   } catch (error) {
     return liveReadErrorResponse(c, error);
+  }
+});
+
+app.get('/vaults', async (c) => {
+  try {
+    return c.json(await vaultRegistry(c.req.query('address')));
+  } catch (error) {
+    return liveReadErrorResponse(c, error);
+  }
+});
+
+app.get('/vaults/:vault', async (c) => {
+  try {
+    return c.json(
+      await vaultState(c.req.param('vault'), c.req.query('address')),
+    );
+  } catch (error) {
+    return vaultRequestError(c, error);
+  }
+});
+
+app.get('/vaults/:vault/quote', async (c) => {
+  try {
+    return c.json(
+      await quoteVaultWallet(
+        c.req.param('vault'),
+        c.req.query('address'),
+        c.req.query('amountIn'),
+        c.req.query('direction'),
+      ),
+    );
+  } catch (error) {
+    return vaultRequestError(c, error);
+  }
+});
+
+app.post('/vaults/create/prepare', async (c) => {
+  if (!vaultOriginAllowed(c)) {
+    return c.json(
+      {
+        code: 'trade_forbidden',
+        error: 'vault creation must be submitted from the configured dashboard',
+        retryable: false,
+        status: 403,
+      },
+      403,
+    );
+  }
+  try {
+    const body = (await c.req.json()) as Record<string, unknown>;
+    return c.json(await prepareCreateVault(body.address, body));
+  } catch (error) {
+    return vaultRequestError(c, error);
+  }
+});
+
+app.post('/vaults/:vault/trade/prepare', async (c) => {
+  if (!vaultOriginAllowed(c)) {
+    return c.json(
+      {
+        code: 'trade_forbidden',
+        error: 'vault trades must be submitted from the configured dashboard',
+        retryable: false,
+        status: 403,
+      },
+      403,
+    );
+  }
+  try {
+    const body = (await c.req.json()) as Record<string, unknown>;
+    return c.json(
+      await prepareVaultTrade(
+        c.req.param('vault'),
+        body.address,
+        body.amountIn,
+        body.direction,
+      ),
+    );
+  } catch (error) {
+    return vaultRequestError(c, error);
+  }
+});
+
+app.post('/vaults/:vault/liquidity/prepare', async (c) => {
+  if (!vaultOriginAllowed(c)) {
+    return c.json(
+      {
+        code: 'trade_forbidden',
+        error: 'liquidity actions must be submitted from the configured dashboard',
+        retryable: false,
+        status: 403,
+      },
+      403,
+    );
+  }
+  try {
+    const body = (await c.req.json()) as Record<string, unknown>;
+    return c.json(
+      await prepareVaultLiquidity(
+        c.req.param('vault'),
+        body.address,
+        body.action,
+        body,
+      ),
+    );
+  } catch (error) {
+    return vaultRequestError(c, error);
   }
 });
 
