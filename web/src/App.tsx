@@ -68,6 +68,10 @@ function upsertProgress(
   return current.map((item, index) => (index === existing ? next : item));
 }
 
+function queryTarget(label: string, address?: string): string {
+  return address ? `${label} · ${address}` : label;
+}
+
 function connectedWalletError(error: unknown): DemoTradeError {
   const code = providerErrorCode(error);
   if (code === 4001) {
@@ -227,6 +231,13 @@ export function App() {
       return;
     }
     const activeLane: DemoTradeLane = walletQuote?.humanBacked ? 'human' : 'bot';
+    const tokenIn =
+      tradeDirection === 'tETH-to-tUSD'
+        ? snapshot?.state.pool.token0
+        : snapshot?.state.pool.token1;
+    const agentBook = snapshot?.state.contracts.agentBook;
+    const quota = snapshot?.state.contracts.quota;
+    const router = snapshot?.state.contracts.router;
     setTradeLane(activeLane);
     setTradeError(undefined);
     setTradeProgress([
@@ -235,6 +246,14 @@ export function App() {
         status: 'active',
         title: 'Verify connected wallet',
         detail: 'Checking the MetaMask account and execution network',
+        queries: [
+          {
+            kind: 'wallet',
+            method: 'eth_chainId + eth_accounts',
+            target: 'MetaMask injected provider',
+            result: 'Awaiting connected account and chain',
+          },
+        ],
       },
     ]);
     let approvalTransactionHash: string | undefined;
@@ -246,6 +265,14 @@ export function App() {
           status: 'complete',
           title: 'MetaMask wallet connected',
           detail: `${walletAccount.slice(0, 8)}…${walletAccount.slice(-6)} on the execution network`,
+          queries: [
+            {
+              kind: 'wallet',
+              method: 'eth_chainId + eth_accounts',
+              target: 'MetaMask injected provider',
+              result: `chain 84532 · ${walletAccount}`,
+            },
+          ],
         }),
       );
       setTradeProgress((current) =>
@@ -253,7 +280,33 @@ export function App() {
           stage: 'identity',
           status: 'active',
           title: 'Resolve identity and prepare quote',
-          detail: 'Reading the World AgentBook mirror, HumanQuota, and live Base SwapVM state',
+          detail: 'Running the live read bundle used to build this wallet’s executable quote',
+          queries: [
+            {
+              kind: 'read',
+              method: `lookupHuman(${walletAccount})`,
+              target: queryTarget('World AgentBook mirror', agentBook),
+              result: 'Pending',
+            },
+            {
+              kind: 'read',
+              method: `feeSchedule(${tokenIn ?? 'tokenIn'})`,
+              target: queryTarget('HumanQuota controller', quota),
+              result: 'Pending',
+            },
+            {
+              kind: 'read',
+              method: `quote(order, tokenIn, tokenOut, ${tradeAmountIn}, traits)`,
+              target: queryTarget('SwapVM Router', router),
+              result: 'Pending',
+            },
+            {
+              kind: 'read',
+              method: `balanceOf(${walletAccount}) + allowance(wallet, router)`,
+              target: queryTarget('Input token', tokenIn),
+              result: 'Pending',
+            },
+          ],
         }),
       );
 
@@ -289,6 +342,42 @@ export function App() {
           detail: prepared.quote.humanBacked
             ? `AgentBook humanId ${prepared.quote.humanId.slice(0, 12)}… · ${prepared.quote.tier.toUpperCase()} lane · ${prepared.quote.feeBps} bps`
             : `AgentBook returned humanId 0 · WIDE lane · ${prepared.quote.feeBps} bps`,
+          queries: [
+            {
+              kind: 'read',
+              method: `lookupHuman(${walletAccount})`,
+              target: queryTarget('World AgentBook mirror', agentBook),
+              result: `humanId ${prepared.quote.humanId}`,
+            },
+            {
+              kind: 'read',
+              method: `feeSchedule(${prepared.quote.tokenIn})`,
+              target: queryTarget('HumanQuota controller', quota),
+              result: `${prepared.quote.feeSchedule.tightFeeBps} / ${prepared.quote.feeSchedule.wideFeeBps} bps · target ${prepared.quote.feeSchedule.targetFeeBps} bps`,
+            },
+            ...(prepared.quote.humanBacked
+              ? [
+                  {
+                    kind: 'read' as const,
+                    method: `remaining(${prepared.quote.humanId}, ${prepared.quote.tokenIn})`,
+                    target: queryTarget('HumanQuota controller', quota),
+                    result: 'Quota accepted for this input amount',
+                  },
+                ]
+              : []),
+            {
+              kind: 'read',
+              method: `quote(order, ${prepared.quote.tokenIn}, ${prepared.quote.tokenOut}, ${prepared.quote.amountIn}, traits)`,
+              target: queryTarget('SwapVM Router', prepared.quote.router),
+              result: `${prepared.quote.amountOut} ${prepared.quote.tokenOutSymbol} base units · ${prepared.quote.tier.toUpperCase()} · ${prepared.quote.feeBps} bps`,
+            },
+            {
+              kind: 'read',
+              method: `balanceOf(${walletAccount}) + allowance(wallet, router)`,
+              target: queryTarget('Input token', prepared.quote.tokenIn),
+              result: `balance ${prepared.quote.balance} · allowance ${prepared.quote.allowance}`,
+            },
+          ],
         }),
       );
 
@@ -298,7 +387,16 @@ export function App() {
             stage: 'allowance',
             status: 'active',
             title: `Approve ${prepared.quote.tokenInSymbol}`,
-            detail: 'Confirm the one-time SwapVM token allowance in MetaMask',
+            detail: 'Confirm the exact input amount allowance in MetaMask',
+            queries: [
+              {
+                kind: 'write',
+                method: `approve(${prepared.quote.router}, ${prepared.quote.amountIn})`,
+                target: queryTarget(prepared.quote.tokenInSymbol, prepared.transaction.to),
+                result: 'Awaiting wallet signature',
+                calldata: prepared.transaction.data,
+              },
+            ],
           }),
         );
         approvalTransactionHash = await sendWalletTransaction(
@@ -313,6 +411,15 @@ export function App() {
             title: 'Token approval mined',
             detail: `${prepared.quote.tokenInSymbol} is now approved for the SwapVM router`,
             transactionHash: approvalTransactionHash,
+            queries: [
+              {
+                kind: 'receipt',
+                method: `eth_getTransactionReceipt(${approvalTransactionHash})`,
+                target: queryTarget(prepared.quote.tokenInSymbol, prepared.transaction.to),
+                result: `Exact ${prepared.quote.amountIn} base-unit allowance confirmed`,
+                calldata: prepared.transaction.data,
+              },
+            ],
           }),
         );
         for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -331,6 +438,15 @@ export function App() {
           status: 'complete',
           title: 'Simulation passed',
           detail: `Opcode ${snapshot?.state.execution?.opcode ?? 34} is executable against Aqua inventory`,
+          queries: [
+            {
+              kind: 'simulate',
+              method: 'eth_call swap(order, tokenIn, tokenOut, amountIn, takerTraits)',
+              target: queryTarget('SwapVM Router', prepared.transaction.to),
+              result: `No revert · quoted output ${prepared.quote.amountOut} ${prepared.quote.tokenOutSymbol} base units`,
+              calldata: prepared.transaction.data,
+            },
+          ],
         }),
       );
       setTradeProgress((current) =>
@@ -339,6 +455,15 @@ export function App() {
           status: 'active',
           title: 'Confirm trade in MetaMask',
           detail: 'MetaMask will sign and broadcast the prepared SwapVM transaction',
+          queries: [
+            {
+              kind: 'write',
+              method: 'swap(order, tokenIn, tokenOut, amountIn, takerTraits)',
+              target: queryTarget('SwapVM Router', prepared.transaction.to),
+              result: 'Awaiting wallet signature',
+              calldata: prepared.transaction.data,
+            },
+          ],
         }),
       );
       const transactionHash = await sendWalletTransaction(
@@ -352,6 +477,15 @@ export function App() {
           title: 'Transaction broadcast',
           detail: `${transactionHash.slice(0, 12)}… is pending on the execution network`,
           transactionHash,
+          queries: [
+            {
+              kind: 'write',
+              method: 'eth_sendTransaction · swap(order, tokenIn, tokenOut, amountIn, takerTraits)',
+              target: queryTarget('SwapVM Router', prepared.transaction.to),
+              result: transactionHash,
+              calldata: prepared.transaction.data,
+            },
+          ],
         }),
       );
       setTradeProgress((current) =>
@@ -361,6 +495,14 @@ export function App() {
           title: 'Await Aqua settlement',
           detail: 'Waiting for maker inventory movement and the SwapVM receipt',
           transactionHash,
+          queries: [
+            {
+              kind: 'receipt',
+              method: `eth_getTransactionReceipt(${transactionHash})`,
+              target: 'Execution RPC',
+              result: 'Polling until the transaction is mined',
+            },
+          ],
         }),
       );
       const receipt = await waitForWalletReceipt(walletProvider, transactionHash);
@@ -371,6 +513,14 @@ export function App() {
           title: 'Aqua settlement mined',
           detail: `Execution block ${BigInt(receipt.blockNumber)} confirmed the trade`,
           transactionHash,
+          queries: [
+            {
+              kind: 'receipt',
+              method: `eth_getTransactionReceipt(${transactionHash})`,
+              target: 'Execution RPC',
+              result: `status 0x1 · block ${BigInt(receipt.blockNumber)}`,
+            },
+          ],
         }),
       );
       setTradeProgress((current) =>
@@ -380,6 +530,14 @@ export function App() {
           title: 'Verify on-chain receipt',
           detail: 'Decoding HumanGated and Swapped events against the connected wallet',
           transactionHash,
+          queries: [
+            {
+              kind: 'receipt',
+              method: 'decodeEventLog(HumanGated) + decodeEventLog(Swapped)',
+              target: queryTarget('SwapVM Router', prepared.transaction.to),
+              result: 'Matching taker, token path, fee, and settled amounts',
+            },
+          ],
         }),
       );
       const confirmationResponse = await fetch(`${apiBase()}/wallet/confirm`, {
@@ -405,6 +563,14 @@ export function App() {
           title: 'Receipt independently verified',
           detail: `HumanGated + Swapped prove ${confirmationBody.tier.toUpperCase()} execution at ${confirmationBody.feeBps} bps`,
           transactionHash,
+          queries: [
+            {
+              kind: 'receipt',
+              method: 'decodeEventLog(HumanGated) + decodeEventLog(Swapped)',
+              target: queryTarget('SwapVM Router', prepared.transaction.to),
+              result: `humanId ${confirmationBody.humanId} · ${confirmationBody.tier.toUpperCase()} · ${confirmationBody.amountIn} → ${confirmationBody.amountOut} · ${confirmationBody.feeBps} bps`,
+            },
+          ],
         }),
       );
       setTradeProgress((current) =>
@@ -414,6 +580,14 @@ export function App() {
           title: 'Reprice the next market',
           detail: 'Reading the post-trade volume-weighted fee controller',
           transactionHash,
+          queries: [
+            {
+              kind: 'read',
+              method: `feeSchedule(${confirmationBody.tokenIn})`,
+              target: queryTarget('HumanQuota controller', quota),
+              result: 'Reading realized lane volumes and next fee pair',
+            },
+          ],
         }),
       );
       await Promise.all([refresh(), refreshWalletQuote()]);
@@ -424,6 +598,14 @@ export function App() {
           title: 'Next fee pair is live',
           detail: 'Executed volume has repriced the next retail and HFT / arbitrage quotes',
           transactionHash,
+          queries: [
+            {
+              kind: 'read',
+              method: `feeSchedule(${confirmationBody.tokenIn})`,
+              target: queryTarget('HumanQuota controller', quota),
+              result: `${confirmationBody.quotedFeeSchedule.tightFeeBps} / ${confirmationBody.quotedFeeSchedule.wideFeeBps} bps · target ${confirmationBody.quotedFeeSchedule.targetFeeBps} bps · human share ${confirmationBody.quotedFeeSchedule.humanShareBps} bps`,
+            },
+          ],
         }),
       );
       setTradeProgress((current) =>
@@ -433,6 +615,14 @@ export function App() {
           title: 'Terminal synchronized',
           detail: 'Nuthatch, receipts, LP revenue, and executable rates are refreshed',
           transactionHash,
+          queries: [
+            {
+              kind: 'index',
+              method: 'GET /state + /demo/quotes + /wallet/quote',
+              target: 'Turing API · Nuthatch-backed activity state',
+              result: `Receipt ${transactionHash.slice(0, 12)}… merged into current terminal state`,
+            },
+          ],
         }),
       );
     } catch (caught) {

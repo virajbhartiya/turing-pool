@@ -100,37 +100,77 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
       </div>
 
       <div className="landing-flow">
-        <div className="landing-section-copy">
-          <span className="eyebrow">One fill, four events</span>
-          <h2>From identity to indexed proof</h2>
+        <div className="landing-section-copy flow-heading">
+          <span className="eyebrow">One fill · four verifiable stages</span>
+          <h2>From wallet intent to indexed proof.</h2>
+          <p>
+            Every stage leaves an output that the next stage consumes. The complete
+            path can be checked against contracts, receipts, and indexed activity.
+          </p>
         </div>
         <div className="event-flow">
           <article>
-            <span>01</span>
-            <BrandLogo brand="world" />
-            <strong>Wallet requests a quote</strong>
-            <p>The router reads the Base mirror of World AgentBook. A non-zero humanId enters verified retail; zero enters the HFT / arbitrage lane.</p>
+            <div className="event-step-head">
+              <span>01</span>
+              <div>
+                <BrandLogo brand="world" />
+                <small>World AgentBook</small>
+              </div>
+            </div>
+            <strong>Resolve the trader</strong>
+            <p>The execution mirror resolves the wallet to a humanId and selects the bounded retail or HFT / arbitrage lane.</p>
+            <div className="event-output">
+              <span>Output</span>
+              <b>humanId → risk lane</b>
+            </div>
           </article>
-          <i>→</i>
+          <i aria-hidden="true"><span>01</span></i>
           <article>
-            <span>02</span>
-            <BrandLogo brand="oneinch" />
-            <strong>Opcode 34 prices risk</strong>
-            <p>HumanGate applies the current lane fee and checks the per-human quota before the wallet can execute.</p>
+            <div className="event-step-head">
+              <span>02</span>
+              <div>
+                <BrandLogo brand="oneinch" />
+                <small>SwapVM · opcode 34</small>
+              </div>
+            </div>
+            <strong>Price the risk</strong>
+            <p>HumanGate reads the live fee schedule and shared human quota, then returns the executable amount and fee.</p>
+            <div className="event-output">
+              <span>Output</span>
+              <b>lane + quota → quote</b>
+            </div>
           </article>
-          <i>→</i>
+          <i aria-hidden="true"><span>02</span></i>
           <article>
-            <span>03</span>
-            <BrandLogo brand="oneinch" />
-            <strong>Aqua settles the fill</strong>
-            <p>SwapVM moves the real tokens against the vault’s live Aqua inventory and emits the settlement receipt.</p>
+            <div className="event-step-head">
+              <span>03</span>
+              <div>
+                <BrandLogo brand="oneinch" />
+                <small>1inch Aqua</small>
+              </div>
+            </div>
+            <strong>Settle real inventory</strong>
+            <p>SwapVM executes against the vault’s Aqua order, moves tokens, and emits HumanGated and Swapped events.</p>
+            <div className="event-output">
+              <span>Output</span>
+              <b>token movement → receipt</b>
+            </div>
           </article>
-          <i>→</i>
+          <i aria-hidden="true"><span>03</span></i>
           <article>
-            <span>04</span>
-            <BrandLogo brand="nuthatch" />
-            <strong>Volume reprices the market</strong>
-            <p>The controller records executed notional, solves the next fee pair, and Nuthatch indexes the receipt for the UI.</p>
+            <div className="event-step-head">
+              <span>04</span>
+              <div>
+                <BrandLogo brand="nuthatch" />
+                <small>The Graph · Nuthatch</small>
+              </div>
+            </div>
+            <strong>Reprice and index</strong>
+            <p>The controller records realized volume, solves the next fee pair, and Nuthatch makes the proof queryable.</p>
+            <div className="event-output">
+              <span>Output</span>
+              <b>volume → next live rates</b>
+            </div>
           </article>
         </div>
       </div>

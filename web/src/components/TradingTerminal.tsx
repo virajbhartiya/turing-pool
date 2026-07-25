@@ -80,6 +80,15 @@ const EXECUTION_SERVICES = {
   refresh: { brand: 'nuthatch', label: 'Nuthatch indexer' },
 } as const;
 
+const QUERY_KIND_LABELS = {
+  wallet: 'Wallet',
+  read: 'eth_call',
+  simulate: 'Simulate',
+  write: 'Write',
+  receipt: 'Receipt',
+  index: 'Index',
+} as const;
+
 function ExecutionTrace({
   lane,
   pending,
@@ -163,6 +172,39 @@ function ExecutionTrace({
                 <strong>{step.title}</strong>
                 <small>{step.detail}</small>
                 <em>{EXECUTION_SERVICES[step.stage].label}</em>
+                {step.queries && step.queries.length > 0 && (
+                  <div className="trace-query-list">
+                    {step.queries.map((query, queryIndex) => (
+                      <div
+                        className="trace-query"
+                        key={`${step.stage}-${query.method}-${queryIndex}`}
+                      >
+                        <div>
+                          <span>{QUERY_KIND_LABELS[query.kind]}</span>
+                          <code>{query.method}</code>
+                        </div>
+                        <dl>
+                          <div>
+                            <dt>Target</dt>
+                            <dd>{query.target}</dd>
+                          </div>
+                          {query.result && (
+                            <div>
+                              <dt>Result</dt>
+                              <dd>{query.result}</dd>
+                            </div>
+                          )}
+                        </dl>
+                        {query.calldata && (
+                          <details>
+                            <summary>Raw calldata</summary>
+                            <code>{query.calldata}</code>
+                          </details>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </li>
           );

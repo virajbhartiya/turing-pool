@@ -190,12 +190,21 @@ export type DemoTradeProgressStage =
   | 'repricing'
   | 'refresh';
 
+export interface DemoTradeQuery {
+  kind: 'wallet' | 'read' | 'simulate' | 'write' | 'receipt' | 'index';
+  method: string;
+  target: string;
+  result?: string;
+  calldata?: string;
+}
+
 export interface DemoTradeProgress {
   stage: DemoTradeProgressStage;
   status: 'active' | 'complete' | 'error';
   title: string;
   detail: string;
   transactionHash?: string;
+  queries?: DemoTradeQuery[];
 }
 
 export interface DemoTradeResult {

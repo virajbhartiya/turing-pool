@@ -786,15 +786,28 @@ body::before {
 }
 
 .landing-flow {
-  padding: 28px 0;
+  padding: 38px 0 34px;
+}
+
+.landing-flow .flow-heading h2 {
+  max-width: 720px;
+  margin-top: 8px;
+  font-size: clamp(32px, 4vw, 54px);
+  line-height: 0.98;
+}
+
+.landing-flow .flow-heading p {
+  max-width: 620px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .event-flow {
-  margin-top: 18px;
+  margin-top: 26px;
 }
 
 .event-flow article {
-  min-height: 170px;
+  min-height: 238px;
   border-color: var(--border);
   background: #080c10;
 }
@@ -810,6 +823,24 @@ body::before {
 
 .event-flow article:nth-of-type(4) {
   border-top-color: #9d76ff;
+}
+
+.event-flow article:nth-of-type(1) .event-output b {
+  color: var(--human);
+}
+
+.event-flow article:nth-of-type(2) .event-output b,
+.event-flow article:nth-of-type(3) .event-output b {
+  color: var(--accent);
+}
+
+.event-flow article:nth-of-type(4) .event-output b {
+  color: #b597ff;
+}
+
+.event-flow article:hover {
+  border-color: var(--border-strong);
+  background: #0a0f14;
 }
 
 .landing-proof {
