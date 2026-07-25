@@ -161,6 +161,7 @@ export interface ConnectedWalletQuote {
   sufficientBalance: boolean;
   requiresApproval: boolean;
   router: Address;
+  quota: Address;
   feeSchedule: {
     tightFeeBps: string;
     wideFeeBps: string;
@@ -466,6 +467,7 @@ export async function routerPoolState(view = routerExecutionView()) {
   });
   const program = applyFeeSchedule(view.program, feeController);
   return {
+    router: deployments.router,
     strategy: {
       ...view.strategy,
       tightFeeBps: BigInt(program.tightFeeBps),
@@ -647,6 +649,7 @@ function connectedQuoteJson(
     sufficientBalance: balance >= quote.amountIn,
     requiresApproval: allowance < quote.amountIn,
     router: deployments.router,
+    quota: deployments.quota,
     feeSchedule: {
       tightFeeBps: quote.feeSchedule.tightFeeBps.toString(),
       wideFeeBps: quote.feeSchedule.wideFeeBps.toString(),
@@ -1039,7 +1042,5 @@ export async function executeMarketTrade(
 
 export function explorerTransactionUrl(chainId: number, transactionHash: Hex): string {
   if (chainId === 480) return `https://worldscan.org/tx/${transactionHash}`;
-  if (chainId === 8453) return `https://basescan.org/tx/${transactionHash}`;
-  if (chainId === 84532) return `https://sepolia.basescan.org/tx/${transactionHash}`;
   return `https://blockscan.com/tx/${transactionHash}`;
 }

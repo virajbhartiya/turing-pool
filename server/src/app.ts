@@ -25,8 +25,8 @@ import {
   configuredStrategyHistory,
   dailyCap,
   deployments,
+  lookupHuman,
   quotaRemaining,
-  recentSwaps,
 } from './chain.js';
 import {
   amountForOverQuotaQuote,
@@ -44,8 +44,6 @@ import {
   executeMarketTrade,
   parseDemoTradeDirection,
   quoteRouterFor,
-  routerOpcode,
-  routerPoolState,
   type DemoTradeDirection,
   type DemoTradeLane,
 } from './router-demo.js';
@@ -53,6 +51,7 @@ import {
   confirmWebsiteWalletTrade,
   prepareWebsiteWalletTrade,
   quoteWebsiteWallet,
+  websitePoolState,
 } from './trade-venue.js';
 import {
   prepareCreateVault,
@@ -519,62 +518,91 @@ const marketQuotes = async (c: Context) => {
   }
   try {
     const [human, bot] = await Promise.all([
-      quoteRouterFor(deployments.humanAgent, amountIn, undefined, direction),
-      quoteRouterFor(deployments.bot, amountIn, undefined, direction),
+      quoteWebsiteWallet(deployments.humanAgent, amountIn, direction),
+      quoteWebsiteWallet(deployments.bot, amountIn, direction),
     ]);
-  const sharedHumanId = human.humanId || BigInt(deployments.humanId);
-  const remaining = await quotaRemaining(sharedHumanId, human.tokenIn);
-  const sybilAmountIn = amountForOverQuotaQuote(remaining);
-  const sybil = await quoteRouterFor(deployments.sybilAgent, sybilAmountIn, undefined, direction);
-  const row = (
-    label: string,
-    q: Awaited<ReturnType<typeof quoteRouterFor>>,
-    address: string,
-    quotedAmountIn: bigint,
-  ) => ({
-    label,
-    address,
-    amountIn: quotedAmountIn.toString(),
-    tier: q.tight ? 'tight' : 'wide',
-    feeBps: q.feeBps.toString(),
-    amountOut: q.amountOut.toString(),
-    humanId: q.humanId === 0n ? null : q.humanId.toString(),
-    direction: q.direction,
-    zeroForOne: q.zeroForOne,
-    tokenIn: q.tokenIn,
-    tokenOut: q.tokenOut,
-    tokenInSymbol: q.tokenInSymbol,
-    tokenOutSymbol: q.tokenOutSymbol,
-  });
-  const improvementBps =
-    bot.amountOut > 0n ? Number(((human.amountOut - bot.amountOut) * 10_000n) / bot.amountOut) : 0;
+    const sharedHumanId = BigInt(human.humanId);
+    if (sharedHumanId === 0n) {
+      throw new Error(
+        'configured World ID-verified quote wallet is not registered in AgentBook',
+      );
+    }
+    const remaining = await quotaRemaining(
+      sharedHumanId,
+      human.tokenIn,
+      human.quota,
+    );
+    const sybilAmountIn = amountForOverQuotaQuote(remaining);
+    const sybil = await quoteWebsiteWallet(
+      deployments.sybilAgent,
+      sybilAmountIn,
+      direction,
+    );
+    const row = (
+      label: string,
+      q: Awaited<ReturnType<typeof quoteWebsiteWallet>>,
+      address: string,
+      quotedAmountIn: bigint,
+    ) => ({
+      label,
+      address,
+      amountIn: quotedAmountIn.toString(),
+      tier: q.tight ? 'tight' : 'wide',
+      feeBps: q.feeBps.toString(),
+      amountOut: q.amountOut,
+      humanId: q.humanId === '0' ? null : q.humanId,
+      direction: q.direction,
+      zeroForOne: q.direction === 'tETH-to-tUSD',
+      tokenIn: q.tokenIn,
+      tokenOut: q.tokenOut,
+      tokenInSymbol: q.tokenInSymbol,
+      tokenOutSymbol: q.tokenOutSymbol,
+    });
+    const improvementBps =
+      BigInt(bot.amountOut) > 0n
+        ? Number(
+            ((BigInt(human.amountOut) - BigInt(bot.amountOut)) * 10_000n) /
+              BigInt(bot.amountOut),
+          )
+        : 0;
     return c.json({
-    amountIn: amountIn.toString(),
-    comparisonAmountIn: amountIn.toString(),
-    direction: human.direction,
-    zeroForOne: human.zeroForOne,
-    tokenIn: human.tokenIn,
-    tokenOut: human.tokenOut,
-    tokenInSymbol: human.tokenInSymbol,
-    tokenOutSymbol: human.tokenOutSymbol,
-    feeSchedule: {
-      tightFeeBps: human.feeSchedule.tightFeeBps.toString(),
-      wideFeeBps: human.feeSchedule.wideFeeBps.toString(),
-      targetFeeBps: human.feeSchedule.targetFeeBps.toString(),
-      humanShareBps: human.feeSchedule.humanShareBps.toString(),
-      tightVolume: human.feeSchedule.tightVolume.toString(),
-      wideVolume: human.feeSchedule.wideVolume.toString(),
-    },
-    human: row('World ID-verified retail', human, deployments.humanAgent, amountIn),
-    bot: row('HFT / arbitrage flow', bot, deployments.bot, amountIn),
-    sybil: {
-      ...row('Sybil twin (same human)', sybil, deployments.sybilAgent, sybilAmountIn),
-      sharedQuotaRemaining: remaining.toString(),
-      proof: 'quoted amount is exactly one wei above the quota wallet #1 left for this humanId',
-    },
-    improvementBps,
-    rationale:
-      'Sybil-resistant per-human quotas bound the LP’s maximum adverse-selection exposure; the tighter quote prices that lower risk.',
+      amountIn: amountIn.toString(),
+      comparisonAmountIn: amountIn.toString(),
+      direction: human.direction,
+      zeroForOne: human.direction === 'tETH-to-tUSD',
+      tokenIn: human.tokenIn,
+      tokenOut: human.tokenOut,
+      tokenInSymbol: human.tokenInSymbol,
+      tokenOutSymbol: human.tokenOutSymbol,
+      feeSchedule: {
+        tightFeeBps: human.feeSchedule.tightFeeBps,
+        wideFeeBps: human.feeSchedule.wideFeeBps,
+        targetFeeBps: human.feeSchedule.targetFeeBps,
+        humanShareBps: human.feeSchedule.humanShareBps,
+        tightVolume: human.feeSchedule.tightVolume,
+        wideVolume: human.feeSchedule.wideVolume,
+      },
+      human: row(
+        'World ID-verified retail',
+        human,
+        deployments.humanAgent,
+        amountIn,
+      ),
+      bot: row('HFT / arbitrage flow', bot, deployments.bot, amountIn),
+      sybil: {
+        ...row(
+          'Sybil twin (same human)',
+          sybil,
+          deployments.sybilAgent,
+          sybilAmountIn,
+        ),
+        sharedQuotaRemaining: remaining.toString(),
+        proof:
+          'quoted amount is exactly one wei above the quota wallet #1 left for this humanId',
+      },
+      improvementBps,
+      rationale:
+        'Sybil-resistant per-human quotas bound the LP’s maximum adverse-selection exposure; the tighter quote prices that lower risk.',
     });
   } catch (error) {
     return liveReadErrorResponse(c, error);
@@ -853,160 +881,154 @@ app.get('/state', async (c) => {
     return c.json(hostedState());
   }
   try {
-    const [state, latestBlock, rpcChainId, index, opcode] = await Promise.all([
-      routerPoolState(),
+    const [state, latestBlock, rpcChainId, index, humanId] = await Promise.all([
+      websitePoolState(),
       client.getBlockNumber({ cacheTime: 0 }),
       client.getChainId(),
       activityIndex(),
-      routerOpcode(),
+      lookupHuman(deployments.humanAgent),
     ]);
-  const strategies = configuredStrategyHistory(state.strategy, state.strategyHash);
-  let swaps: Awaited<ReturnType<typeof recentSwaps>>;
-  const feeHistory =
-    index.mode === 'sql+mcp' && index.status === 'connected'
-      ? index.feeHistory
-      : [];
-  if (index.mode === 'sql+mcp' && index.status === 'connected') {
-    swaps = index.swaps;
-  } else {
-    try {
-      swaps = await recentSwaps();
-    } catch (error) {
-      console.error('[turing-pool] activity scan unavailable', error);
-      swaps = [];
+    if (index.mode !== 'sql+mcp' || index.status !== 'connected') {
+      return c.json(
+        {
+          code: 'indexer_unavailable',
+          error:
+            'Nuthatch has not confirmed the live market state yet. Wait for the on-chain indexer to catch up.',
+          retryable: true,
+          retryAfterSeconds: 5,
+          status: 503,
+        },
+        503,
+      );
     }
-  }
-  const indexMetadata =
-    index.mode === 'sql+mcp' && index.status === 'connected'
-      ? {
-          configured: index.configured,
-          name: index.name,
-          endpoint: index.endpoint,
-          status: index.status,
-          mode: index.mode,
-          indexedBlock: index.indexedBlock,
-          sealedThrough: index.sealedThrough,
-          lagBlocks: index.lagBlocks,
-          registryHash: index.registryHash,
-          provenance: index.provenance,
-          summary: index.summary,
-          riskWindow: index.riskWindow,
-        }
-      : index;
-  const humanId = BigInt(deployments.humanId);
-  const [remEth, remUsd, cap0, cap1] = await Promise.all([
-    quotaRemaining(humanId, state.strategy.token0),
-    quotaRemaining(humanId, state.strategy.token1),
-    dailyCap(state.strategy.token0),
-    dailyCap(state.strategy.token1),
-  ]);
-  const tightSwaps = swaps.filter((s) => s.tight);
-  const wideSwaps = swaps.filter((s) => !s.tight);
+    if (humanId === 0n) {
+      throw new Error(
+        'configured World ID-verified wallet is not registered in AgentBook',
+      );
+    }
+    const strategies = configuredStrategyHistory(
+      state.strategy,
+      state.strategyHash,
+    );
+    const swaps = index.swaps;
+    const feeHistory = index.feeHistory;
+    const indexMetadata = {
+      configured: index.configured,
+      name: index.name,
+      endpoint: index.endpoint,
+      status: index.status,
+      mode: index.mode,
+      indexedBlock: index.indexedBlock,
+      sealedThrough: index.sealedThrough,
+      lagBlocks: index.lagBlocks,
+      registryHash: index.registryHash,
+      provenance: index.provenance,
+      summary: index.summary,
+      riskWindow: index.riskWindow,
+    };
+    const [remEth, remUsd, cap0, cap1] = await Promise.all([
+      quotaRemaining(humanId, state.strategy.token0, state.program.quota),
+      quotaRemaining(humanId, state.strategy.token1, state.program.quota),
+      dailyCap(state.strategy.token0, state.program.quota),
+      dailyCap(state.strategy.token1, state.program.quota),
+    ]);
+    const tightSwaps = swaps.filter((s) => s.tight);
+    const wideSwaps = swaps.filter((s) => !s.tight);
     return c.json({
-    contracts: {
-      aqua: deployments.aqua,
-      agentBook: deployments.agentBook,
-      app: deployments.app,
-      router: deployments.router,
-      quota: deployments.quota,
-      mockAgentBook: deployments.mockAgentBook,
-      vaultFactory: process.env.VAULT_FACTORY ?? deployments.vaultFactory,
-      vaultRouter: deployments.vaultRouter,
-      activeVault: deployments.activeVault,
-      activeVaultQuota: deployments.activeVaultQuota,
-      faucet: process.env.FAUCET_ADDRESS ?? deployments.faucet,
-    },
-    execution: {
-      enabled: marketTradesEnabled(),
-      venue: 'SwapVM',
-      opcode,
-      instruction: '_humanGate',
-      event: 'HumanGated',
-      router: deployments.router,
-      humanWallet: deployments.humanAgent,
-      botWallet: deployments.bot,
-      tightFeeBps: state.program.tightFeeBps,
-      wideFeeBps: state.program.wideFeeBps,
-      feeSource: 'HumanQuota.feeSchedule',
-      repricesAfter: 'each mined SwapVM fill',
-    },
-    runtime: {
-      ...classifyRuntime(rpcChainId, deployments.mockAgentBook, RPC_URL),
-      chainId: rpcChainId,
-      latestBlock: latestBlock.toString(),
-      rpcStatus: 'connected',
-    },
-    dataSources: {
-      quotes: {
-        name: 'SwapVM router eth_call',
-        status: 'connected',
-        block: latestBlock.toString(),
+      contracts: {
+        aqua: deployments.aqua,
+        agentBook: deployments.agentBook,
+        app: deployments.app,
+        router: state.router,
+        quota: state.program.quota,
+        mockAgentBook: deployments.mockAgentBook,
+        vaultFactory: process.env.VAULT_FACTORY ?? deployments.vaultFactory,
+        vaultRouter: deployments.vaultRouter,
+        activeVault: deployments.activeVault,
+        activeVaultQuota: deployments.activeVaultQuota,
+        faucet: process.env.FAUCET_ADDRESS ?? deployments.faucet,
       },
-      strategy: {
-        name: 'Aqua Shipped/Docked events',
-        status: 'connected',
-        historyEntries: strategies.length,
+      execution: {
+        enabled: marketTradesEnabled(),
+        venue: 'SwapVM',
+        opcode: state.program.opcode,
+        instruction: '_humanGate',
+        event: 'HumanGated',
+        router: state.router,
+        humanWallet: deployments.humanAgent,
+        botWallet: deployments.bot,
+        tightFeeBps: state.program.tightFeeBps,
+        wideFeeBps: state.program.wideFeeBps,
+        feeSource: 'HumanQuota.feeSchedule',
+        repricesAfter: 'each mined SwapVM fill',
       },
-      activity: {
-        ...indexMetadata,
-        name:
-          index.name === 'Nuthatch'
-            ? 'Nuthatch · SQL + MCP'
-            : index.name,
-        fallback:
-          index.status === 'connected'
-            ? null
-            : 'Direct execution-chain event reads',
+      runtime: {
+        ...classifyRuntime(rpcChainId, deployments.mockAgentBook, RPC_URL),
+        chainId: rpcChainId,
+        latestBlock: latestBlock.toString(),
+        rpcStatus: 'connected',
       },
-      strategist: {
-        ...indexMetadata,
-        name:
-          index.name === 'Nuthatch'
-            ? 'Nuthatch semantic activity layer'
-            : index.name,
+      dataSources: {
+        quotes: {
+          name: 'SwapVM router eth_call',
+          status: 'connected',
+          block: latestBlock.toString(),
+        },
+        strategy: {
+          name: 'Aqua Shipped/Docked events',
+          status: 'connected',
+          historyEntries: strategies.length,
+        },
+        activity: {
+          ...indexMetadata,
+          name: 'Nuthatch · SQL + MCP',
+        },
+        strategist: {
+          ...indexMetadata,
+          name: 'Nuthatch semantic activity layer',
+        },
       },
-    },
-    pool: {
-      strategyHash: state.strategyHash,
-      orderHash: state.orderHash,
-      venue: 'SwapVM',
-      token0: state.strategy.token0,
-      token1: state.strategy.token1,
-      balance0: state.balance0.toString(),
-      balance1: state.balance1.toString(),
-      wideFeeBps: state.strategy.wideFeeBps.toString(),
-      tightFeeBps: state.strategy.tightFeeBps.toString(),
-    },
-    demoHuman: {
-      humanId: deployments.humanId,
-      quotaRemainingToken0: remEth.toString(),
-      quotaRemainingToken1: remUsd.toString(),
-      dailyCapToken0: cap0.toString(),
-      dailyCapToken1: cap1.toString(),
-    },
-    stats: {
-      totalSwaps: swaps.length,
-      tightSwaps: tightSwaps.length,
-      wideSwaps: wideSwaps.length,
-    },
-    feeController: onChainFeePolicy(state.feeController, {
-      observedSwaps: swaps.length,
-      tightSwaps: tightSwaps.length,
-      wideSwaps: wideSwaps.length,
-    }),
-    riskPolicy: {
-      updater: state.riskPolicy.updater,
-      maxFeeStepBps: state.riskPolicy.maxFeeStepBps.toString(),
-      maxDataLagBlocks: state.riskPolicy.maxDataLagBlocks.toString(),
-      indexedThroughBlock: state.riskPolicy.indexedThroughBlock.toString(),
-      decisionHash: state.riskPolicy.decisionHash,
-      desiredTightFeeBps: state.riskPolicy.desiredTightFeeBps.toString(),
-      riskSpreadBps: state.riskPolicy.riskSpreadBps.toString(),
-      source: 'Nuthatch turing_risk_window',
-    },
-    strategyHistory: strategies,
-    swaps,
-    feeHistory,
+      pool: {
+        strategyHash: state.strategyHash,
+        orderHash: state.orderHash,
+        venue: 'SwapVM',
+        token0: state.strategy.token0,
+        token1: state.strategy.token1,
+        balance0: state.balance0.toString(),
+        balance1: state.balance1.toString(),
+        wideFeeBps: state.strategy.wideFeeBps.toString(),
+        tightFeeBps: state.strategy.tightFeeBps.toString(),
+      },
+      verifiedTrader: {
+        humanId: humanId.toString(),
+        quotaRemainingToken0: remEth.toString(),
+        quotaRemainingToken1: remUsd.toString(),
+        dailyCapToken0: cap0.toString(),
+        dailyCapToken1: cap1.toString(),
+      },
+      stats: {
+        totalSwaps: swaps.length,
+        tightSwaps: tightSwaps.length,
+        wideSwaps: wideSwaps.length,
+      },
+      feeController: onChainFeePolicy(state.feeController, {
+        observedSwaps: swaps.length,
+        tightSwaps: tightSwaps.length,
+        wideSwaps: wideSwaps.length,
+      }),
+      riskPolicy: {
+        updater: state.riskPolicy.updater,
+        maxFeeStepBps: state.riskPolicy.maxFeeStepBps.toString(),
+        maxDataLagBlocks: state.riskPolicy.maxDataLagBlocks.toString(),
+        indexedThroughBlock: state.riskPolicy.indexedThroughBlock.toString(),
+        decisionHash: state.riskPolicy.decisionHash,
+        desiredTightFeeBps: state.riskPolicy.desiredTightFeeBps.toString(),
+        riskSpreadBps: state.riskPolicy.riskSpreadBps.toString(),
+        source: 'Nuthatch turing_risk_window',
+      },
+      strategyHistory: strategies,
+      swaps,
+      feeHistory,
     });
   } catch (error) {
     return liveReadErrorResponse(c, error);

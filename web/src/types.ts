@@ -162,7 +162,7 @@ export interface ProtocolState {
     tightSwaps: number;
     wideSwaps: number;
   };
-  demoHuman: {
+  verifiedTrader: {
     humanId: string;
     quotaRemainingToken0: string;
     quotaRemainingToken1: string;
@@ -291,6 +291,7 @@ export interface ConnectedWalletQuote {
   sufficientBalance: boolean;
   requiresApproval: boolean;
   router: string;
+  quota: string;
   feeSchedule: {
     tightFeeBps: string;
     wideFeeBps: string;

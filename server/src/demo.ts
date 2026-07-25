@@ -133,7 +133,7 @@ export function describeTradeError(
 }
 
 export interface RuntimeDescription {
-  mode: 'local' | 'base-fork' | 'base' | 'chain';
+  mode: 'local' | 'world' | 'chain';
   label: string;
   agentBook: 'mock' | 'fork-injected' | 'live';
 }
@@ -147,11 +147,9 @@ export function classifyRuntime(
 
   if (mockAgentBook) {
     if (!localRpc) {
-      const network =
-        chainId === 84532 ? 'Execution testnet' : chainId === 8453 ? 'Base mainnet' : `Chain ${chainId}`;
       return {
         mode: 'chain',
-        label: `${network} · test AgentBook`,
+        label: `Chain ${chainId} · test AgentBook`,
         agentBook: 'mock',
       };
     }
@@ -163,15 +161,15 @@ export function classifyRuntime(
   }
   if (localRpc) {
     return {
-      mode: 'base-fork',
-      label: 'Base fork · real AgentBook bytecode',
+      mode: 'local',
+      label: 'Local fork · real AgentBook bytecode',
       agentBook: 'fork-injected',
     };
   }
-  if (chainId === 8453) {
+  if (chainId === 480) {
     return {
-      mode: 'base',
-      label: 'Base mainnet',
+      mode: 'world',
+      label: 'World Chain',
       agentBook: 'live',
     };
   }

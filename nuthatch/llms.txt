@@ -6,8 +6,8 @@ A self-hosted blockchain index. Query it locally; there is no third-party API.
 - `router` = 0x237726Cdf497794357D4BcB0bCDBD04437F0eAa3
 - `quota` = 0x23253c0e2aF22D83859F9f0B61b2ed45ED3Bd63B
 - `aqua` = 0xFfdD1873f99EA128DED0BFc2Ae11A98f572E23Ec
-- `vault_router` = 0x4f09A6EbB5772D4c4BDf90F717AB0C7ee4bb908f
-- `vault_quota` = 0xCF45724b94DB62263ac23dbce922C45fB15deeA2
+- `vault_router` = 0x0435F9650b70310e98fAEcADa042b3b4e4937Cad
+- `vault_quota` = 0xea15Bd49c4917E456AD563D5531bDCF95b5A5253
 - `faucet` = 0x8DE77C94983ACDaE8f08d558804068cA24FF4fC6
 
 ## Tables (one per contract event)

@@ -196,18 +196,25 @@ export async function lookupHuman(agent: `0x${string}`): Promise<bigint> {
   })) as bigint;
 }
 
-export async function quotaRemaining(humanId: bigint, token: `0x${string}`): Promise<bigint> {
+export async function quotaRemaining(
+  humanId: bigint,
+  token: `0x${string}`,
+  quota: `0x${string}` = deployments.quota,
+): Promise<bigint> {
   return (await client.readContract({
-    address: deployments.quota,
+    address: quota,
     abi: quotaAbi,
     functionName: 'remaining',
     args: [humanId, token],
   })) as bigint;
 }
 
-export async function dailyCap(token: `0x${string}`): Promise<bigint> {
+export async function dailyCap(
+  token: `0x${string}`,
+  quota: `0x${string}` = deployments.quota,
+): Promise<bigint> {
   return (await client.readContract({
-    address: deployments.quota,
+    address: quota,
     abi: quotaAbi,
     functionName: 'dailyCap',
     args: [token],

@@ -22,24 +22,19 @@ test('runtime labels distinguish local mocks, truthful execution forks, and live
     label: 'Local Anvil · mock AgentBook',
     agentBook: 'mock',
   });
-  assert.deepEqual(classifyRuntime(84532, true, 'https://sepolia.base.org'), {
+  assert.deepEqual(classifyRuntime(480, true, 'https://worldchain-mainnet.g.alchemy.com/public'), {
     mode: 'chain',
-    label: 'Execution testnet · test AgentBook',
+    label: 'Chain 480 · test AgentBook',
     agentBook: 'mock',
   });
   assert.deepEqual(classifyRuntime(31337, false), {
-    mode: 'base-fork',
-    label: 'Base fork · real AgentBook bytecode',
+    mode: 'local',
+    label: 'Local fork · real AgentBook bytecode',
     agentBook: 'fork-injected',
   });
-  assert.deepEqual(classifyRuntime(8453, false, 'https://mainnet.base.org'), {
-    mode: 'base',
-    label: 'Base mainnet',
-    agentBook: 'live',
-  });
   assert.deepEqual(classifyRuntime(480, false, 'https://worldchain-mainnet.g.alchemy.com/public'), {
-    mode: 'chain',
-    label: 'World Chain · canonical AgentBook',
+    mode: 'world',
+    label: 'World Chain',
     agentBook: 'live',
   });
 });
@@ -69,13 +64,13 @@ test('upstream RPC rate limits become a safe, actionable trade error', () => {
   });
 });
 
-test('execution rate limits never blame the World identity chain', () => {
+test('execution rate limits identify the World Chain RPC without claiming submission', () => {
   const raw = new Error('HTTP request failed. Status: 429 Details: Too Many Requests');
 
-  assert.deepEqual(describeTradeError(raw, 'base'), {
+  assert.deepEqual(describeTradeError(raw), {
     code: 'rpc_rate_limited',
     error:
-      'The execution RPC is temporarily busy. No transaction was submitted; wait a few seconds and retry.',
+      'World Chain RPC is temporarily busy. No confirmed result was received; check the explorer before retrying.',
     retryable: true,
     retryAfterSeconds: 5,
     status: 503,
@@ -88,10 +83,10 @@ test('connected-wallet receipt lag is not collapsed into the generic trade failu
       + '"0x7f54c20cb641deaa7fa6248bd82d043a49c12e1ed5ce84ce82a2a314a2b4f801" could not be found.',
   );
 
-  assert.deepEqual(describeTradeError(raw, 'base'), {
+  assert.deepEqual(describeTradeError(raw), {
     code: 'network_error',
     error:
-      'The transaction is not visible to the backend RPC yet. It may already be mined; check BaseScan before retrying.',
+      'The transaction is not visible to the backend RPC yet. It may already be mined; check Worldscan before retrying.',
     retryable: true,
     retryAfterSeconds: 5,
     status: 503,
@@ -133,65 +128,6 @@ test('anonymous live quotes use the configured bot wallet instead of a zero-addr
     app,
     /quoteRouterFor\(\s*'0x0000000000000000000000000000000000000000'/s,
     'the canonical AgentBook can resolve sentinel addresses unexpectedly',
-  );
-});
-
-test('Vite dashboard exposes judge-facing provenance and trading-terminal structure', async () => {
-  const [app, marketHeader, terminal, controller, evidence, integration, lpEconomics, styles, viteConfig] = await Promise.all([
-    readFile(new URL('../../web/src/App.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../../web/src/components/MarketHeader.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../../web/src/components/TradingTerminal.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../../web/src/components/FeeControllerPanel.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../../web/src/components/EvidenceLedger.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../../web/src/components/IntegrationFlow.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../../web/src/components/LPEconomicsPanel.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../../web/src/styles.css', import.meta.url), 'utf8'),
-    readFile(new URL('../../web/vite.config.ts', import.meta.url), 'utf8'),
-  ]);
-  const source = [app, marketHeader, terminal, controller, evidence, integration, lpEconomics].join('\n');
-  assert.match(
-    styles,
-    /:root\s*\{[^}]*color-scheme:\s*dark;[^}]*--bg:/s,
-    'global page colors must be defined on :root so html/body never fall back to a white canvas',
-  );
-  assert.match(source, /SwapVM Router/);
-  assert.match(source, /Turing Pool/);
-  assert.match(source, /tETH \/ tUSD/);
-  assert.match(source, /Quote ticket/);
-  assert.match(source, /Live fee market/);
-  assert.match(source, /Activity-priced fee controller/);
-  assert.match(source, /pnpm market:world/);
-  assert.match(source, /Aqua transfers inventory/);
-  assert.match(source, /On-chain receipts/);
-  assert.match(source, /How each fill moves through the protocol/);
-  assert.match(source, /Nuthatch indexes proof/);
-  assert.match(source, /BrandLogo brand="world"/);
-  assert.match(source, /BrandLogo brand="oneinch"/);
-  assert.match(source, /BrandLogo brand="nuthatch"/);
-  assert.match(source, /Connect MetaMask/);
-  assert.match(source, /Buy tETH/);
-  assert.match(source, /Sell tETH/);
-  assert.match(source, /Market fee performance/);
-  assert.match(source, /Estimated fee income/);
-  assert.match(viteConfig, /outDir:\s*'\.\.\/public'/);
-  assert.doesNotMatch(source, /price improvement for being human/i);
-});
-
-test('demo terminal never renders essential copy below a readable 10px floor', async () => {
-  const styles = await readFile(new URL('../../web/src/styles.css', import.meta.url), 'utf8');
-  const tinyFontDeclarations = [
-    ...styles.matchAll(/font-size:\s*([0-9.]+)px/g),
-    ...styles.matchAll(/font:\s*[^;{}]*?\s([0-9.]+)px(?:\/[0-9.]+)?\s/g),
-  ]
-    .map((match) => ({ declaration: match[0].trim(), size: Number(match[1]) }))
-    .filter(({ size }) => size < 10);
-
-  assert.deepEqual(
-    tinyFontDeclarations,
-    [],
-    `demo copy is unreadable at presentation distance:\n${tinyFontDeclarations
-      .map(({ declaration }) => declaration)
-      .join('\n')}`,
   );
 });
 

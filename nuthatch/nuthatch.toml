@@ -28,15 +28,15 @@ events = ["Shipped", "Docked"]
 
 [[contracts]]
 alias = "vault_router"
-address = "0x4f09A6EbB5772D4c4BDf90F717AB0C7ee4bb908f"
-start_block = 32814381
+address = "0x0435F9650b70310e98fAEcADa042b3b4e4937Cad"
+start_block = 32837643
 abi = "abis/router.json"
 events = ["HumanGated", "Swapped"]
 
 [[contracts]]
 alias = "vault_quota"
-address = "0xCF45724b94DB62263ac23dbce922C45fB15deeA2"
-start_block = 32836238
+address = "0xea15Bd49c4917E456AD563D5531bDCF95b5A5253"
+start_block = 32837643
 abi = "abis/quota.json"
 events = ["UsageRecorded", "FeeScheduleUpdated", "RiskPolicyApplied"]
 

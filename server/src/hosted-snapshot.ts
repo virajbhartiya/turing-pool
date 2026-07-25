@@ -169,7 +169,7 @@ export function hostedState() {
       wideFeeBps: WIDE_FEE_BPS.toString(),
       tightFeeBps: TIGHT_FEE_BPS.toString(),
     },
-    demoHuman: {
+    verifiedTrader: {
       humanId: HUMAN_ID,
       quotaRemainingToken0: QUOTA_REMAINING.toString(),
       quotaRemainingToken1: (20_000n * TOKEN_SCALE).toString(),

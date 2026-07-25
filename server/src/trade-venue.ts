@@ -6,6 +6,7 @@ import {
   confirmConnectedWalletTrade,
   prepareConnectedWalletTrade,
   quoteConnectedWallet,
+  routerPoolState,
   type ConnectedWalletPreparation,
   type ConnectedWalletQuote,
   type DemoTradeResult,
@@ -15,6 +16,7 @@ import {
   prepareVaultTrade,
   quoteVaultWallet,
   vaultDirectionForPair,
+  vaultPoolState,
   type VaultWalletQuote,
 } from './vaults.js';
 
@@ -56,6 +58,13 @@ export function websiteTradeVenue(): WebsiteTradeVenue {
     vaultRouter: optionalAddress(deployments.vaultRouter),
     activeVault: optionalAddress(deployments.activeVault),
   });
+}
+
+export async function websitePoolState() {
+  const venue = websiteTradeVenue();
+  return venue.kind === 'vault'
+    ? vaultPoolState(venue.vault)
+    : routerPoolState();
 }
 
 function expectedPair(direction: DemoTradeDirection) {
@@ -115,6 +124,7 @@ async function connectedQuoteFromVault(
     sufficientBalance: quote.sufficientBalance,
     requiresApproval: quote.requiresApproval,
     router: quote.router,
+    quota: quote.quota,
     feeSchedule: quote.feeSchedule,
   };
 }

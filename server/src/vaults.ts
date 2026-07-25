@@ -10,6 +10,7 @@ import {
 
 import {
   agentBookAbi,
+  aquaAbi,
   erc20Abi,
   quotaAbi,
   routerAbi,
@@ -62,6 +63,7 @@ export interface TokenMetadata {
 export interface VaultWalletQuote {
   vault: Address;
   router: Address;
+  quota: Address;
   orderHash: Hex;
   wallet: Address;
   direction: VaultTradeDirection;
@@ -91,10 +93,7 @@ const ZERO_HASH = `0x${'00'.repeat(32)}` as Hex;
 const ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 const tokenMetadataCache = new Map<string, Promise<TokenMetadata>>();
 const historyClient = createPublicClient({
-  transport: http(
-    process.env.HISTORY_RPC_URL ??
-      (CHAIN_ID === 84532 ? 'https://base-sepolia.drpc.org' : RPC_URL),
-  ),
+  transport: http(process.env.HISTORY_RPC_URL ?? RPC_URL),
 });
 const liquidityAccountingCache = new Map<
   string,
@@ -341,6 +340,68 @@ async function executionView(vault: Address): Promise<RouterExecutionView> {
   };
 }
 
+export async function vaultPoolState(vaultInput: unknown) {
+  const vault = parseVaultAddress(vaultInput);
+  const view = await executionView(vault);
+  const router = await vaultRouter(vault);
+  const [computedOrderHash, feeController, policyState] = await Promise.all([
+    client.readContract({
+      address: router,
+      abi: routerAbi,
+      functionName: 'hash',
+      args: [view.order],
+    }),
+    readFeeSchedule(view.program.quota, view.token0),
+    client.readContract({
+      address: view.program.quota,
+      abi: quotaAbi,
+      functionName: 'policyState',
+      args: [view.token0],
+    }),
+  ]);
+  if (computedOrderHash.toLowerCase() !== view.orderHash.toLowerCase()) {
+    throw new Error(
+      `vault SwapVM order hash ${view.orderHash} does not match router hash ${computedOrderHash}`,
+    );
+  }
+  const [balance0, balance1] = await client.readContract({
+    address: deployments.aqua,
+    abi: aquaAbi,
+    functionName: 'safeBalances',
+    args: [
+      view.order.maker,
+      router,
+      computedOrderHash,
+      view.token0,
+      view.token1,
+    ],
+  });
+  const program = applyFeeSchedule(view.program, feeController);
+  return {
+    router,
+    strategy: {
+      ...view.strategy,
+      tightFeeBps: BigInt(program.tightFeeBps),
+      wideFeeBps: BigInt(program.wideFeeBps),
+    },
+    strategyHash: computedOrderHash,
+    orderHash: computedOrderHash,
+    program,
+    feeController,
+    riskPolicy: {
+      updater: policyState[0],
+      maxFeeStepBps: policyState[1],
+      maxDataLagBlocks: policyState[2],
+      indexedThroughBlock: policyState[3],
+      decisionHash: policyState[4],
+      desiredTightFeeBps: policyState[5],
+      riskSpreadBps: policyState[6],
+    },
+    balance0,
+    balance1,
+  };
+}
+
 export async function vaultRegistry(walletInput?: unknown) {
   const factory = configuredFactory();
   const chainId = await client.getChainId();
@@ -566,6 +627,7 @@ export async function quoteVaultWallet(
   return {
     vault,
     router,
+    quota: view.program.quota,
     orderHash,
     wallet,
     direction,

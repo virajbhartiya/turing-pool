@@ -47,7 +47,7 @@ sudo docker run -d \
   /usr/local/bin/nuthatch dev \
   --dir /data \
   --listen 0.0.0.0:8288 \
-  --rpc https://base-sepolia-rpc.publicnode.com \
+  --rpc "$WORLD_RPC_URL" \
   --seal-direct \
   --concurrency 4 \
   --no-admin
