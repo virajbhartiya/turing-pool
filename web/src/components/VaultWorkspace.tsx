@@ -152,6 +152,21 @@ export function VaultWorkspace({
     );
   }, [refreshVault, selectedVault]);
 
+  useEffect(() => {
+    const refreshAfterFill = (event: Event) => {
+      if (event instanceof StorageEvent && event.key !== 'turing-pool:last-vault-fill') {
+        return;
+      }
+      void refreshAll();
+    };
+    window.addEventListener('storage', refreshAfterFill);
+    window.addEventListener('turing-pool:vault-fill', refreshAfterFill);
+    return () => {
+      window.removeEventListener('storage', refreshAfterFill);
+      window.removeEventListener('turing-pool:vault-fill', refreshAfterFill);
+    };
+  }, [refreshAll]);
+
   const ownershipPercent = useMemo(
     () => (vault ? Number(vault.position.ownershipPpb) / 10_000_000 : 0),
     [vault],
@@ -582,10 +597,14 @@ export function VaultWorkspace({
                       <dl>
                         <div><dt>Position value</dt><dd>{lpEconomics ? `${lpEconomics.currentValue.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${vault.token1.symbol}` : '—'}</dd></div>
                         <div><dt>You supplied</dt><dd>{formatUnits(vault.position.accounting.netContributedToken0, vault.token0.decimals, 5)} {vault.token0.symbol} + {formatUnits(vault.position.accounting.netContributedToken1, vault.token1.decimals, 5)} {vault.token1.symbol}</dd></div>
-                        <div><dt>Available to withdraw</dt><dd>{formatUnits(vault.position.claimToken0, vault.token0.decimals, 5)} {vault.token0.symbol} + {formatUnits(vault.position.claimToken1, vault.token1.decimals, 5)} {vault.token1.symbol}</dd></div>
+                        <div><dt>Available to withdraw</dt><dd>{formatUnits(vault.position.claimToken0, vault.token0.decimals, 8)} {vault.token0.symbol} + {formatUnits(vault.position.claimToken1, vault.token1.decimals, 8)} {vault.token1.symbol}</dd></div>
                         <div><dt>Pool ownership</dt><dd>{ownershipLabel}</dd></div>
                         <div><dt>LP tokens</dt><dd>{formatUnits(vault.position.shares, 18, 6)} {vault.shareToken.symbol}</dd></div>
                       </dl>
+                      <p className="vault-position-note">
+                        LP tokens stay constant between deposits and withdrawals. Each settled swap
+                        changes the reserves behind them and refreshes the amount available to withdraw.
+                      </p>
                       <details className="vault-position-token">
                         <summary>LP token details</summary>
                         <a href={lpTokenUrl} rel="noreferrer" target="_blank">

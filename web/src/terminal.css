@@ -1038,6 +1038,14 @@ body::before {
   margin: 7px 0 0;
 }
 
+.vault-position-note {
+  margin: 12px 0 0;
+  border-left: 2px solid var(--human);
+  padding: 0 0 0 10px;
+  color: var(--muted);
+  font: 11px/1.55 var(--mono);
+}
+
 .vault-position-token {
   margin-top: 12px;
   border: 1px solid var(--border);

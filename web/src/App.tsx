@@ -588,6 +588,11 @@ export function App() {
         }),
       );
       await Promise.all([refresh(), refreshWalletQuote()]);
+      window.localStorage.setItem(
+        'turing-pool:last-vault-fill',
+        JSON.stringify({ transactionHash, confirmedAt: Date.now() }),
+      );
+      window.dispatchEvent(new Event('turing-pool:vault-fill'));
       setTradeProgress((current) =>
         upsertProgress(current, {
           stage: 'repricing',

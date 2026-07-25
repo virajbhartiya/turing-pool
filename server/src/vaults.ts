@@ -21,7 +21,10 @@ import { CHAIN_ID, RPC_URL } from './config.js';
 import {
   applyFeeSchedule,
   buildTakerTraits,
+  decodeRouterReceipt,
+  explorerTransactionUrl,
   parseHumanGateProgram,
+  parseTransactionHash,
   parseWalletAddress,
   resolveHumanGateTier,
   type OnChainFeeSchedule,
@@ -49,11 +52,39 @@ interface PreparedVaultTransaction {
   preview: Record<string, unknown>;
 }
 
-interface TokenMetadata {
+export interface TokenMetadata {
   address: Address;
   name: string;
   symbol: string;
   decimals: number;
+}
+
+export interface VaultWalletQuote {
+  vault: Address;
+  router: Address;
+  orderHash: Hex;
+  wallet: Address;
+  direction: VaultTradeDirection;
+  tokenIn: TokenMetadata;
+  tokenOut: TokenMetadata;
+  amountIn: string;
+  amountOut: string;
+  balance: string;
+  allowance: string;
+  humanId: string;
+  humanBacked: boolean;
+  tight: boolean;
+  tier: 'tight' | 'wide';
+  feeBps: number;
+  sufficientBalance: boolean;
+  requiresApproval: boolean;
+  feeSchedule: ReturnType<typeof scheduleJson>;
+}
+
+export interface PreparedVaultTrade {
+  action: 'approve-trade-token' | 'swap';
+  transaction: PreparedVaultTransaction['transaction'];
+  preview: VaultWalletQuote;
 }
 
 const ZERO_HASH = `0x${'00'.repeat(32)}` as Hex;
@@ -133,6 +164,33 @@ function parseDirection(value: unknown): VaultTradeDirection {
   if (value === undefined || value === 'token0-to-token1') return 'token0-to-token1';
   if (value === 'token1-to-token0') return value;
   throw new Error('direction must be token0-to-token1 or token1-to-token0');
+}
+
+export async function vaultDirectionForPair(
+  vaultInput: unknown,
+  tokenInInput: unknown,
+  tokenOutInput: unknown,
+): Promise<VaultTradeDirection> {
+  const vault = parseVaultAddress(vaultInput);
+  const tokenIn = parseContractAddress(tokenInInput, 'tokenIn');
+  const tokenOut = parseContractAddress(tokenOutInput, 'tokenOut');
+  const [token0, token1] = await Promise.all([
+    client.readContract({ address: vault, abi: vaultAbi, functionName: 'TOKEN0' }),
+    client.readContract({ address: vault, abi: vaultAbi, functionName: 'TOKEN1' }),
+  ]);
+  if (
+    tokenIn.toLowerCase() === token0.toLowerCase() &&
+    tokenOut.toLowerCase() === token1.toLowerCase()
+  ) {
+    return 'token0-to-token1';
+  }
+  if (
+    tokenIn.toLowerCase() === token1.toLowerCase() &&
+    tokenOut.toLowerCase() === token0.toLowerCase()
+  ) {
+    return 'token1-to-token0';
+  }
+  throw new Error('configured website vault does not contain the demo trading pair');
 }
 
 function slippageBps(): bigint {
@@ -452,7 +510,7 @@ export async function quoteVaultWallet(
   walletInput: unknown,
   amountInput: unknown,
   directionInput: unknown,
-) {
+): Promise<VaultWalletQuote> {
   const vault = parseVaultAddress(vaultInput);
   const wallet = parseWalletAddress(walletInput);
   const amountIn = parseAmount(amountInput, 'amountIn');
@@ -537,7 +595,7 @@ export async function prepareVaultTrade(
   walletInput: unknown,
   amountInput: unknown,
   directionInput: unknown,
-): Promise<PreparedVaultTransaction> {
+): Promise<PreparedVaultTrade> {
   const quote = await quoteVaultWallet(vaultInput, walletInput, amountInput, directionInput);
   if (!quote.sufficientBalance) {
     throw new Error(
@@ -586,6 +644,84 @@ export async function prepareVaultTrade(
       value: '0x0',
     },
     preview: quote,
+  };
+}
+
+export async function confirmVaultWalletTrade(
+  vaultInput: unknown,
+  walletInput: unknown,
+  transactionHashInput: unknown,
+  directionInput: unknown,
+  approvalTransactionHashInput?: unknown,
+) {
+  const vault = parseVaultAddress(vaultInput);
+  const wallet = parseWalletAddress(walletInput);
+  const transactionHash = parseTransactionHash(transactionHashInput);
+  const approvalTransactionHash =
+    approvalTransactionHashInput === undefined
+      ? undefined
+      : parseTransactionHash(approvalTransactionHashInput);
+  const direction = parseDirection(directionInput);
+  const view = await executionView(vault);
+  const router = await vaultRouter(vault);
+  const zeroForOne = direction === 'token0-to-token1';
+  const tokenInAddress = zeroForOne ? view.token0 : view.token1;
+  const tokenOutAddress = zeroForOne ? view.token1 : view.token0;
+  const receipt = await client.waitForTransactionReceipt({
+    hash: transactionHash,
+    confirmations: 1,
+    pollingInterval: 500,
+    timeout: 10_000,
+  });
+  if (receipt.status !== 'success') {
+    throw new Error(`SwapVM vault trade reverted: ${transactionHash}`);
+  }
+  const { gate, swap } = decodeRouterReceipt(
+    receipt,
+    wallet,
+    { tokenIn: tokenInAddress, tokenOut: tokenOutAddress },
+    {
+      router,
+      orderHash: view.orderHash,
+      maker: vault,
+    },
+  );
+  const [tokenIn, tokenOut, feeSchedule, opcode, chainId] = await Promise.all([
+    metadata(tokenInAddress),
+    metadata(tokenOutAddress),
+    readFeeSchedule(view.program.quota, tokenInAddress),
+    client.readContract({
+      address: router,
+      abi: routerAbi,
+      functionName: 'humanGateOpcode',
+    }),
+    client.getChainId(),
+  ]);
+  const feeBps = Number(gate.args.feeE9 / 100_000n);
+  const tight = gate.args.tight;
+  return {
+    direction,
+    zeroForOne,
+    tokenIn,
+    tokenOut,
+    wallet,
+    transactionHash,
+    approvalTransactionHash,
+    blockNumber: receipt.blockNumber.toString(),
+    amountIn: swap.args.amountIn.toString(),
+    amountOut: swap.args.amountOut.toString(),
+    orderHash: gate.args.orderHash,
+    opcode: Number(opcode),
+    event: 'HumanGated' as const,
+    humanId: gate.args.humanId.toString(),
+    humanBacked: gate.args.humanId !== 0n,
+    tight,
+    tier: tight ? ('tight' as const) : ('wide' as const),
+    feeBps,
+    quotedFeeSchedule: scheduleJson(feeSchedule),
+    explorerUrl: explorerTransactionUrl(chainId, transactionHash),
+    vault,
+    router,
   };
 }
 

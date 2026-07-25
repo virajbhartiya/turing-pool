@@ -532,12 +532,27 @@ async function waitForRouterAllowance(
   throw new Error('the RPC did not observe the mined token approval before the retry limit');
 }
 
-function decodeRouterReceipt(receipt: TransactionReceipt, wallet: Address, route: DemoTradeRoute) {
+export interface RouterReceiptVenue {
+  router: Address;
+  orderHash: Hex;
+  maker: Address;
+}
+
+export function decodeRouterReceipt(
+  receipt: TransactionReceipt,
+  wallet: Address,
+  route: Pick<DemoTradeRoute, 'tokenIn' | 'tokenOut'>,
+  venue: RouterReceiptVenue = {
+    router: deployments.router,
+    orderHash: deployments.orderHash,
+    maker: deployments.maker,
+  },
+) {
   let gate: ReturnType<typeof decodeEventLog<typeof routerAbi>> | undefined;
   let swap: ReturnType<typeof decodeEventLog<typeof routerAbi>> | undefined;
 
   for (const log of receipt.logs) {
-    if (log.address.toLowerCase() !== deployments.router.toLowerCase()) continue;
+    if (log.address.toLowerCase() !== venue.router.toLowerCase()) continue;
     try {
       const decoded = decodeEventLog({ abi: routerAbi, data: log.data, topics: log.topics });
       if (decoded.eventName === 'HumanGated') gate = decoded;
@@ -554,9 +569,10 @@ function decodeRouterReceipt(receipt: TransactionReceipt, wallet: Address, route
     throw new Error(`transaction ${receipt.transactionHash} did not emit the SwapVM Swapped event`);
   }
   if (
-    gate.args.orderHash.toLowerCase() !== deployments.orderHash.toLowerCase() ||
+    gate.args.orderHash.toLowerCase() !== venue.orderHash.toLowerCase() ||
     gate.args.taker.toLowerCase() !== wallet.toLowerCase() ||
-    swap.args.orderHash.toLowerCase() !== deployments.orderHash.toLowerCase() ||
+    swap.args.orderHash.toLowerCase() !== venue.orderHash.toLowerCase() ||
+    swap.args.maker.toLowerCase() !== venue.maker.toLowerCase() ||
     swap.args.taker.toLowerCase() !== wallet.toLowerCase() ||
     swap.args.tokenIn.toLowerCase() !== route.tokenIn.toLowerCase() ||
     swap.args.tokenOut.toLowerCase() !== route.tokenOut.toLowerCase()
@@ -1021,7 +1037,7 @@ export async function executeDemoTrade(
   }
 }
 
-function explorerTransactionUrl(chainId: number, transactionHash: Hex): string {
+export function explorerTransactionUrl(chainId: number, transactionHash: Hex): string {
   if (chainId === 480) return `https://worldscan.org/tx/${transactionHash}`;
   if (chainId === 8453) return `https://basescan.org/tx/${transactionHash}`;
   if (chainId === 84532) return `https://sepolia.basescan.org/tx/${transactionHash}`;

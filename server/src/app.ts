@@ -33,18 +33,20 @@ import { hostedDemoQuotes, hostedState } from './hosted-snapshot.js';
 import { loadNuthatchActivity, type NuthatchActivity } from './nuthatch.js';
 import {
   demoTradesEnabled,
-  confirmConnectedWalletTrade,
   directionFromZeroForOne,
   executeDemoTrade,
   parseDemoTradeDirection,
-  prepareConnectedWalletTrade,
-  quoteConnectedWallet,
   quoteRouterFor,
   routerOpcode,
   routerPoolState,
   type DemoTradeDirection,
   type DemoTradeLane,
 } from './router-demo.js';
+import {
+  confirmWebsiteWalletTrade,
+  prepareWebsiteWalletTrade,
+  quoteWebsiteWallet,
+} from './trade-venue.js';
 import {
   prepareCreateVault,
   prepareVaultLiquidity,
@@ -578,7 +580,7 @@ app.get('/wallet/quote', async (c) => {
     const amountIn = parseQuoteAmount(c.req.query('amountIn'));
     const direction = parseDemoTradeDirection(c.req.query('direction'));
     return c.json(
-      await quoteConnectedWallet(c.req.query('address'), amountIn, direction),
+      await quoteWebsiteWallet(c.req.query('address'), amountIn, direction),
     );
   } catch (error) {
     if (/wallet must|amountIn|direction must/i.test(errorDescription(error))) {
@@ -689,7 +691,7 @@ app.post('/wallet/prepare', async (c) => {
     );
     const direction = parseDemoTradeDirection(body.direction);
     return c.json(
-      await prepareConnectedWalletTrade(body.address, amountIn, direction),
+      await prepareWebsiteWalletTrade(body.address, amountIn, direction),
     );
   } catch (error) {
     const description = errorDescription(error);
@@ -738,7 +740,7 @@ app.post('/wallet/confirm', async (c) => {
     body = await c.req.json();
     const direction = parseDemoTradeDirection(body.direction);
     return c.json(
-      await confirmConnectedWalletTrade(
+      await confirmWebsiteWalletTrade(
         body.address,
         body.transactionHash,
         direction,
