@@ -570,14 +570,17 @@ app.get('/state', async (c) => {
     return c.json(hostedState());
   }
   try {
-    const [state, strategies, latestBlock, rpcChainId, index, opcode] = await Promise.all([
+    const [state, latestBlock, rpcChainId, index, opcode] = await Promise.all([
       routerPoolState(),
-      strategyHistory(),
       client.getBlockNumber({ cacheTime: 0 }),
       client.getChainId(),
       activityIndex(),
       routerOpcode(),
     ]);
+  const strategies =
+    index.mode === 'sql+mcp' && index.status === 'connected'
+      ? configuredStrategyHistory(state.strategy, state.strategyHash)
+      : await strategyHistory();
   const swaps =
     index.mode === 'sql+mcp' && index.status === 'connected'
       ? index.swaps
