@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { apiBase } from '../hooks/useProtocol';
+import { responseJson } from '../lib/apiResponse';
 import { formatUnits, transactionExplorer } from '../lib/format';
 import {
   addTokenToWallet,
@@ -25,8 +26,8 @@ type ClaimPhase = 'idle' | 'preparing' | 'signing' | 'mining' | 'complete';
 async function readFaucet(account?: string): Promise<FaucetState> {
   const params = account ? `?${new URLSearchParams({ address: account })}` : '';
   const response = await fetch(`${apiBase()}/faucet${params}`);
-  const body = (await response.json()) as FaucetState | { error?: string };
-  if (!response.ok || !('enabled' in body)) {
+  const body = await responseJson<FaucetState | { error?: string }>(response, 'Faucet API');
+  if (!('enabled' in body)) {
     throw new Error('error' in body && body.error ? body.error : 'Test-token faucet is unavailable');
   }
   return body;
@@ -91,8 +92,8 @@ export function TokenFaucet({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ address: account }),
       });
-      const body = (await response.json()) as PreparedFaucetClaim | { error?: string };
-      if (!response.ok || !('transaction' in body)) {
+      const body = await responseJson<PreparedFaucetClaim | { error?: string }>(response, 'Faucet API');
+      if (!('transaction' in body)) {
         throw new Error('error' in body && body.error ? body.error : 'Faucet claim could not be prepared');
       }
 

@@ -18,6 +18,8 @@ export default defineConfig({
       '/quote': 'http://localhost:4021',
       '/wallet': 'http://localhost:4021',
       '/vaults': 'http://localhost:4021',
+      '/faucet': 'http://localhost:4021',
+      '/identity': 'http://localhost:4021',
     },
   },
 });
