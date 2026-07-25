@@ -153,9 +153,13 @@ export type DemoTradeErrorCode =
   | 'rpc_rate_limited'
   | 'trade_busy'
   | 'execution_unavailable'
+  | 'insufficient_balance'
   | 'trade_failed'
   | 'invalid_trade_request'
   | 'trade_forbidden'
+  | 'wallet_unavailable'
+  | 'wallet_rejected'
+  | 'wrong_network'
   | 'network_error';
 
 export interface DemoTradeError {
@@ -216,6 +220,47 @@ export interface DemoTradeResult {
     wideVolume: string;
   };
   explorerUrl: string;
+}
+
+export interface ConnectedWalletQuote {
+  wallet: string;
+  chainId: number;
+  direction: DemoTradeDirection;
+  tokenIn: string;
+  tokenOut: string;
+  tokenInSymbol: DemoTokenSymbol;
+  tokenOutSymbol: DemoTokenSymbol;
+  amountIn: string;
+  amountOut: string;
+  balance: string;
+  allowance: string;
+  humanId: string;
+  humanBacked: boolean;
+  tight: boolean;
+  tier: 'tight' | 'wide';
+  feeBps: number;
+  sufficientBalance: boolean;
+  requiresApproval: boolean;
+  router: string;
+  feeSchedule: {
+    tightFeeBps: string;
+    wideFeeBps: string;
+    targetFeeBps: string;
+    humanShareBps: string;
+    tightVolume: string;
+    wideVolume: string;
+  };
+}
+
+export interface PreparedWalletTrade {
+  quote: ConnectedWalletQuote;
+  action: 'approve' | 'swap';
+  transaction: {
+    from: string;
+    to: string;
+    data: string;
+    value: '0x0';
+  };
 }
 
 export interface DemoQuote {

@@ -4,9 +4,10 @@
 
 This is the fastest way to prove the product is executing rather than showing
 mocked UI. It runs real transactions through SwapVM and Aqua on World Chain
-mainnet. The actor keys stay server-side; no private key is in the repository,
-browser bundle, or terminal output. Start Nuthatch before the API so the
-indexer observes every new judge-demo receipt.
+mainnet. The dashboard prepares calldata but MetaMask signs connected-wallet
+trades; the legacy replay script keeps its disposable actor keys server-side.
+No private key is in the repository or browser bundle. Start Nuthatch before
+the API so the indexer observes every new judge-demo receipt.
 
 Terminal one:
 
@@ -40,6 +41,27 @@ Open [http://localhost:4021](http://localhost:4021), then run in terminal three:
 ```bash
 pnpm demo:world
 ```
+
+## Connected-wallet demo
+
+1. Add both funded demo accounts to MetaMask and connect both accounts to the
+   dashboard.
+2. Open the dashboard in two tabs. Use the account selector to pin the
+   World-verified address in one tab and the anonymous address in the other;
+   the selection is stored per tab.
+3. MetaMask switches to World Chain (`480`) automatically. The terminal calls
+   the canonical AgentBook for the selected address and assigns `TIGHT` or
+   `WIDE`; there is no manual human/bot toggle.
+4. Click buy or sell. If needed, MetaMask first requests a token approval. A
+   second prompt signs the actual SwapVM trade. The backend never signs for the
+   connected account.
+5. The terminal verifies `HumanGated` and `Swapped`, refreshes the LP book and
+   controller, and links the mined Worldscan receipt.
+
+The connected address must hold the deployed fixed-supply `tETH` or `tUSD`
+demo asset selected as input, plus enough World Chain ETH for gas. An arbitrary
+new MetaMask account can connect and be classified, but cannot trade until it
+receives the demo input asset.
 
 The command asserts the execution claims and prints Worldscan transaction links:
 

@@ -18,7 +18,16 @@ test('the Vercel route manifest sends dashboard API paths to the Hono function',
     .map((route, index) => ({ ...route, index }))
     .filter((route) => route.dest === '/' && route.src && route.index < static404Index);
 
-  for (const path of ['/health', '/state', '/demo/quotes', '/demo/trade', '/quote']) {
+  for (const path of [
+    '/health',
+    '/state',
+    '/demo/quotes',
+    '/demo/trade',
+    '/wallet/quote',
+    '/wallet/prepare',
+    '/wallet/confirm',
+    '/quote',
+  ]) {
     assert.ok(
       functionRoutes.some((route) => new RegExp(route.src).test(path)),
       `${path} must reach the Hono function before the static 404 route`,

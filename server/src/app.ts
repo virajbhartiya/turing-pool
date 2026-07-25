@@ -32,9 +32,12 @@ import { hostedDemoQuotes, hostedState } from './hosted-snapshot.js';
 import { loadNuthatchActivity, type NuthatchActivity } from './nuthatch.js';
 import {
   demoTradesEnabled,
+  confirmConnectedWalletTrade,
   directionFromZeroForOne,
   executeDemoTrade,
   parseDemoTradeDirection,
+  prepareConnectedWalletTrade,
+  quoteConnectedWallet,
   quoteRouterFor,
   routerOpcode,
   routerPoolState,
@@ -487,6 +490,135 @@ app.get('/demo/quotes', async (c) => {
     });
   } catch (error) {
     return liveReadErrorResponse(c, error);
+  }
+});
+
+app.get('/wallet/quote', async (c) => {
+  if (SNAPSHOT_MODE) {
+    return c.json(
+      {
+        code: 'execution_unavailable',
+        error: 'Connected-wallet execution requires the live World Chain runtime.',
+        retryable: false,
+        status: 503,
+      },
+      503,
+    );
+  }
+  try {
+    const amountIn = parseQuoteAmount(c.req.query('amountIn'));
+    const direction = parseDemoTradeDirection(c.req.query('direction'));
+    return c.json(
+      await quoteConnectedWallet(c.req.query('address'), amountIn, direction),
+    );
+  } catch (error) {
+    if (/wallet must|amountIn|direction must/i.test(errorDescription(error))) {
+      return c.json(
+        {
+          code: 'invalid_trade_request',
+          error: error instanceof Error ? error.message : 'invalid wallet quote request',
+          retryable: false,
+          status: 400,
+        },
+        400,
+      );
+    }
+    return liveReadErrorResponse(c, error);
+  }
+});
+
+app.post('/wallet/prepare', async (c) => {
+  const allowedOrigin = process.env.DEMO_TRADE_ORIGIN;
+  const requestOrigin = c.req.header('origin');
+  if (allowedOrigin && requestOrigin !== allowedOrigin) {
+    return c.json(
+      {
+        code: 'trade_forbidden',
+        error: 'wallet trades must be submitted from the configured dashboard',
+        retryable: false,
+        status: 403,
+      },
+      403,
+    );
+  }
+  let body: { address?: unknown; amountIn?: unknown; direction?: unknown };
+  try {
+    body = await c.req.json();
+    const amountIn = parseQuoteAmount(
+      typeof body.amountIn === 'string' ? body.amountIn : undefined,
+    );
+    const direction = parseDemoTradeDirection(body.direction);
+    return c.json(
+      await prepareConnectedWalletTrade(body.address, amountIn, direction),
+    );
+  } catch (error) {
+    const description = errorDescription(error);
+    if (/wallet must|amountIn|direction must|insufficient .* balance/i.test(description)) {
+      return c.json(
+        {
+          code: /insufficient .* balance/i.test(description)
+            ? 'insufficient_balance'
+            : 'invalid_trade_request',
+          error:
+            error instanceof Error
+              ? error.message
+              : 'invalid connected-wallet trade request',
+          retryable: false,
+          status: 400,
+        },
+        400,
+      );
+    }
+    const safeError = describeTradeError(error);
+    return c.json(safeError, safeError.status);
+  }
+});
+
+app.post('/wallet/confirm', async (c) => {
+  const allowedOrigin = process.env.DEMO_TRADE_ORIGIN;
+  const requestOrigin = c.req.header('origin');
+  if (allowedOrigin && requestOrigin !== allowedOrigin) {
+    return c.json(
+      {
+        code: 'trade_forbidden',
+        error: 'wallet trades must be confirmed from the configured dashboard',
+        retryable: false,
+        status: 403,
+      },
+      403,
+    );
+  }
+  let body: {
+    address?: unknown;
+    transactionHash?: unknown;
+    approvalTransactionHash?: unknown;
+    direction?: unknown;
+  };
+  try {
+    body = await c.req.json();
+    const direction = parseDemoTradeDirection(body.direction);
+    return c.json(
+      await confirmConnectedWalletTrade(
+        body.address,
+        body.transactionHash,
+        direction,
+        body.approvalTransactionHash,
+      ),
+    );
+  } catch (error) {
+    if (/wallet must|transactionHash|direction must/i.test(errorDescription(error))) {
+      return c.json(
+        {
+          code: 'invalid_trade_request',
+          error: error instanceof Error ? error.message : 'invalid wallet confirmation request',
+          retryable: false,
+          status: 400,
+        },
+        400,
+      );
+    }
+    const safeError = describeTradeError(error);
+    return c.json(safeError, safeError.status);
   }
 });
 

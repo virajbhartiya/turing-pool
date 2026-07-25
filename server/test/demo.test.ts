@@ -111,7 +111,8 @@ test('Vite dashboard exposes judge-facing provenance and trading-terminal struct
   assert.match(source, /BrandLogo brand="world"/);
   assert.match(source, /BrandLogo brand="oneinch"/);
   assert.match(source, /BrandLogo brand="nuthatch"/);
-  assert.match(source, /Open .* trader tab/);
+  assert.match(source, /Open second wallet tab/);
+  assert.match(source, /Connect MetaMask/);
   assert.match(source, /Buy tETH/);
   assert.match(source, /Sell tETH/);
   assert.match(source, /LP book/);

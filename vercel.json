@@ -33,6 +33,18 @@
       "destination": "/"
     },
     {
+      "source": "/wallet/quote",
+      "destination": "/"
+    },
+    {
+      "source": "/wallet/prepare",
+      "destination": "/"
+    },
+    {
+      "source": "/wallet/confirm",
+      "destination": "/"
+    },
+    {
       "source": "/quote",
       "destination": "/"
     }

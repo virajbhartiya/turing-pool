@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { EvidenceLedger } from './components/EvidenceLedger';
 import { FeeControllerPanel } from './components/FeeControllerPanel';
@@ -7,14 +7,23 @@ import { LPEconomicsPanel } from './components/LPEconomicsPanel';
 import { MarketHeader } from './components/MarketHeader';
 import { ProtocolDetails } from './components/ProtocolDetails';
 import { TradingTerminal } from './components/TradingTerminal';
+import { useInjectedWallet } from './hooks/useInjectedWallet';
 import { apiBase, demoTradeAmounts, useProtocol } from './hooks/useProtocol';
 import { unitsAsNumber } from './lib/format';
+import {
+  ensureWorldChain,
+  providerErrorCode,
+  sendWalletTransaction,
+  waitForWalletReceipt,
+} from './lib/wallet';
 import type {
+  ConnectedWalletQuote,
   DemoTradeDirection,
   DemoTradeError,
   DemoTradeLane,
   DemoTradeProgress,
   DemoTradeResult,
+  PreparedWalletTrade,
 } from './types';
 
 function LoadingTerminal() {
@@ -46,17 +55,6 @@ function isDemoTradeResult(value: unknown): value is DemoTradeResult {
   );
 }
 
-function isDemoTradeProgress(value: unknown): value is DemoTradeProgress {
-  if (typeof value !== 'object' || value === null) return false;
-  const candidate = value as Partial<DemoTradeProgress>;
-  return (
-    typeof candidate.stage === 'string' &&
-    (candidate.status === 'active' || candidate.status === 'complete') &&
-    typeof candidate.title === 'string' &&
-    typeof candidate.detail === 'string'
-  );
-}
-
 function upsertProgress(
   current: DemoTradeProgress[],
   next: DemoTradeProgress,
@@ -64,6 +62,51 @@ function upsertProgress(
   const existing = current.findIndex((item) => item.stage === next.stage);
   if (existing === -1) return [...current, next];
   return current.map((item, index) => (index === existing ? next : item));
+}
+
+function connectedWalletError(error: unknown): DemoTradeError {
+  const code = providerErrorCode(error);
+  if (code === 4001) {
+    return {
+      code: 'wallet_rejected',
+      error: 'The MetaMask request was rejected. No transaction was submitted.',
+      retryable: false,
+      status: 400,
+    };
+  }
+  if (code === 4902) {
+    return {
+      code: 'wrong_network',
+      error: 'World Chain could not be added to MetaMask.',
+      retryable: false,
+      status: 400,
+    };
+  }
+  const description = error instanceof Error ? error.message : String(error);
+  if (/insufficient .* balance/i.test(description)) {
+    return {
+      code: 'insufficient_balance',
+      error: description,
+      retryable: false,
+      status: 400,
+    };
+  }
+  if (/MetaMask|wallet/i.test(description)) {
+    return {
+      code: 'wallet_unavailable',
+      error: description,
+      retryable: false,
+      status: 400,
+    };
+  }
+  return {
+    code: 'network_error',
+    error:
+      'The wallet transaction could not be confirmed. Check MetaMask and Worldscan before retrying.',
+    retryable: true,
+    retryAfterSeconds: 5,
+    status: 0,
+  };
 }
 
 export function App() {
@@ -74,6 +117,10 @@ export function App() {
   const [direction, setDirection] = useState<DemoTradeDirection>(initialDirection);
   const [amountIn, setAmountIn] = useState(demoTradeAmounts[initialDirection][0]);
   const { snapshot, error, refreshing, refresh } = useProtocol(amountIn, direction);
+  const wallet = useInjectedWallet();
+  const [walletQuote, setWalletQuote] = useState<ConnectedWalletQuote>();
+  const [walletQuoteLoading, setWalletQuoteLoading] = useState(false);
+  const [walletQuoteError, setWalletQuoteError] = useState<string>();
   const [copied, setCopied] = useState(false);
   const [tradeLane, setTradeLane] = useState<DemoTradeLane>();
   const [tradeError, setTradeError] = useState<DemoTradeError>();
@@ -85,6 +132,48 @@ export function App() {
     const timer = window.setTimeout(() => setCopied(false), 1_800);
     return () => window.clearTimeout(timer);
   }, [copied]);
+
+  const refreshWalletQuote = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!wallet.account) {
+        setWalletQuote(undefined);
+        setWalletQuoteError(undefined);
+        return;
+      }
+      setWalletQuoteLoading(true);
+      try {
+        const params = new URLSearchParams({
+          address: wallet.account,
+          amountIn,
+          direction,
+        });
+        const response = await fetch(`${apiBase()}/wallet/quote?${params}`, { signal });
+        const body: unknown = await response.json();
+        if (!response.ok) {
+          throw new Error(
+            isDemoTradeError(body)
+              ? body.error
+              : 'The connected wallet could not be quoted on-chain.',
+          );
+        }
+        setWalletQuote(body as ConnectedWalletQuote);
+        setWalletQuoteError(undefined);
+      } catch (caught) {
+        if (caught instanceof DOMException && caught.name === 'AbortError') return;
+        setWalletQuote(undefined);
+        setWalletQuoteError(caught instanceof Error ? caught.message : String(caught));
+      } finally {
+        setWalletQuoteLoading(false);
+      }
+    },
+    [amountIn, direction, wallet.account],
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void refreshWalletQuote(controller.signal);
+    return () => controller.abort();
+  }, [refreshWalletQuote]);
 
   async function copyReplayCommand() {
     try {
@@ -104,123 +193,229 @@ export function App() {
   }
 
   async function executeTrade(
-    lane: DemoTradeLane,
-    amountIn: string,
+    tradeAmountIn: string,
     tradeDirection: DemoTradeDirection,
   ) {
-    setTradeLane(lane);
+    const walletAccount = wallet.account;
+    const walletProvider = wallet.provider;
+    if (!walletAccount || !walletProvider) {
+      await wallet.connect();
+      return;
+    }
+    const activeLane: DemoTradeLane = walletQuote?.humanBacked ? 'human' : 'bot';
+    setTradeLane(activeLane);
     setTradeError(undefined);
     setTradeProgress([
       {
         stage: 'wallet',
         status: 'active',
-        title: 'Connect execution service',
-        detail: 'Opening a live trace for this on-chain trade',
+        title: 'Verify connected wallet',
+        detail: 'Checking MetaMask account and World Chain network',
       },
     ]);
+    let approvalTransactionHash: string | undefined;
     try {
-      const response = await fetch(`${apiBase()}/demo/trade`, {
-        method: 'POST',
-        headers: {
-          accept: 'application/x-ndjson',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({ lane, amountIn, direction: tradeDirection }),
-      });
-      if (!response.ok || !response.body) {
-        const body: unknown = await response.json();
-        const safeError: DemoTradeError = isDemoTradeError(body)
-          ? body
-          : {
-              code: 'trade_failed',
-              error:
-                'The trade service returned an unexpected response. Check on-chain activity before retrying.',
-              retryable: false,
-              status: response.status,
-            };
-        setTradeError(safeError);
-        setTradeProgress((current) =>
-          current.map((item) =>
-            item.status === 'active' ? { ...item, status: 'error' } : item,
-          ),
-        );
-        return;
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffered = '';
-      let result: DemoTradeResult | undefined;
-      let streamedError: DemoTradeError | undefined;
-
-      const consumeLine = (line: string) => {
-        if (!line.trim()) return;
-        const event = JSON.parse(line) as {
-          type?: unknown;
-          progress?: unknown;
-          result?: unknown;
-          error?: unknown;
-        };
-        const progress = event.progress;
-        if (event.type === 'progress' && isDemoTradeProgress(progress)) {
-          setTradeProgress((current) => upsertProgress(current, progress));
-        } else if (event.type === 'result' && isDemoTradeResult(event.result)) {
-          result = event.result;
-        } else if (event.type === 'error' && isDemoTradeError(event.error)) {
-          streamedError = event.error;
-        }
-      };
-
-      while (true) {
-        const { done, value } = await reader.read();
-        buffered += decoder.decode(value, { stream: !done });
-        const lines = buffered.split('\n');
-        buffered = lines.pop() ?? '';
-        for (const line of lines) consumeLine(line);
-        if (done) break;
-      }
-      consumeLine(buffered);
-
-      if (streamedError) {
-        setTradeError(streamedError);
-        setTradeProgress((current) =>
-          current.map((item) =>
-            item.status === 'active' ? { ...item, status: 'error' } : item,
-          ),
-        );
-        return;
-      }
-      if (!result) {
-        throw new Error('trade stream ended without a mined result');
-      }
-
-      setLastTrade(result);
+      await ensureWorldChain(walletProvider);
       setTradeProgress((current) =>
         upsertProgress(current, {
-          stage: 'refresh',
-          status: 'active',
-          title: 'Refresh market state',
-          detail: 'Loading the new quote pair, LP economics, and indexed activity',
+          stage: 'wallet',
+          status: 'complete',
+          title: 'MetaMask wallet connected',
+          detail: `${walletAccount.slice(0, 8)}…${walletAccount.slice(-6)} on World Chain`,
         }),
       );
-      await refresh();
+      setTradeProgress((current) =>
+        upsertProgress(current, {
+          stage: 'identity',
+          status: 'active',
+          title: 'Resolve identity and prepare quote',
+          detail: 'Reading World AgentBook, HumanQuota, and live SwapVM state',
+        }),
+      );
+
+      const prepare = async (): Promise<PreparedWalletTrade> => {
+        const response = await fetch(`${apiBase()}/wallet/prepare`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            address: walletAccount,
+            amountIn: tradeAmountIn,
+            direction: tradeDirection,
+          }),
+        });
+        const body: unknown = await response.json();
+        if (!response.ok) {
+          if (isDemoTradeError(body)) throw body;
+          throw new Error('The server could not prepare a safe wallet transaction.');
+        }
+        return body as PreparedWalletTrade;
+      };
+
+      let prepared = await prepare();
+      const preparedLane: DemoTradeLane = prepared.quote.humanBacked ? 'human' : 'bot';
+      setTradeLane(preparedLane);
+      setWalletQuote(prepared.quote);
+      setTradeProgress((current) =>
+        upsertProgress(current, {
+          stage: 'identity',
+          status: 'complete',
+          title: prepared.quote.humanBacked
+            ? 'World-verified human resolved'
+            : 'Anonymous wallet resolved',
+          detail: prepared.quote.humanBacked
+            ? `AgentBook humanId ${prepared.quote.humanId.slice(0, 12)}… · ${prepared.quote.tier.toUpperCase()} lane · ${prepared.quote.feeBps} bps`
+            : `AgentBook returned humanId 0 · WIDE lane · ${prepared.quote.feeBps} bps`,
+        }),
+      );
+
+      if (prepared.action === 'approve') {
+        setTradeProgress((current) =>
+          upsertProgress(current, {
+            stage: 'allowance',
+            status: 'active',
+            title: `Approve ${prepared.quote.tokenInSymbol}`,
+            detail: 'Confirm the one-time SwapVM token allowance in MetaMask',
+          }),
+        );
+        approvalTransactionHash = await sendWalletTransaction(
+          walletProvider,
+          prepared.transaction,
+        );
+        await waitForWalletReceipt(walletProvider, approvalTransactionHash);
+        setTradeProgress((current) =>
+          upsertProgress(current, {
+            stage: 'allowance',
+            status: 'complete',
+            title: 'Token approval mined',
+            detail: `${prepared.quote.tokenInSymbol} is now approved for the SwapVM router`,
+            transactionHash: approvalTransactionHash,
+          }),
+        );
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+          prepared = await prepare();
+          if (prepared.action === 'swap') break;
+          await new Promise((resolve) => window.setTimeout(resolve, 500));
+        }
+        if (prepared.action !== 'swap') {
+          throw new Error('The World Chain RPC has not observed the mined token approval yet.');
+        }
+      }
+
+      setTradeProgress((current) =>
+        upsertProgress(current, {
+          stage: 'simulation',
+          status: 'complete',
+          title: 'Simulation passed',
+          detail: `Opcode ${snapshot?.state.execution?.opcode ?? 34} is executable against Aqua inventory`,
+        }),
+      );
+      setTradeProgress((current) =>
+        upsertProgress(current, {
+          stage: 'submission',
+          status: 'active',
+          title: 'Confirm trade in MetaMask',
+          detail: 'MetaMask will sign and broadcast the prepared SwapVM transaction',
+        }),
+      );
+      const transactionHash = await sendWalletTransaction(
+        walletProvider,
+        prepared.transaction,
+      );
+      setTradeProgress((current) =>
+        upsertProgress(current, {
+          stage: 'submission',
+          status: 'complete',
+          title: 'Transaction broadcast',
+          detail: `${transactionHash.slice(0, 12)}… is pending on World Chain`,
+          transactionHash,
+        }),
+      );
+      setTradeProgress((current) =>
+        upsertProgress(current, {
+          stage: 'settlement',
+          status: 'active',
+          title: 'Await Aqua settlement',
+          detail: 'Waiting for maker inventory movement and the SwapVM receipt',
+          transactionHash,
+        }),
+      );
+      const receipt = await waitForWalletReceipt(walletProvider, transactionHash);
+      setTradeProgress((current) =>
+        upsertProgress(current, {
+          stage: 'settlement',
+          status: 'complete',
+          title: 'Aqua settlement mined',
+          detail: `World Chain block ${BigInt(receipt.blockNumber)} confirmed the trade`,
+          transactionHash,
+        }),
+      );
+      setTradeProgress((current) =>
+        upsertProgress(current, {
+          stage: 'receipt',
+          status: 'active',
+          title: 'Verify on-chain receipt',
+          detail: 'Decoding HumanGated and Swapped events against the connected wallet',
+          transactionHash,
+        }),
+      );
+      const confirmationResponse = await fetch(`${apiBase()}/wallet/confirm`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          address: walletAccount,
+          transactionHash,
+          approvalTransactionHash,
+          direction: tradeDirection,
+        }),
+      });
+      const confirmationBody: unknown = await confirmationResponse.json();
+      if (!confirmationResponse.ok || !isDemoTradeResult(confirmationBody)) {
+        if (isDemoTradeError(confirmationBody)) throw confirmationBody;
+        throw new Error('The mined transaction could not be verified by the trade service.');
+      }
+      setLastTrade(confirmationBody);
+      setTradeProgress((current) =>
+        upsertProgress(current, {
+          stage: 'receipt',
+          status: 'complete',
+          title: 'Receipt independently verified',
+          detail: `HumanGated + Swapped prove ${confirmationBody.tier.toUpperCase()} execution at ${confirmationBody.feeBps} bps`,
+          transactionHash,
+        }),
+      );
+      setTradeProgress((current) =>
+        upsertProgress(current, {
+          stage: 'repricing',
+          status: 'active',
+          title: 'Reprice the next market',
+          detail: 'Reading the post-trade volume-weighted fee controller',
+          transactionHash,
+        }),
+      );
+      await Promise.all([refresh(), refreshWalletQuote()]);
+      setTradeProgress((current) =>
+        upsertProgress(current, {
+          stage: 'repricing',
+          status: 'complete',
+          title: 'Next fee pair is live',
+          detail: 'Executed volume has repriced the next human and bot quotes',
+          transactionHash,
+        }),
+      );
       setTradeProgress((current) =>
         upsertProgress(current, {
           stage: 'refresh',
           status: 'complete',
           title: 'Terminal synchronized',
-          detail: 'Chart, receipts, LP revenue, and next executable rates are refreshed',
+          detail: 'Nuthatch, receipts, LP revenue, and executable rates are refreshed',
+          transactionHash,
         }),
       );
-    } catch {
-      setTradeError({
-        code: 'network_error',
-        error:
-          'The trading service could not be reached. No transaction confirmation was received.',
-        retryable: true,
-        retryAfterSeconds: 5,
-        status: 0,
-      });
+    } catch (caught) {
+      const safeError = isDemoTradeError(caught)
+        ? caught
+        : connectedWalletError(caught);
+      setTradeError(safeError);
       setTradeProgress((current) =>
         current.map((item) =>
           item.status === 'active' ? { ...item, status: 'error' } : item,
@@ -258,6 +453,16 @@ export function App() {
         quotes={quotes}
         onReplay={copyReplayCommand}
         onTrade={executeTrade}
+        walletInstalled={wallet.installed}
+        walletConnecting={wallet.connecting}
+        connectedAccount={wallet.account}
+        connectedAccounts={wallet.accounts}
+        connectedChainId={wallet.chainId}
+        walletQuote={walletQuote}
+        walletQuoteLoading={walletQuoteLoading}
+        walletQuoteError={walletQuoteError ?? wallet.error}
+        onConnectWallet={wallet.connect}
+        onSelectWalletAccount={wallet.selectAccount}
         tradeError={tradeError}
         tradeLane={tradeLane}
         tradeProgress={tradeProgress}

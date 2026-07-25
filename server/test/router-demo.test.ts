@@ -6,6 +6,8 @@ import {
   buildTakerTraits,
   parseDemoTradeDirection,
   parseHumanGateProgram,
+  parseTransactionHash,
+  parseWalletAddress,
   resolveHumanGateTier,
   selectDemoTradeRoute,
 } from '../src/router-demo.js';
@@ -22,6 +24,16 @@ test('demo trade direction parsing is explicit and defaults existing callers to 
   for (const invalid of [true, false, 'reverse', '', 1]) {
     assert.throws(() => parseDemoTradeDirection(invalid), /direction must be/);
   }
+});
+
+test('connected-wallet requests require canonical EVM addresses and transaction hashes', () => {
+  assert.equal(
+    parseWalletAddress('0x0000000000000000000000000000000000000001'),
+    '0x0000000000000000000000000000000000000001',
+  );
+  assert.throws(() => parseWalletAddress('not-a-wallet'), /valid EVM address/);
+  assert.equal(parseTransactionHash(`0x${'ab'.repeat(32)}`), `0x${'ab'.repeat(32)}`);
+  assert.throws(() => parseTransactionHash('0x1234'), /32-byte hex/);
 });
 
 test('both trade directions select the deployed order tokens in the correct order', () => {

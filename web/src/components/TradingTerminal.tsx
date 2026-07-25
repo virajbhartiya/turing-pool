@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 
 import { formatUnits, shortAddress } from '../lib/format';
 import type {
+  ConnectedWalletQuote,
   DemoQuote,
   DemoQuotes,
   DemoTradeDirection,
@@ -53,11 +54,17 @@ interface TradingTerminalProps {
   state: ProtocolState;
   quotes: DemoQuotes;
   onReplay: () => void;
-  onTrade: (
-    lane: DemoTradeLane,
-    amountIn: string,
-    direction: DemoTradeDirection,
-  ) => Promise<void>;
+  onTrade: (amountIn: string, direction: DemoTradeDirection) => Promise<void>;
+  walletInstalled: boolean;
+  walletConnecting: boolean;
+  connectedAccount?: string;
+  connectedAccounts: string[];
+  connectedChainId?: number;
+  walletQuote?: ConnectedWalletQuote;
+  walletQuoteLoading: boolean;
+  walletQuoteError?: string;
+  onConnectWallet: (requestAccountSelection?: boolean) => Promise<void>;
+  onSelectWalletAccount: (account: string) => void;
   tradeLane?: DemoTradeLane;
   tradeError?: DemoTradeError;
   tradeProgress: DemoTradeProgress[];
@@ -89,6 +96,10 @@ function tradeErrorHeadline(error: DemoTradeError): string {
   if (error.code === 'rpc_rate_limited') return 'Network busy · no trade sent';
   if (error.code === 'trade_busy') return 'Trade already processing';
   if (error.code === 'execution_unavailable') return 'Execution unavailable';
+  if (error.code === 'insufficient_balance') return 'Insufficient demo asset balance';
+  if (error.code === 'wallet_rejected') return 'MetaMask request cancelled';
+  if (error.code === 'wallet_unavailable') return 'MetaMask unavailable';
+  if (error.code === 'wrong_network') return 'World Chain required';
   if (error.code === 'network_error') return 'Network unavailable · status unknown';
   return 'Trade not completed';
 }
@@ -202,6 +213,16 @@ export function TradingTerminal({
   quotes,
   onReplay,
   onTrade,
+  walletInstalled,
+  walletConnecting,
+  connectedAccount,
+  connectedAccounts,
+  connectedChainId,
+  walletQuote,
+  walletQuoteLoading,
+  walletQuoteError,
+  onConnectWallet,
+  onSelectWalletAccount,
   tradeLane,
   tradeError,
   tradeProgress,
@@ -212,10 +233,8 @@ export function TradingTerminal({
   onDirectionChange,
   children,
 }: TradingTerminalProps) {
-  const initialLane =
-    new URLSearchParams(window.location.search).get('account') === 'bot' ? 'bot' : 'human';
-  const [lane, setLane] = useState<Lane>(initialLane);
-  const selected = quotes[lane];
+  const lane: Lane = walletQuote ? (walletQuote.tight ? 'human' : 'bot') : 'human';
+  const selected = walletQuote ?? quotes[lane];
   const outputDelta = BigInt(quotes.human.amountOut) - BigInt(quotes.bot.amountOut);
   const tokenInSymbol = quotes.tokenInSymbol ?? (direction === 'tETH-to-tUSD' ? 'tETH' : 'tUSD');
   const tokenOutSymbol = quotes.tokenOutSymbol ?? (direction === 'tETH-to-tUSD' ? 'tUSD' : 'tETH');
@@ -224,31 +243,29 @@ export function TradingTerminal({
   const executionEnabled = state.execution?.enabled === true;
   const submitting = tradeLane !== undefined;
   const selectedTradePending = tradeLane === lane;
-  const quoteReady = selected.amountIn === amountIn;
-  const wallet =
-    lane === 'human' ? state.execution?.humanWallet : state.execution?.botWallet;
-  const companionLane: Lane = lane === 'human' ? 'bot' : 'human';
+  const quoteReady =
+    walletQuote?.amountIn === amountIn &&
+    walletQuote.chainId === state.runtime.chainId &&
+    connectedChainId === state.runtime.chainId;
   const companionUrl = new URL(window.location.href);
-  companionUrl.searchParams.set('account', companionLane);
+  companionUrl.searchParams.delete('account');
 
   useEffect(() => {
-    document.title = `${lane === 'human' ? 'HUMAN' : 'BOT'} · Turing Pool`;
-  }, [lane]);
-
-  function selectLane(nextLane: Lane) {
-    setLane(nextLane);
-    const url = new URL(window.location.href);
-    url.searchParams.set('account', nextLane);
-    window.history.replaceState({}, '', url);
-  }
+    const accountLabel = connectedAccount
+      ? walletQuote?.humanBacked
+        ? 'HUMAN'
+        : 'BOT'
+      : 'MARKET';
+    document.title = `${accountLabel} · Turing Pool`;
+  }, [connectedAccount, walletQuote?.humanBacked]);
 
   return (
     <section className="trading-workspace" id="activity">
       <div className="demo-guide" aria-label="Interactive demo flow">
         <div>
           <span>01</span>
-          <strong>Choose the trader</strong>
-          <small>Verified human or anonymous bot</small>
+          <strong>Connect MetaMask</strong>
+          <small>AgentBook assigns human or bot automatically</small>
         </div>
         <i aria-hidden="true">→</i>
         <div>
@@ -306,35 +323,76 @@ export function TradingTerminal({
           <div><strong>Trade</strong><span>Exact input · live World Chain execution</span></div>
           <span className="live-tag">LIVE</span>
         </div>
-        <div className="ticket-tabs" aria-label="Order-flow identity">
-          {(['human', 'bot'] as const).map((tabLane) => (
-            <button
-              aria-pressed={lane === tabLane}
-              className={lane === tabLane ? 'active' : undefined}
-              data-lane={tabLane}
-              key={tabLane}
-              onClick={() => selectLane(tabLane)}
-              type="button"
-            >
-              {tabLane === 'human' ? 'Human verified' : 'Bot account'}
-            </button>
-          ))}
-        </div>
         <div className="ticket-body">
-          <div className={`account-context ${lane}`}>
-            <div>
-              <span>Active demo signer</span>
-              <strong>{lane === 'human' ? 'World-verified agent' : 'Anonymous bot'}</strong>
+          <div className={`wallet-panel ${connectedAccount ? lane : 'disconnected'}`}>
+            <div className="wallet-panel-head">
+              <div>
+                <span>MetaMask execution account</span>
+                <strong>
+                  {!connectedAccount
+                    ? 'Connect a wallet to trade'
+                    : walletQuoteLoading
+                      ? 'Resolving World identity…'
+                      : walletQuote?.humanBacked
+                        ? walletQuote.tight
+                          ? 'World-verified human · tight lane'
+                          : 'World-verified human · quota-wide lane'
+                        : 'Anonymous wallet · bot lane'}
+                </strong>
+              </div>
+              {connectedAccount && (
+                <b className={`wallet-tier ${lane}`}>
+                  {walletQuote?.tier.toUpperCase() ?? 'CHECKING'}
+                </b>
+              )}
             </div>
-            <code>{shortAddress(wallet)}</code>
-            <small>
-              {lane === 'human'
-                ? `AgentBook humanId ${state.demoHuman.humanId.slice(0, 10)}… · shared quota applies`
-                : 'AgentBook returned humanId 0 · wide risk lane applies'}
-            </small>
-            <a href={companionUrl.toString()} rel="noreferrer" target="_blank">
-              Open {companionLane === 'human' ? 'human' : 'bot'} trader tab ↗
-            </a>
+
+            {!connectedAccount ? (
+              <button
+                className="wallet-connect-button"
+                disabled={!walletInstalled || walletConnecting}
+                onClick={() => void onConnectWallet(false)}
+                type="button"
+              >
+                {walletConnecting
+                  ? 'Opening MetaMask…'
+                  : walletInstalled
+                    ? 'Connect MetaMask'
+                    : 'Install MetaMask to continue'}
+              </button>
+            ) : (
+              <>
+                <div className="wallet-account-row">
+                  <code>{shortAddress(connectedAccount)}</code>
+                  {connectedAccounts.length > 1 && (
+                    <select
+                      aria-label="Connected MetaMask account"
+                      onChange={(event) => onSelectWalletAccount(event.target.value)}
+                      value={connectedAccount}
+                    >
+                      {connectedAccounts.map((account) => (
+                        <option key={account} value={account}>
+                          {shortAddress(account)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <button onClick={() => void onConnectWallet(true)} type="button">
+                    Change accounts
+                  </button>
+                </div>
+                <small>
+                  {walletQuote
+                    ? walletQuote.humanBacked
+                      ? `AgentBook humanId ${walletQuote.humanId.slice(0, 10)}… · ${formatUnits(walletQuote.balance)} ${walletQuote.tokenInSymbol} available`
+                      : `AgentBook returned humanId 0 · ${formatUnits(walletQuote.balance)} ${walletQuote.tokenInSymbol} available`
+                    : walletQuoteError ?? 'Reading wallet balance, allowance, and identity…'}
+                </small>
+                <a href={companionUrl.toString()} rel="noreferrer" target="_blank">
+                  Open second wallet tab ↗
+                </a>
+              </>
+            )}
           </div>
           <div className="direction-tabs" aria-label="Trade direction">
             <button
@@ -388,11 +446,21 @@ export function TradingTerminal({
             </div>
           </div>
           <dl className="ticket-summary">
-            <div><dt>Risk lane</dt><dd>{selected.tier.toUpperCase()} · {lane === 'human' ? 'bounded' : 'unbounded'}</dd></div>
+            <div>
+              <dt>Risk lane</dt>
+              <dd>
+                {selected.tier.toUpperCase()} ·{' '}
+                {walletQuote?.humanBacked
+                  ? walletQuote.tight
+                    ? 'human bounded'
+                    : 'human quota exceeded'
+                  : 'anonymous'}
+              </dd>
+            </div>
             <div><dt>Live LP rate</dt><dd>{selected.feeBps} bps</dd></div>
             <div><dt>Settlement</dt><dd>Aqua · maker inventory</dd></div>
             <div>
-              <dt>Your price improvement</dt>
+              <dt>Verified price edge</dt>
               <dd className={lane === 'human' ? 'positive' : 'negative'}>
                 {lane === 'human' ? `+${deltaLabel}` : `−${deltaLabel}`} {tokenOutSymbol}
               </dd>
@@ -400,25 +468,39 @@ export function TradingTerminal({
           </dl>
           <button
             className={`trade-action ${lane}`}
-            disabled={submitting || !quoteReady}
+            disabled={
+              submitting ||
+              walletConnecting ||
+              (connectedAccount !== undefined &&
+                (walletQuoteLoading || !quoteReady || walletQuote?.sufficientBalance === false))
+            }
             onClick={() => {
-              if (executionEnabled) void onTrade(lane, selected.amountIn, direction);
+              if (!connectedAccount) void onConnectWallet(false);
+              else if (executionEnabled) void onTrade(selected.amountIn, direction);
               else onReplay();
             }}
             type="button"
           >
-            {!quoteReady
+            {!connectedAccount
+              ? walletInstalled
+                ? 'Connect MetaMask to trade'
+                : 'MetaMask required'
+              : walletQuote?.sufficientBalance === false
+                ? `Insufficient ${walletQuote.tokenInSymbol} balance`
+              : walletQuoteLoading || !quoteReady
               ? 'Refreshing on-chain quote…'
               : selectedTradePending
-              ? `Mining ${lane} trade…`
+              ? 'Confirming wallet trade…'
               : executionEnabled
-                ? `${direction === 'tUSD-to-tETH' ? 'Buy' : 'Sell'} as ${lane === 'human' ? 'verified human' : 'anonymous bot'}`
+                ? `${walletQuote?.requiresApproval ? 'Approve & ' : ''}${direction === 'tUSD-to-tETH' ? 'buy' : 'sell'} with MetaMask`
                 : 'Interactive execution unavailable'}
           </button>
           <p className="ticket-note">
-            {executionEnabled
-              ? `Mined notional updates HumanQuota, repricing the next SwapVM quote through opcode ${state.execution?.opcode}.`
-              : 'Live signing is disabled on this runtime.'}
+            {!connectedAccount
+              ? 'Connect both MetaMask accounts, then select a different account in each browser tab.'
+              : executionEnabled
+                ? `MetaMask signs the real SwapVM transaction. AgentBook selects the lane; mined volume reprices opcode ${state.execution?.opcode}.`
+                : 'Live signing is disabled on this runtime.'}
           </p>
           <ExecutionTrace
             lane={tradeLane ?? lane}

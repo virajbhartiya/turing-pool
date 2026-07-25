@@ -2,7 +2,10 @@ import {
   concatHex,
   createWalletClient,
   decodeEventLog,
+  encodeFunctionData,
+  getAddress,
   http,
+  isAddress,
   maxUint256,
   padHex,
   toHex,
@@ -139,6 +142,47 @@ export interface OnChainFeeSchedule {
   wideVolume: bigint;
 }
 
+export interface ConnectedWalletQuote {
+  wallet: Address;
+  chainId: number;
+  direction: DemoTradeDirection;
+  tokenIn: Address;
+  tokenOut: Address;
+  tokenInSymbol: 'tETH' | 'tUSD';
+  tokenOutSymbol: 'tETH' | 'tUSD';
+  amountIn: string;
+  amountOut: string;
+  balance: string;
+  allowance: string;
+  humanId: string;
+  humanBacked: boolean;
+  tight: boolean;
+  tier: 'tight' | 'wide';
+  feeBps: number;
+  sufficientBalance: boolean;
+  requiresApproval: boolean;
+  router: Address;
+  feeSchedule: {
+    tightFeeBps: string;
+    wideFeeBps: string;
+    targetFeeBps: string;
+    humanShareBps: string;
+    tightVolume: string;
+    wideVolume: string;
+  };
+}
+
+export interface ConnectedWalletPreparation {
+  quote: ConnectedWalletQuote;
+  action: 'approve' | 'swap';
+  transaction: {
+    from: Address;
+    to: Address;
+    data: Hex;
+    value: '0x0';
+  };
+}
+
 const FEE_E9_PER_BPS = 100_000n;
 const REQUIRED_OPCODE = 34;
 const DEFAULT_MAX_TETH_IN = 10n ** 18n;
@@ -146,6 +190,20 @@ const DEFAULT_MAX_TUSD_IN = 4_000n * 10n ** 18n;
 const ALLOWANCE_VISIBILITY_ATTEMPTS = 10;
 const tradeInFlight = new Set<DemoTradeLane>();
 const lastTradeAt = new Map<DemoTradeLane, number>();
+
+export function parseWalletAddress(value: unknown): Address {
+  if (typeof value !== 'string' || !isAddress(value)) {
+    throw new Error('wallet must be a valid EVM address');
+  }
+  return getAddress(value);
+}
+
+export function parseTransactionHash(value: unknown): Hex {
+  if (typeof value !== 'string' || !/^0x[0-9a-fA-F]{64}$/.test(value)) {
+    throw new Error('transactionHash must be a 32-byte hex value');
+  }
+  return value as Hex;
+}
 
 function addressFromProgram(program: string, startByte: number): Address {
   return `0x${program.slice(2 + startByte * 2, 2 + (startByte + 20) * 2)}` as Address;
@@ -514,6 +572,212 @@ export async function routerOpcode(): Promise<number> {
   return cachedRouterOpcode;
 }
 
+function executionLimit(direction: DemoTradeDirection): bigint {
+  const configuredMax =
+    direction === 'tETH-to-tUSD'
+      ? process.env.DEMO_TRADE_MAX_TETH_IN ?? process.env.DEMO_TRADE_MAX_AMOUNT_IN
+      : process.env.DEMO_TRADE_MAX_TUSD_IN;
+  return BigInt(
+    configuredMax ??
+      (direction === 'tETH-to-tUSD' ? DEFAULT_MAX_TETH_IN : DEFAULT_MAX_TUSD_IN),
+  );
+}
+
+function assertExecutableAmount(amountIn: bigint, direction: DemoTradeDirection): void {
+  const maxAmountIn = executionLimit(direction);
+  if (amountIn <= 0n || amountIn > maxAmountIn) {
+    throw new Error(`amountIn must be between 1 and ${maxAmountIn}`);
+  }
+}
+
+function connectedQuoteJson(
+  wallet: Address,
+  chainId: number,
+  quote: RouterQuote,
+  balance: bigint,
+  allowance: bigint,
+): ConnectedWalletQuote {
+  return {
+    wallet,
+    chainId,
+    direction: quote.direction,
+    tokenIn: quote.tokenIn,
+    tokenOut: quote.tokenOut,
+    tokenInSymbol: quote.tokenInSymbol,
+    tokenOutSymbol: quote.tokenOutSymbol,
+    amountIn: quote.amountIn.toString(),
+    amountOut: quote.amountOut.toString(),
+    balance: balance.toString(),
+    allowance: allowance.toString(),
+    humanId: quote.humanId.toString(),
+    humanBacked: quote.humanId !== 0n,
+    tight: quote.tight,
+    tier: quote.tight ? 'tight' : 'wide',
+    feeBps: Number(quote.feeBps),
+    sufficientBalance: balance >= quote.amountIn,
+    requiresApproval: allowance < quote.amountIn,
+    router: deployments.router,
+    feeSchedule: {
+      tightFeeBps: quote.feeSchedule.tightFeeBps.toString(),
+      wideFeeBps: quote.feeSchedule.wideFeeBps.toString(),
+      targetFeeBps: quote.feeSchedule.targetFeeBps.toString(),
+      humanShareBps: quote.feeSchedule.humanShareBps.toString(),
+      tightVolume: quote.feeSchedule.tightVolume.toString(),
+      wideVolume: quote.feeSchedule.wideVolume.toString(),
+    },
+  };
+}
+
+export async function quoteConnectedWallet(
+  walletInput: unknown,
+  amountIn: bigint,
+  direction: DemoTradeDirection = 'tETH-to-tUSD',
+): Promise<ConnectedWalletQuote> {
+  const wallet = parseWalletAddress(walletInput);
+  assertExecutableAmount(amountIn, direction);
+  const view = routerExecutionView();
+  const quote = await quoteRouterFor(wallet, amountIn, view, direction);
+  const [chainId, balance, allowance] = await Promise.all([
+    client.getChainId(),
+    client.readContract({
+      address: quote.tokenIn,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      args: [wallet],
+    }),
+    client.readContract({
+      address: quote.tokenIn,
+      abi: erc20Abi,
+      functionName: 'allowance',
+      args: [wallet, deployments.router],
+    }),
+  ]);
+  return connectedQuoteJson(wallet, chainId, quote, balance, allowance);
+}
+
+export async function prepareConnectedWalletTrade(
+  walletInput: unknown,
+  amountIn: bigint,
+  direction: DemoTradeDirection = 'tETH-to-tUSD',
+): Promise<ConnectedWalletPreparation> {
+  if (!demoTradesEnabled()) throw new Error('interactive demo trades are disabled');
+  const wallet = parseWalletAddress(walletInput);
+  const quote = await quoteConnectedWallet(wallet, amountIn, direction);
+  if (!quote.sufficientBalance) {
+    throw new Error(
+      `insufficient ${quote.tokenInSymbol} balance: wallet has ${quote.balance}, requires ${quote.amountIn}`,
+    );
+  }
+  if (quote.requiresApproval) {
+    return {
+      quote,
+      action: 'approve',
+      transaction: {
+        from: wallet,
+        to: quote.tokenIn,
+        data: encodeFunctionData({
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [deployments.router, maxUint256],
+        }),
+        value: '0x0',
+      },
+    };
+  }
+
+  const view = routerExecutionView();
+  const slippageBps = BigInt(process.env.SLIPPAGE_BPS ?? '50');
+  if (slippageBps < 0n || slippageBps >= 10_000n) {
+    throw new Error('SLIPPAGE_BPS must be between 0 and 9999');
+  }
+  const minimumAmountOut =
+    (BigInt(quote.amountOut) * (10_000n - slippageBps)) / 10_000n;
+  const route = selectDemoTradeRoute(view, direction);
+  const args = [
+    view.order,
+    route.tokenIn,
+    route.tokenOut,
+    amountIn,
+    buildTakerTraits(minimumAmountOut),
+  ] as const;
+  await client.simulateContract({
+    address: deployments.router,
+    abi: routerAbi,
+    functionName: 'swap',
+    args,
+    account: wallet,
+  });
+
+  return {
+    quote,
+    action: 'swap',
+    transaction: {
+      from: wallet,
+      to: deployments.router,
+      data: encodeFunctionData({
+        abi: routerAbi,
+        functionName: 'swap',
+        args,
+      }),
+      value: '0x0',
+    },
+  };
+}
+
+export async function confirmConnectedWalletTrade(
+  walletInput: unknown,
+  transactionHashInput: unknown,
+  direction: DemoTradeDirection = 'tETH-to-tUSD',
+  approvalTransactionHashInput?: unknown,
+): Promise<DemoTradeResult> {
+  const wallet = parseWalletAddress(walletInput);
+  const transactionHash = parseTransactionHash(transactionHashInput);
+  const approvalTransactionHash =
+    approvalTransactionHashInput === undefined
+      ? undefined
+      : parseTransactionHash(approvalTransactionHashInput);
+  const receipt = await client.getTransactionReceipt({ hash: transactionHash });
+  if (receipt.status !== 'success') throw new Error(`SwapVM trade reverted: ${transactionHash}`);
+
+  const view = routerExecutionView();
+  const route = selectDemoTradeRoute(view, direction);
+  const { gate, swap } = decodeRouterReceipt(receipt, wallet, route);
+  const feeBps = Number(gate.args.feeE9 / FEE_E9_PER_BPS);
+  const tight = gate.args.tight;
+  const [opcode, feeSchedule, chainId] = await Promise.all([
+    routerOpcode(),
+    readFeeSchedule(view, route.tokenIn),
+    client.getChainId(),
+  ]);
+  return {
+    lane: gate.args.humanId !== 0n ? 'human' : 'bot',
+    ...route,
+    wallet,
+    transactionHash,
+    approvalTransactionHash,
+    blockNumber: receipt.blockNumber.toString(),
+    amountIn: swap.args.amountIn.toString(),
+    amountOut: swap.args.amountOut.toString(),
+    orderHash: gate.args.orderHash,
+    opcode,
+    event: 'HumanGated',
+    humanId: gate.args.humanId.toString(),
+    humanBacked: gate.args.humanId !== 0n,
+    tight,
+    tier: tight ? 'tight' : 'wide',
+    feeBps,
+    quotedFeeSchedule: {
+      tightFeeBps: feeSchedule.tightFeeBps.toString(),
+      wideFeeBps: feeSchedule.wideFeeBps.toString(),
+      targetFeeBps: feeSchedule.targetFeeBps.toString(),
+      humanShareBps: feeSchedule.humanShareBps.toString(),
+      tightVolume: feeSchedule.tightVolume.toString(),
+      wideVolume: feeSchedule.wideVolume.toString(),
+    },
+    explorerUrl: explorerTransactionUrl(chainId, transactionHash),
+  };
+}
+
 export async function executeDemoTrade(
   lane: DemoTradeLane,
   amountIn: bigint,
@@ -523,15 +787,7 @@ export async function executeDemoTrade(
   if (!demoTradesEnabled()) throw new Error('interactive demo trades are disabled');
   const view = routerExecutionView();
   const route = selectDemoTradeRoute(view, direction);
-  const configuredMax =
-    direction === 'tETH-to-tUSD'
-      ? process.env.DEMO_TRADE_MAX_TETH_IN ?? process.env.DEMO_TRADE_MAX_AMOUNT_IN
-      : process.env.DEMO_TRADE_MAX_TUSD_IN;
-  const defaultMax = direction === 'tETH-to-tUSD' ? DEFAULT_MAX_TETH_IN : DEFAULT_MAX_TUSD_IN;
-  const maxAmountIn = BigInt(configuredMax ?? defaultMax);
-  if (amountIn <= 0n || amountIn > maxAmountIn) {
-    throw new Error(`amountIn must be between 1 and ${maxAmountIn}`);
-  }
+  assertExecutableAmount(amountIn, direction);
   if (tradeInFlight.has(lane)) throw new Error(`${lane} trade already in progress`);
   const previous = lastTradeAt.get(lane) ?? 0;
   if (Date.now() - previous < 4_000) throw new Error(`wait before submitting another ${lane} trade`);
