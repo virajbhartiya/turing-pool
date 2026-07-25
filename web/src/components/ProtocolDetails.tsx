@@ -12,8 +12,7 @@ export function ProtocolDetails({ state }: { state: ProtocolState }) {
     <details className="protocol-section protocol-disclosure">
       <summary>
         <span>
-          <b>Technical protocol state</b>
-          <small>Aqua inventory, shared quota, controller, and data provenance</small>
+          <b>Protocol state</b>
         </span>
         <em>Inspect +</em>
       </summary>

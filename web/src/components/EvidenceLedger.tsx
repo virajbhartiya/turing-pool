@@ -11,18 +11,13 @@ export function EvidenceLedger({ state }: EvidenceLedgerProps) {
 
   return (
     <section className="evidence-section">
-      <div className="section-head">
-        <div><span>Audit trail</span><h2>On-chain receipts</h2></div>
-        <p>{isSnapshot ? 'Recorded lifecycle · run locally for live links' : 'Select a block to verify the fill independently'}</p>
-      </div>
-
       <details className="ledger-panel">
         <summary>
           <span>
-            <strong>Settlement ledger</strong>
+            <strong>On-chain receipts</strong>
             <small>
               {latestSwap
-                ? `Latest receipt · block ${latestSwap.blockNumber} · ${latestSwap.tight ? 'verified human' : 'anonymous bot'} · ${latestSwap.feeBps} bps`
+                ? `Latest · ${latestSwap.tight ? 'verified human' : 'anonymous bot'} · ${latestSwap.feeBps} bps`
                 : 'No settlement receipts yet'}
             </small>
           </span>

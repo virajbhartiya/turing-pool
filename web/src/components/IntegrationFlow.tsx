@@ -21,25 +21,24 @@ export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
   const indexLabel = nuthatchConnected
     ? receiptIndexed
       ? 'Receipt indexed'
-      : `Following block ${activity.indexedBlock ?? '—'}`
+      : `Synced · ${activity.lagBlocks ?? 0} block lag`
     : activity.status === 'error'
       ? `${usesNuthatch ? 'Nuthatch' : 'Indexer'} offline · chain fallback`
       : 'Chain fallback active';
 
   return (
     <section className="integration-section" aria-label="Live integration flow">
-      <div className="section-head">
-        <div><span>Execution path</span><h2>One trade, three verifiable systems</h2></div>
-        <p>Identity → settlement → indexed proof</p>
+      <div className="panel-head protocol-panel-head">
+        <div><strong>Live execution stack</strong><span>Identity → settlement → indexed proof</span></div>
+        <span className="live-tag">OP #34</span>
       </div>
-      <div className="integration-flow">
+      <div className="integration-flow compact">
         <div className="integration-step world">
           <div className="integration-brand">
             <BrandLogo brand="world" />
             <span><b>World</b><small>{mirroredIdentity ? 'AgentBook → Base mirror' : 'AgentBook'}</small></span>
             <i aria-hidden="true" className="status-dot" />
           </div>
-          <strong>Resolve the trader</strong>
           <p>
             {lastTrade
               ? lastTrade.humanBacked
@@ -47,11 +46,7 @@ export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
                 : 'anonymous wallet · humanId 0'
               : `${shortAddress(state.execution?.humanWallet ?? '')} is human-backed`}
           </p>
-          <small>
-            {mirroredIdentity
-              ? `Canonical World lookup mirrored from block ${state.contracts.identitySourceBlock ?? '—'}`
-              : 'Canonical identity lookup on World Chain'}
-          </small>
+          <small>{mirroredIdentity ? 'Canonical identity mirrored to Base' : 'Canonical World lookup'}</small>
         </div>
         <div className="flow-arrow" aria-hidden="true">→</div>
         <div className="integration-step swapvm">
@@ -60,13 +55,12 @@ export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
             <span><b>1inch</b><small>Aqua + SwapVM</small></span>
             <i aria-hidden="true" className="status-dot" />
           </div>
-          <strong>Price risk and settle</strong>
           <p>
             {lastTrade
-              ? `block ${lastTrade.blockNumber} · ${lastTrade.feeBps} bps`
+              ? `${lastTrade.tier.toUpperCase()} · ${lastTrade.feeBps} bps`
               : `router ${shortAddress(state.contracts.router)} · opcode ${state.execution?.opcode ?? 34}`}
           </p>
-          <small>Deployed contracts · live Aqua inventory</small>
+          <small>Live Aqua inventory</small>
         </div>
         <div className="flow-arrow" aria-hidden="true">→</div>
         <div className={`integration-step nuthatch ${nuthatchConnected ? 'connected' : 'waiting'}`}>
@@ -75,13 +69,8 @@ export function IntegrationFlow({ state, lastTrade }: IntegrationFlowProps) {
             <span><b>The Graph</b><small>Nuthatch</small></span>
             <i aria-hidden="true" className="status-dot" />
           </div>
-          <strong>Index the receipt</strong>
           <p>{indexLabel}</p>
-          <small>
-            {nuthatchConnected
-              ? `SQL + MCP · ${activity.lagBlocks ?? 0} block lag`
-              : activity.error ?? 'Direct event reads preserve the demo'}
-          </small>
+          <small>{nuthatchConnected ? 'SQL + MCP' : activity.error ?? 'Chain fallback'}</small>
         </div>
       </div>
     </section>

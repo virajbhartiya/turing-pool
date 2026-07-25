@@ -1420,6 +1420,172 @@ footer p { margin: 0; text-align: right; }
 .compact-market-header h1 { font-size: clamp(24px, 2.5vw, 32px); }
 .compact-market-header .pair-title p { margin-top: 5px; }
 .view-workspace { padding-top: 18px; }
+
+.landing { padding-top: 30px; }
+.landing .eyebrow {
+  color: var(--human);
+  font: 800 11px var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.landing-hero {
+  min-height: 430px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(310px, 0.55fr);
+  align-items: center;
+  gap: clamp(36px, 7vw, 110px);
+  border-bottom: 1px solid var(--border);
+  padding: 38px 4px 54px;
+}
+.landing-hero h1 {
+  max-width: 900px;
+  margin: 18px 0 0;
+  font-size: clamp(46px, 6.4vw, 88px);
+  line-height: 0.96;
+  letter-spacing: -0.065em;
+}
+.landing-hero p {
+  max-width: 700px;
+  margin: 24px 0 0;
+  color: var(--text-2);
+  font-size: 17px;
+  line-height: 1.65;
+}
+.landing-actions { display: flex; gap: 9px; margin-top: 30px; }
+.landing-actions button,
+.landing-proof button {
+  min-height: 44px;
+  border: 1px solid var(--human);
+  border-radius: 2px;
+  padding: 0 18px;
+  background: var(--human);
+  color: #071013;
+  cursor: pointer;
+  font: 850 11px var(--mono);
+  text-transform: uppercase;
+}
+.landing-actions button.secondary { background: transparent; color: var(--human); }
+.landing-market {
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--human);
+  background: var(--panel);
+}
+.landing-market > span {
+  display: block;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 14px;
+  color: var(--muted);
+  font: 800 10px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.landing-market > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding: 17px 15px;
+}
+.landing-market > div:last-child { border-bottom: 0; }
+.landing-market small { color: var(--muted); font: 750 11px var(--mono); text-transform: uppercase; }
+.landing-market strong { color: var(--human); font: 650 28px var(--mono); }
+.landing-market > div:nth-child(3) strong { color: var(--bot); }
+.landing-market > div.target strong { color: var(--warn); }
+.landing-market em { margin-left: 4px; color: var(--muted); font: 10px var(--mono); font-style: normal; }
+.landing-math {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.55fr) minmax(520px, 1.45fr);
+  gap: 50px;
+  align-items: center;
+  padding: 64px 4px;
+}
+.landing-section-copy h2 { margin: 10px 0 0; font-size: clamp(26px, 3vw, 40px); letter-spacing: -0.04em; }
+.landing-section-copy p { max-width: 500px; margin: 14px 0 0; color: var(--text-2); font-size: 14px; line-height: 1.65; }
+.math-card { border: 1px solid var(--border); padding: 26px; background: var(--panel); }
+.math-formula,
+.math-live { display: flex; align-items: center; justify-content: center; gap: clamp(12px, 2vw, 30px); }
+.math-formula { font: 500 clamp(17px, 2.1vw, 28px) var(--mono); }
+.math-formula span { color: var(--text-2); }
+.math-formula i { color: var(--human); font-style: normal; }
+.math-formula b { color: var(--text); font-weight: 700; }
+.math-formula em,
+.math-live em { color: var(--muted); font-style: normal; }
+.math-formula .result b { color: var(--warn); }
+.math-live {
+  margin-top: 22px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+  color: var(--muted);
+  font: 750 13px var(--mono);
+}
+.math-live strong { color: var(--warn); font-size: 18px; }
+.math-card > small { display: block; margin-top: 18px; color: var(--muted); font: 10px/1.5 var(--mono); text-align: center; }
+.landing-flow { border-top: 1px solid var(--border); padding: 58px 4px 64px; }
+.landing-flow .landing-section-copy { display: flex; align-items: end; justify-content: space-between; gap: 24px; }
+.event-flow {
+  display: grid;
+  grid-template-columns: 1fr 22px 1fr 22px 1fr 22px 1fr;
+  align-items: stretch;
+  margin-top: 28px;
+}
+.event-flow > i { display: grid; place-items: center; color: var(--muted); font-style: normal; }
+.event-flow article {
+  min-height: 190px;
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--border-strong);
+  padding: 16px;
+  background: var(--panel);
+}
+.event-flow article > span { color: var(--muted); font: 800 10px var(--mono); }
+.event-flow .brand-logo { margin-top: 20px; }
+.event-flow article strong { display: block; margin-top: 18px; font-size: 15px; }
+.event-flow article p { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.landing-proof {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--human);
+  padding: 16px;
+  background: var(--panel);
+}
+.landing-proof > span { color: var(--human); font: 850 10px var(--mono); }
+.landing-proof > strong { font-size: 13px; }
+.landing-proof button { min-height: 34px; margin-left: auto; background: transparent; color: var(--human); }
+
+.protocol-panel-head { border: 1px solid var(--border); border-bottom: 0; }
+.integration-flow.compact .integration-step { min-height: 118px; padding: 13px; }
+.integration-flow.compact .integration-step p { margin-top: 13px; }
+.lean-controller { grid-template-columns: minmax(250px, 0.55fr) minmax(520px, 1.45fr); padding: 13px 15px; }
+.controller-copy.compact h2 { margin-top: 5px; font-size: 18px; }
+.controller-copy.compact > small { display: block; margin-top: 9px; color: var(--muted); font: 10px var(--mono); }
+.protocol-workspace > .evidence-section,
+.protocol-workspace > .protocol-section { margin-top: 9px; }
+
+@media (max-width: 1080px) {
+  .landing-hero { grid-template-columns: 1fr; min-height: 0; }
+  .landing-market { max-width: 620px; }
+  .landing-math { grid-template-columns: 1fr; gap: 28px; }
+  .event-flow { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .event-flow > i { display: none; }
+  .lean-controller { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+  .landing { padding-top: 8px; }
+  .landing-hero { padding-block: 32px 40px; }
+  .landing-hero h1 { font-size: clamp(40px, 14vw, 58px); }
+  .landing-hero p { font-size: 15px; }
+  .landing-actions { display: grid; }
+  .landing-math,
+  .landing-flow { padding-block: 42px; }
+  .math-card { padding: 18px 12px; }
+  .math-formula,
+  .math-live { flex-wrap: wrap; }
+  .event-flow { grid-template-columns: 1fr; }
+  .landing-proof { align-items: flex-start; flex-direction: column; }
+  .landing-proof button { width: 100%; margin-left: 0; }
+}
 .view-heading {
   min-height: 168px;
   display: grid;

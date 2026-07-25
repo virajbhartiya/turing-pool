@@ -1,10 +1,9 @@
 import { shortAddress } from '../lib/format';
-import type { ConnectedWalletQuote, ProtocolState } from '../types';
+import type { ConnectedWalletQuote } from '../types';
 
-export type DexView = 'trade' | 'pool' | 'verify' | 'protocol';
+export type DexView = 'overview' | 'trade' | 'pool' | 'verify' | 'protocol';
 
 interface DexHeaderProps {
-  state: ProtocolState;
   activeView: DexView;
   onViewChange: (view: DexView) => void;
   account?: string;
@@ -19,6 +18,7 @@ interface DexHeaderProps {
 }
 
 const NAVIGATION: Array<{ view: DexView; label: string; key: string }> = [
+  { view: 'overview', label: 'Overview', key: 'F0' },
   { view: 'trade', label: 'Trade', key: 'F1' },
   { view: 'pool', label: 'Pool', key: 'F2' },
   { view: 'verify', label: 'Verify', key: 'F3' },
@@ -26,7 +26,6 @@ const NAVIGATION: Array<{ view: DexView; label: string; key: string }> = [
 ];
 
 export function DexHeader({
-  state,
   activeView,
   onViewChange,
   account,
@@ -47,7 +46,6 @@ export function DexHeader({
         <div className="dex-network">
           <i className={refreshing ? 'refreshing' : undefined} />
           <strong>Base Sepolia</strong>
-          <span>Block {state.runtime.latestBlock}</span>
         </div>
         <div className="dex-header-actions">
           <button
@@ -99,7 +97,7 @@ export function DexHeader({
       <div className="dex-navbar">
         <button
           className="dex-brand"
-          onClick={() => onViewChange('trade')}
+          onClick={() => onViewChange('overview')}
           type="button"
         >
           <span>T</span>

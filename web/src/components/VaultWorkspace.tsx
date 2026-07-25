@@ -418,7 +418,6 @@ export function VaultWorkspace({
         <div>
           <span>Permissionless liquidity</span>
           <h2>Pool vaults</h2>
-          <p>Deposit inventory, receive transferable LP shares, and trade the vault’s live opcode-34 Aqua order.</p>
         </div>
         <div className="vault-registry-status">
           <b className={registry?.enabled ? 'online' : undefined}>
@@ -603,10 +602,6 @@ export function VaultWorkspace({
                   <button className="vault-token-button" onClick={() => void watchLpToken()} type="button">
                     {lpTokenAdded ? `${vault.shareToken.symbol} added to MetaMask` : `Add ${vault.shareToken.symbol} to MetaMask`}
                   </button>
-                  <small>
-                    The vault contract mints these transferable shares in <code>deposit()</code>.
-                    P&amp;L uses on-chain deposit/withdrawal events and your live redeemable claim.
-                  </small>
                 </article>
 
                 <VaultStatus status={status} explorerUrl={explorerUrl} />

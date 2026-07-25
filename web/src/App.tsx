@@ -5,6 +5,7 @@ import { DexHeader, type DexView } from './components/DexHeader';
 import { FeeControllerPanel } from './components/FeeControllerPanel';
 import { IdentityWorkspace } from './components/IdentityWorkspace';
 import { IntegrationFlow } from './components/IntegrationFlow';
+import { LandingPage } from './components/LandingPage';
 import { LPEconomicsPanel } from './components/LPEconomicsPanel';
 import { MarketHeader } from './components/MarketHeader';
 import { ProtocolDetails } from './components/ProtocolDetails';
@@ -131,9 +132,9 @@ export function App() {
   const [lastTrade, setLastTrade] = useState<DemoTradeResult>();
   const initialView = window.location.hash.replace('#', '') as DexView;
   const [activeView, setActiveView] = useState<DexView>(
-    ['trade', 'pool', 'verify', 'protocol'].includes(initialView)
+    ['overview', 'trade', 'pool', 'verify', 'protocol'].includes(initialView)
       ? initialView
-      : 'trade',
+      : 'overview',
   );
   const [theme, setTheme] = useState<'dark' | 'light'>(() =>
     window.localStorage.getItem('turing-pool-theme') === 'light' ? 'light' : 'dark',
@@ -147,7 +148,7 @@ export function App() {
   useEffect(() => {
     const selectHashView = () => {
       const view = window.location.hash.replace('#', '') as DexView;
-      if (['trade', 'pool', 'verify', 'protocol'].includes(view)) setActiveView(view);
+      if (['overview', 'trade', 'pool', 'verify', 'protocol'].includes(view)) setActiveView(view);
     };
     window.addEventListener('hashchange', selectHashView);
     return () => window.removeEventListener('hashchange', selectHashView);
@@ -490,9 +491,12 @@ export function App() {
         onViewChange={selectView}
         quote={walletQuote}
         refreshing={refreshing}
-        state={state}
         theme={theme}
       />
+
+      {activeView === 'overview' && (
+        <LandingPage state={state} onNavigate={selectView} />
+      )}
 
       {activeView === 'trade' && (
         <>
@@ -557,7 +561,7 @@ export function App() {
       {activeView === 'protocol' && (
         <section className="view-workspace protocol-workspace">
           <IntegrationFlow state={state} lastTrade={lastTrade} />
-          <FeeControllerPanel controller={state.feeController} copied={copied} onReplay={copyReplayCommand} />
+          <FeeControllerPanel controller={state.feeController} />
           <EvidenceLedger state={state} />
           <ProtocolDetails state={state} />
         </section>
