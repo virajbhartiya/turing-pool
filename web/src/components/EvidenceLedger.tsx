@@ -7,53 +7,12 @@ interface EvidenceLedgerProps {
 
 export function EvidenceLedger({ state }: EvidenceLedgerProps) {
   const isSnapshot = state.runtime.mode === 'hosted-preview';
-  const latestWide = state.swaps.findLast((swap) => !swap.tight && swap.transactionHash);
-  const latestTight = state.swaps.findLast((swap) => swap.tight && swap.transactionHash);
-  const latestReprice = state.strategyHistory.findLast((entry) => entry.kind === 'repriced' && entry.transactionHash);
-  const proofs = [
-    latestWide && {
-      label: 'Anonymous · wide fill',
-      value: `${formatUnits(latestWide.amountIn)} tETH → ${formatUnits(latestWide.amountOut)} tUSD`,
-      detail: `${latestWide.feeBps} bps · block ${latestWide.blockNumber}`,
-      href: !isSnapshot ? transactionExplorer(state.runtime.chainId, latestWide.transactionHash) : undefined,
-    },
-    latestTight && {
-      label: 'Human-backed · tight fill',
-      value: `${formatUnits(latestTight.amountIn)} tETH → ${formatUnits(latestTight.amountOut)} tUSD`,
-      detail: `${latestTight.feeBps} bps · block ${latestTight.blockNumber}`,
-      href: !isSnapshot ? transactionExplorer(state.runtime.chainId, latestTight.transactionHash) : undefined,
-    },
-    latestReprice && {
-      label: 'Controller · Aqua strategy',
-      value: `${latestReprice.from?.tightFeeBps}/${latestReprice.from?.wideFeeBps} → ${latestReprice.to.tightFeeBps}/${latestReprice.to.wideFeeBps} bps`,
-      detail: `dock + ship · block ${latestReprice.blockNumber}`,
-      href: !isSnapshot ? transactionExplorer(state.runtime.chainId, latestReprice.transactionHash) : undefined,
-    },
-  ].filter(Boolean) as Array<{ label: string; value: string; detail: string; href?: string }>;
 
   return (
     <section className="evidence-section">
       <div className="section-head">
         <div><span>Audit trail</span><h2>On-chain receipts</h2></div>
-        <p>{isSnapshot ? 'Recorded lifecycle · run locally for live links' : 'Every card opens an independent block-explorer receipt'}</p>
-      </div>
-
-      <div className="proof-grid">
-        {proofs.map((proof) => {
-          const content = (
-            <>
-              <span>{proof.label}</span>
-              <strong>{proof.value}</strong>
-              <small>{proof.detail}</small>
-              <b>{proof.href ? '↗' : 'RECORDED'}</b>
-            </>
-          );
-          return proof.href ? (
-            <a href={proof.href} key={proof.label} rel="noreferrer" target="_blank">{content}</a>
-          ) : (
-            <div key={proof.label}>{content}</div>
-          );
-        })}
+        <p>{isSnapshot ? 'Recorded lifecycle · run locally for live links' : 'Select a block to verify the fill independently'}</p>
       </div>
 
       <div className="ledger-panel">

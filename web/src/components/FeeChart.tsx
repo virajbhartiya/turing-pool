@@ -38,8 +38,8 @@ export function FeeChart({ controller, swaps }: FeeChartProps) {
       <svg viewBox="0 0 800 220" preserveAspectRatio="none" aria-hidden="true">
         <defs>
           <linearGradient id="activity-area" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#58c8f4" stopOpacity=".38" />
-            <stop offset="100%" stopColor="#58c8f4" stopOpacity="0" />
+            <stop offset="0%" stopColor="#f2a900" stopOpacity=".28" />
+            <stop offset="100%" stopColor="#f2a900" stopOpacity="0" />
           </linearGradient>
         </defs>
         <path className="fill-area" d={areaPath} />

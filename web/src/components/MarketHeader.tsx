@@ -57,37 +57,43 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
       <header className="topbar">
         <div className="topbar-left">
           <a className="brand" href="#market" aria-label="Turing Pool market">
-            <span className="brand-mark">T</span>
-            <span>Turing Pool</span>
+            <span className="brand-mark">TP</span>
+            <span className="brand-copy">
+              <strong>Turing Pool</strong>
+              <small>Risk execution</small>
+            </span>
           </a>
           <nav className="primary-nav" aria-label="Primary navigation">
-            <a className="active" href="#market">Market</a>
-            <a href="#activity">Activity</a>
-            <a href="#risk">Risk</a>
+            <a className="active" href="#market"><kbd>F1</kbd> Market</a>
+            <a href="#activity"><kbd>F2</kbd> Execution</a>
+            <a href="#risk"><kbd>F3</kbd> Risk</a>
           </nav>
         </div>
-        <div className="network-pill">
-          <i className={refreshing ? 'refreshing' : undefined} />
-          {isSnapshot ? 'Hosted snapshot' : `Live · ${state.runtime.label}`}
+        <div className="topbar-status">
+          <span className="block-tick">BLK {state.runtime.latestBlock}</span>
+          <div className="network-pill">
+            <i className={refreshing ? 'refreshing' : undefined} />
+            {isSnapshot ? 'Hosted snapshot' : `Live · ${state.runtime.label}`}
+          </div>
         </div>
       </header>
 
       <section className="market-header" id="market">
         <div>
-          <div className="breadcrumb">Protocol / Markets / <span>tETH–tUSD</span></div>
+          <div className="breadcrumb">Risk markets / World Chain / <span>TETH–TUSD</span></div>
           <div className="pair-title">
             <span className="pair-icon" aria-hidden="true"><i>Ξ</i><i>$</i></span>
             <div>
-              <h1>Turing Pool <span>tETH / tUSD</span></h1>
-              <p>Identity-priced liquidity · adaptive fee market · {state.runtime.label}</p>
+              <h1>tETH / tUSD <span>Turing Pool</span></h1>
+              <p>IDENTITY-PRICED MAKER LIQUIDITY · ADAPTIVE FEE MARKET · {state.runtime.label}</p>
             </div>
           </div>
         </div>
         <div className="market-price">
-          <span>Verified agent quote</span>
+          <span>Verified executable quote</span>
           <strong>{humanPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
           <small>tUSD / tETH</small>
-          <em>▲ {(humanPrice - botPrice).toFixed(2)} vs anonymous</em>
+          <em>+{(humanPrice - botPrice).toFixed(2)} IDENTITY EDGE</em>
         </div>
       </section>
 
@@ -122,7 +128,7 @@ export function MarketHeader({ state, quotes, refreshing }: MarketHeaderProps) {
 
       <div className={`connection-bar ${isSnapshot ? 'snapshot' : 'connected'}`} role="status">
         <span><i />{isSnapshot ? 'Deterministic preview · no executable funds' : `RPC connected · chain ${state.runtime.chainId} · every quote is an on-chain eth_call`}</span>
-        <strong>on-chain volume controller</strong>
+        <strong>Market open · controller active</strong>
       </div>
 
       <details className="deployment-details">
