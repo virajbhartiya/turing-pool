@@ -157,13 +157,7 @@ h1 span { margin-left: 9px; color: var(--muted); font-size: 0.58em; font-weight:
 .integration-ribbon a:hover { border-color: var(--border-strong); background: var(--panel-2); }
 .brand-logo { width: 24px; height: 24px; flex: 0 0 auto; object-fit: contain; }
 .brand-logo-turing {
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(242, 169, 0, 0.45);
-  border-radius: 4px;
-  background: var(--accent-dim);
-  color: var(--accent);
-  font: 850 10px var(--mono);
+  filter: drop-shadow(0 0 5px rgba(45, 212, 167, 0.16));
 }
 .brand-logo-nuthatch {
   display: grid;
@@ -1499,17 +1493,12 @@ footer p { margin: 0; text-align: right; }
   cursor: pointer;
   text-align: left;
 }
-.dex-brand > span {
+.dex-brand-mark {
   grid-row: 1 / 3;
   width: 34px;
   height: 34px;
-  display: grid;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--human) 56%, transparent);
-  border-radius: 5px;
-  background: var(--human-dim);
-  color: var(--human);
-  font: 850 13px var(--mono);
+  display: block;
+  object-fit: contain;
 }
 .dex-brand strong { align-self: end; font-size: 13px; letter-spacing: 0.02em; text-transform: uppercase; }
 .dex-brand small { align-self: start; color: var(--muted); font: 10px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }

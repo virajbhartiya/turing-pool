@@ -18,7 +18,7 @@ export function LandingPage({ state, onNavigate }: LandingPageProps) {
     <section className="landing">
       <div className="landing-hero">
         <div>
-          <span className="eyebrow">Identity-priced liquidity</span>
+          <span className="eyebrow">Fees that know you’re real</span>
           <h1>
             Better prices for humans.
             <br />

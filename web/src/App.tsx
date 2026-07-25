@@ -31,7 +31,7 @@ function LoadingTerminal() {
   return (
     <div className="loading-terminal" role="status">
       <span />
-      <strong>Connecting to the Turing Pool market…</strong>
+      <strong>Connecting to the Turing Swap market…</strong>
       <small>Reading live strategy, quote, and activity state</small>
     </div>
   );
@@ -745,7 +745,7 @@ export function App() {
       )}
 
       <footer>
-        <span>Turing Pool · ETHGlobal Lisbon</span>
+        <span>Turing Swap · ETHGlobal Lisbon</span>
         {isSnapshot && <p>Hosted deterministic preview</p>}
       </footer>
     </main>

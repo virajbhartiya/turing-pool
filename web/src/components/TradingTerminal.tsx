@@ -69,7 +69,7 @@ function tradeErrorHeadline(error: DemoTradeError): string {
 }
 
 const EXECUTION_SERVICES = {
-  wallet: { brand: 'turing', label: 'Turing Pool execution service' },
+  wallet: { brand: 'turing', label: 'Turing Swap execution service' },
   identity: { brand: 'world', label: 'Canonical World AgentBook' },
   allowance: { brand: 'oneinch', label: '1inch SwapVM Router' },
   simulation: { brand: 'oneinch', label: '1inch SwapVM' },
@@ -273,7 +273,7 @@ export function TradingTerminal({
         ? 'WORLD ID VERIFIED'
         : 'SEARCHER'
       : 'MARKET';
-    document.title = `${accountLabel} · Turing Pool`;
+    document.title = `${accountLabel} · Turing Swap`;
   }, [connectedAccount, walletQuote?.humanBacked]);
 
   return (

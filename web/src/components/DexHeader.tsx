@@ -45,8 +45,12 @@ export function DexHeader({
           onClick={() => onViewChange('overview')}
           type="button"
         >
-          <span>T</span>
-          <strong>Turing Pool</strong>
+          <img
+            alt=""
+            className="dex-brand-mark"
+            src="/brand/turing-swap-mark.svg"
+          />
+          <strong>Turing Swap</strong>
         </button>
         <nav aria-label="Product navigation">
           {NAVIGATION.map((item) => (

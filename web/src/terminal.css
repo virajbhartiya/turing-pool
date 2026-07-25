@@ -113,14 +113,10 @@ body::before {
   grid-template-columns: 36px auto;
 }
 
-.dex-brand > span {
+.dex-brand-mark {
   width: 36px;
   height: 36px;
-  border-color: var(--accent);
-  border-radius: 2px;
-  background: var(--accent-dim);
-  color: var(--accent);
-  box-shadow: inset 0 0 18px rgba(255, 173, 31, 0.05);
+  filter: drop-shadow(0 0 8px rgba(45, 212, 167, 0.12));
 }
 
 .dex-brand strong {

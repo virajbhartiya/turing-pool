@@ -8,4 +8,8 @@ contracts/broadcast/
 *.log
 dist/
 public/
+!web/public/
+web/public/*
+!web/public/brand/
+!web/public/brand/**
 .vercel

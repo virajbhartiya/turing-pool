@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 64 64" role="img" aria-label="Turing Swap">
+  <rect width="64" height="64" fill="#08090A"/>
+  <circle cx="14" cy="14" r="5" fill="#2DD4A7"/>
+  <path d="M6.5 26a7.5 8 0 0 1 15 0z" fill="#2DD4A7"/>
+  <path d="M26 20h29m-7-6.5 7 6.5-7 6.5" fill="none" stroke="#2DD4A7" stroke-width="3"/>
+  <path d="M50 38v4" stroke="#F26D6D" stroke-width="2.5"/>
+  <rect x="42.5" y="42" width="15" height="12" fill="none" stroke="#F26D6D" stroke-width="2.5"/>
+  <rect x="46" y="46" width="3" height="4" fill="#F26D6D"/>
+  <rect x="51" y="46" width="3" height="4" fill="#F26D6D"/>
+  <path d="M38 48H11m7-7-8 7 8 7" fill="none" stroke="#F26D6D" stroke-width="7"/>
+</svg>

@@ -164,7 +164,7 @@ export function ProtocolWorkspace({ state, lastTrade }: ProtocolWorkspaceProps) 
         <article className="controller">
           <header>
             <b>03</b>
-            <span className="brand-logo brand-logo-turing" aria-hidden="true">TP</span>
+            <BrandLogo brand="turing" />
             <span>Fee feedback</span>
           </header>
           <h2>Record notional and solve again</h2>

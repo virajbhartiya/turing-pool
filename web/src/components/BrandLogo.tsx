@@ -2,7 +2,14 @@ type Brand = 'turing' | 'world' | 'oneinch' | 'thegraph' | 'nuthatch';
 
 export function BrandLogo({ brand }: { brand: Brand }) {
   if (brand === 'turing') {
-    return <span aria-hidden="true" className="brand-logo brand-logo-turing">TP</span>;
+    return (
+      <img
+        alt=""
+        aria-hidden="true"
+        className="brand-logo brand-logo-turing"
+        src="/brand/turing-swap-mark.svg"
+      />
+    );
   }
 
   if (brand === 'world') {

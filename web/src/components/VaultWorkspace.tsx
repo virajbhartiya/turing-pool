@@ -644,7 +644,7 @@ function VaultStatus({
       <p>{status.detail}</p>
       {status.state !== 'idle' && (
         <ol>
-          <li className="complete"><i>1</i><span>Factory + vault state</span><b>Turing Pool</b></li>
+          <li className="complete"><i>1</i><span>Factory + vault state</span><b>Turing Swap</b></li>
           <li className={['wallet', 'mining', 'confirmed'].includes(status.state) ? 'complete' : undefined}><i>2</i><span>Wallet approval</span><b>Connected wallet</b></li>
           <li className={status.state === 'confirmed' ? 'complete' : undefined}><i>3</i><span>Aqua order migration / settlement</span><b>1inch</b></li>
           <li className={status.state === 'confirmed' ? 'complete' : undefined}><i>4</i><span>Position + fee state refreshed</span><b>Indexer</b></li>

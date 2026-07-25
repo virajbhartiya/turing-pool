@@ -130,8 +130,8 @@ bytes32 nextOrderHash =
 
         <article className="controller">
           <div className="source-card-head">
-            <span className="brand-logo brand-logo-turing" aria-hidden="true">TP</span>
-            <div><span>Turing Pool</span><strong>On-chain fee controller</strong></div>
+            <BrandLogo brand="turing" />
+            <div><span>Turing Swap</span><strong>On-chain fee controller</strong></div>
           </div>
           <h3>Reprice from executed notional</h3>
           <p>
