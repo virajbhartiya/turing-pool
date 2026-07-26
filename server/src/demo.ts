@@ -91,7 +91,7 @@ export function describeTradeError(
   }
 
   if (
-    /TransactionReceiptNotFoundError|transaction receipt.*(?:could not be found|not found)|timed out.*transaction receipt|waitForTransactionReceipt/i.test(
+    /TransactionReceiptNotFoundError|transaction receipt.*(?:could not be found|not found)|timed out.*transaction receipt|waitForTransactionReceipt|request took too long|request timed out|TimeoutError/i.test(
       description,
     )
   ) {

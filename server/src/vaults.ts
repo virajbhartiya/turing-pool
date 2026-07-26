@@ -92,6 +92,7 @@ const ZERO_HASH = `0x${'00'.repeat(32)}` as Hex;
 const ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 const tokenMetadataCache = new Map<string, Promise<TokenMetadata>>();
 const LIQUIDITY_ACCOUNTING_TTL_MS = 15_000;
+const EXECUTION_VIEW_TTL_MS = 2_000;
 const VAULT_STATIC_TTL_MS = 60 * 60 * 1_000;
 
 export function publicVaultHistoryError(_error: unknown): string {
@@ -170,10 +171,7 @@ export async function vaultDirectionForPair(
   const vault = parseVaultAddress(vaultInput);
   const tokenIn = parseContractAddress(tokenInInput, 'tokenIn');
   const tokenOut = parseContractAddress(tokenOutInput, 'tokenOut');
-  const [token0, token1] = await Promise.all([
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'TOKEN0' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'TOKEN1' }),
-  ]);
+  const { token0, token1 } = await vaultStaticCache.get(vault);
   if (
     tokenIn.toLowerCase() === token0.toLowerCase() &&
     tokenOut.toLowerCase() === token1.toLowerCase()
@@ -297,40 +295,45 @@ async function readFeeSchedule(quota: Address, token: Address): Promise<OnChainF
   };
 }
 
-async function executionView(vault: Address): Promise<RouterExecutionView> {
-  await assertRegisteredVault(vault);
-  const [token0, token1, quota, router, orderHash, order] = await Promise.all([
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'TOKEN0' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'TOKEN1' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'QUOTA' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'ROUTER' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'currentOrderHash' }),
-    client.readContract({ address: vault, abi: vaultAbi, functionName: 'currentOrder' }),
-  ]);
-  if (orderHash === ZERO_HASH) throw new Error('vault has no active Aqua order; add liquidity first');
-  const program = parseHumanGateProgram(order.data);
-  if (
-    order.maker.toLowerCase() !== vault.toLowerCase() ||
-    program.quota.toLowerCase() !== quota.toLowerCase() ||
-    program.agentBook.toLowerCase() !== deployments.agentBook.toLowerCase()
-  ) {
-    throw new Error('vault order does not match its maker, quota, or canonical AgentBook');
-  }
-  return {
-    order,
-    orderHash,
-    token0,
-    token1,
-    strategy: {
-      maker: vault,
+const executionViewCache = createAsyncTtlCache({
+  ttlMs: EXECUTION_VIEW_TTL_MS,
+  load: async (vault: Address): Promise<RouterExecutionView> => {
+    const [{ token0, token1, quota }, orderHash, order] = await Promise.all([
+      vaultStaticCache.get(vault),
+      client.readContract({ address: vault, abi: vaultAbi, functionName: 'currentOrderHash' }),
+      client.readContract({ address: vault, abi: vaultAbi, functionName: 'currentOrder' }),
+    ]);
+    if (orderHash === ZERO_HASH) {
+      throw new Error('vault has no active Aqua order; add liquidity first');
+    }
+    const program = parseHumanGateProgram(order.data);
+    if (
+      order.maker.toLowerCase() !== vault.toLowerCase() ||
+      program.quota.toLowerCase() !== quota.toLowerCase() ||
+      program.agentBook.toLowerCase() !== deployments.agentBook.toLowerCase()
+    ) {
+      throw new Error('vault order does not match its maker, quota, or canonical AgentBook');
+    }
+    return {
+      order,
+      orderHash,
       token0,
       token1,
-      wideFeeBps: BigInt(program.wideFeeBps),
-      tightFeeBps: BigInt(program.tightFeeBps),
-      salt: ZERO_HASH,
-    },
-    program,
-  };
+      strategy: {
+        maker: vault,
+        token0,
+        token1,
+        wideFeeBps: BigInt(program.wideFeeBps),
+        tightFeeBps: BigInt(program.tightFeeBps),
+        salt: ZERO_HASH,
+      },
+      program,
+    };
+  },
+});
+
+async function executionView(vault: Address): Promise<RouterExecutionView> {
+  return executionViewCache.get(vault);
 }
 
 export async function vaultPoolState(vaultInput: unknown) {
@@ -653,7 +656,7 @@ export async function quoteVaultWallet(
 }
 
 async function vaultRouter(vault: Address): Promise<Address> {
-  return client.readContract({ address: vault, abi: vaultAbi, functionName: 'ROUTER' });
+  return (await vaultStaticCache.get(vault)).router;
 }
 
 export async function prepareVaultTrade(

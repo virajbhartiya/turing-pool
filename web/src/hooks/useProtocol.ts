@@ -86,12 +86,22 @@ export function useProtocol(
 
   useEffect(() => {
     const controller = new AbortController();
-    void refresh(controller.signal);
-    const timer = window.setInterval(() => void refresh(controller.signal), pollInterval);
+    let stopped = false;
+    let timer: number | undefined;
+
+    const poll = async () => {
+      await refresh(controller.signal);
+      if (!stopped && !controller.signal.aborted) {
+        timer = window.setTimeout(() => void poll(), pollInterval);
+      }
+    };
+
+    void poll();
 
     return () => {
+      stopped = true;
       controller.abort();
-      window.clearInterval(timer);
+      if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [pollInterval, refresh]);
 
