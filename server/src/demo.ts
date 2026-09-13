@@ -15,8 +15,14 @@ export function parseQuoteAmount(value: string | undefined): bigint {
   return amount;
 }
 
-export function amountForOverQuotaQuote(remaining: bigint): bigint {
-  return remaining + 1n;
+export function amountForOverQuotaQuote(
+  remaining: bigint,
+  minimumExecutableAmount = 1n,
+): bigint {
+  const oneWeiOverQuota = remaining + 1n;
+  return oneWeiOverQuota > minimumExecutableAmount
+    ? oneWeiOverQuota
+    : minimumExecutableAmount;
 }
 
 export function parseDemoTradeDirection(value: unknown): DemoTradeDirection {
@@ -155,7 +161,7 @@ export function classifyRuntime(
     }
     return {
       mode: 'local',
-      label: 'Local Anvil · mock AgentBook',
+      label: 'World Chain',
       agentBook: 'mock',
     };
   }

@@ -9,6 +9,24 @@ export interface AsyncTtlCacheOptions<Key, Value> {
   ttlMs: number;
 }
 
+export interface BlockSnapshot {
+  latestBlock: bigint;
+  loadedAt: number;
+}
+
+export function canReuseBlockSnapshot<Snapshot extends BlockSnapshot>(
+  snapshot: Snapshot | undefined,
+  latestBlock: bigint,
+  ttlMs: number,
+  now = Date.now(),
+): snapshot is Snapshot {
+  return Boolean(
+    snapshot &&
+    snapshot.latestBlock === latestBlock &&
+    now - snapshot.loadedAt < ttlMs,
+  );
+}
+
 interface CacheEntry<Value> {
   expiresAt?: number;
   promise: Promise<Value>;

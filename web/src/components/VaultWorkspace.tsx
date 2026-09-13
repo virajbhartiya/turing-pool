@@ -239,7 +239,7 @@ export function VaultWorkspace({
       await onConnectWallet(false);
       return null;
     }
-    await ensureExecutionChain(provider);
+    await ensureExecutionChain(provider, registry?.chainId);
     return { account, provider };
   }
 
@@ -361,7 +361,7 @@ export function VaultWorkspace({
         await onConnectWallet(false);
         return;
       }
-      await ensureExecutionChain(provider);
+      await ensureExecutionChain(provider, registry?.chainId);
       const added = await addTokenToWallet(provider, vault.shareToken);
       setLpTokenAdded(added);
     } catch (error) {
@@ -382,25 +382,24 @@ export function VaultWorkspace({
 
   return (
     <section className="vault-workspace" id="liquidity">
-      <header className="section-head vault-heading">
+      <header className="page-heading vault-heading">
         <div>
-          <span>Permissionless liquidity</span>
-          <h2>Pool vaults</h2>
+          <span className="eyebrow">Put your assets to work</span>
+          <h1>Liquidity</h1>
+          <p>Supply both tokens to the pool and manage your share.</p>
         </div>
         <div className="vault-registry-status">
           <b className={registry?.enabled ? 'online' : undefined}>
-            {registry?.enabled ? 'FACTORY LIVE' : 'FACTORY NOT CONFIGURED'}
+            {registry?.enabled ? 'Pool available' : 'Pool unavailable'}
           </b>
-          <small>{registry?.enabled ? `${registry.vaults.length} pool${registry.vaults.length === 1 ? '' : 's'} available` : 'HumanGate v2 required'}</small>
         </div>
       </header>
 
       {loadError && <div className="vault-banner error">{loadError}</div>}
       {!registry?.enabled ? (
         <div className="vault-empty">
-          <strong>The LP interface is ready for a deployment manifest.</strong>
-          <p>{registry?.reason ?? 'Reading the configured vault factory…'}</p>
-          <small>Set <code>VAULT_FACTORY</code> after deploying the HumanGate v2 router and factory.</small>
+          <strong>{registry ? 'Liquidity is currently unavailable' : 'Loading liquidity pools…'}</strong>
+          <p>{registry?.reason ?? 'Getting the latest pool balances.'}</p>
         </div>
       ) : (
         <>
@@ -449,7 +448,7 @@ export function VaultWorkspace({
                 <div><span>Market</span><strong>{vault.token0.symbol} / {vault.token1.symbol}</strong><small>Aqua order {vault.strategyActive ? 'active' : 'inactive'}</small></div>
                 <div><span>Live fees</span><strong>{vault.feeSchedules.token0.tightFeeBps} / {vault.feeSchedules.token0.wideFeeBps} bps</strong><small>verified retail / searcher · {vault.feeSchedules.token0.targetFeeBps} bps target</small></div>
                 <div><span>Pool inventory</span><strong>{formatUnits(vault.reserves.token0, vault.token0.decimals, 4)} {vault.token0.symbol}</strong><small>{formatUnits(vault.reserves.token1, vault.token1.decimals, 4)} {vault.token1.symbol}</small></div>
-                <div><span>My position</span><strong>{ownershipLabel}</strong><small>{formatUnits(vault.position.shares, 18, 4)} {vault.shareToken.symbol}</small></div>
+                <div><span>My position</span><strong>{account ? ownershipLabel : '—'}</strong><small>{account ? `${formatUnits(vault.position.shares, 18, 4)} ${vault.shareToken.symbol}` : 'Connect your wallet'}</small></div>
               </div>
 
               {lastConfirmed && (
@@ -480,14 +479,14 @@ export function VaultWorkspace({
                   {action === 'deposit' && (
                     <>
                       <span>Add liquidity</span>
-                      <h3>Mint {vault.shareToken.symbol}</h3>
-                      <p>Set the most you will supply. The live quote below shows the exact two-token ratio the vault can consume.</p>
+                      <h3>Supply tokens</h3>
+                      <p>Choose a maximum for each token. Your deposit follows the current pool ratio.</p>
                       <label className="vault-amount">Maximum {vault.token0.symbol}<input inputMode="decimal" value={deposit0} onChange={(event) => setDeposit0(event.target.value)} /><b>{vault.token0.symbol}</b></label>
                       <label className="vault-amount">Maximum {vault.token1.symbol}<input inputMode="decimal" value={deposit1} onChange={(event) => setDeposit1(event.target.value)} /><b>{vault.token1.symbol}</b></label>
                       <div className={`vault-deposit-preview ${!depositPreview || depositPreview.shares === 0n ? 'invalid' : ''}`}>
                         <header>
                           <span>Live deposit quote</span>
-                          <b>Two-sided · current pool ratio</b>
+                          <b>Current pool ratio</b>
                         </header>
                         {depositPreview && depositPreview.shares > 0n ? (
                           <>
@@ -521,9 +520,9 @@ export function VaultWorkspace({
                           <p>Enter positive amounts for both assets. This vault does not accept one-sided deposits.</p>
                         )}
                       </div>
-                      <div className="vault-balance-row"><span>Wallet</span><b>{formatUnits(vault.position.token0Balance, vault.token0.decimals, 4)} {vault.token0.symbol}</b><b>{formatUnits(vault.position.token1Balance, vault.token1.decimals, 4)} {vault.token1.symbol}</b></div>
+                      {account && <div className="vault-balance-row"><span>Wallet</span><b>{formatUnits(vault.position.token0Balance, vault.token0.decimals, 4)} {vault.token0.symbol}</b><b>{formatUnits(vault.position.token1Balance, vault.token1.decimals, 4)} {vault.token1.symbol}</b></div>}
                       <button className="vault-primary" disabled={vault.paused || actionPending || !depositPreview || depositPreview.shares === 0n} onClick={() => void addLiquidity()} type="button">
-                        {!account ? 'Connect wallet to deposit' : vault.paused ? 'Pool deposits paused' : 'Approve assets & add liquidity'}
+                        {!account ? 'Connect wallet to deposit' : vault.paused ? 'Pool deposits paused' : 'Add liquidity'}
                       </button>
                     </>
                   )}
@@ -531,8 +530,8 @@ export function VaultWorkspace({
                   {action === 'redeem' && (
                     <>
                       <span>Remove liquidity</span>
-                      <h3>Redeem LP shares</h3>
-                      <p>Receive the same pro-rata fraction of both live reserves. Withdrawals remain open while paused.</p>
+                      <h3>Withdraw your liquidity</h3>
+                      <p>Choose how much of your position to withdraw. You’ll receive both tokens.</p>
                       <div className="redeem-options">
                         {[25, 50, 75, 100].map((percent) => (
                           <button className={redeemPercent === percent ? 'active' : undefined} key={percent} onClick={() => setRedeemPercent(percent)} type="button">{percent}%</button>

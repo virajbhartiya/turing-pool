@@ -20,6 +20,8 @@ export default defineConfig({
       '/vaults': 'http://localhost:4021',
       '/faucet': 'http://localhost:4021',
       '/identity': 'http://localhost:4021',
+      '/autopilot': 'http://localhost:4021',
+      '/market': 'http://localhost:4021',
     },
   },
 });

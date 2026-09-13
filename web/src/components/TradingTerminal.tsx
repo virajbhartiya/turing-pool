@@ -19,8 +19,7 @@ type Lane = 'human' | 'bot';
 interface TradingTerminalProps {
   state: ProtocolState;
   quotes: DemoQuotes;
-  onReplay: () => void;
-  onTrade: (amountIn: string, direction: DemoTradeDirection) => Promise<void>;
+  onTrade: (amountIn: string, direction: DemoTradeDirection, slippageBps: number) => Promise<void>;
   walletInstalled: boolean;
   walletConnecting: boolean;
   connectedAccount?: string;
@@ -55,6 +54,22 @@ const TRADE_SIZES = {
   DemoTradeDirection,
   ReadonlyArray<{ label: string; amountIn: string }>
 >;
+
+function formatEditableAmount(amountIn: string): string {
+  const digits = BigInt(amountIn).toString().padStart(19, '0');
+  const whole = digits.slice(0, -18);
+  const fraction = digits.slice(-18).replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction}` : whole;
+}
+
+function parseEditableAmount(value: string): string | undefined {
+  if (value === '' || !/^\d*(?:\.\d{0,18})?$/.test(value)) return undefined;
+  const [whole = '0', fraction = ''] = value.split('.');
+  const units =
+    BigInt(whole || '0') * 10n ** 18n +
+    BigInt((fraction + '0'.repeat(18)).slice(0, 18));
+  return units > 0n ? units.toString() : undefined;
+}
 
 function tradeErrorHeadline(error: DemoTradeError): string {
   if (error.code === 'rpc_rate_limited') return 'Network busy · no trade sent';
@@ -98,7 +113,7 @@ function ExecutionTrace({
   pending: boolean;
   progress: DemoTradeProgress[];
 }) {
-  const [expanded, setExpanded] = useState(pending);
+  const [expanded, setExpanded] = useState(false);
 
   const failed = progress.some((step) => step.status === 'error');
   const complete =
@@ -108,9 +123,7 @@ function ExecutionTrace({
     progress.every((step) => step.status === 'complete');
 
   useEffect(() => {
-    if (pending) {
-      setExpanded(true);
-    } else if (complete) {
+    if (complete) {
       setExpanded(false);
     }
   }, [complete, pending]);
@@ -121,26 +134,17 @@ function ExecutionTrace({
   const currentStep =
     progress.findLast((step) => step.status === 'active') ?? progress.at(-1);
   const currentService = currentStep ? EXECUTION_SERVICES[currentStep.stage] : undefined;
-  const milestones = progress.filter((step) =>
-    ['identity', 'simulation', 'settlement', 'refresh'].includes(step.stage),
-  );
-  const visibleProgress = expanded
-    ? progress
-    : pending || failed
-      ? progress.slice(-3)
-      : milestones.length > 0
-        ? milestones
-        : progress.slice(-3);
+  const visibleProgress = expanded ? progress : currentStep ? [currentStep] : [];
 
   return (
     <section className={`execution-trace ${lane}`} aria-live="polite">
       <header>
         <div>
-          <span>Live execution trace</span>
+          <span>Transaction status</span>
           <small>
             {pending && currentService
               ? `Using ${currentService.label}`
-              : 'Backend and chain events only'}
+              : 'View your transaction progress'}
           </small>
         </div>
         <div className="trace-actions">
@@ -151,7 +155,7 @@ function ExecutionTrace({
             onClick={() => setExpanded((current) => !current)}
             type="button"
           >
-            {expanded ? 'Condense' : `Show all ${progress.length} steps`}
+            {expanded ? 'Hide details' : 'Technical details'}
           </button>
         </div>
       </header>
@@ -171,8 +175,8 @@ function ExecutionTrace({
               <div>
                 <strong>{step.title}</strong>
                 <small>{step.detail}</small>
-                <em>{EXECUTION_SERVICES[step.stage].label}</em>
-                {step.queries && step.queries.length > 0 && (
+                {expanded && <em>{EXECUTION_SERVICES[step.stage].label}</em>}
+                {expanded && step.queries && step.queries.length > 0 && (
                   <div className="trace-query-list">
                     {step.queries.map((query, queryIndex) => (
                       <div
@@ -217,7 +221,6 @@ function ExecutionTrace({
 export function TradingTerminal({
   state,
   quotes,
-  onReplay,
   onTrade,
   walletInstalled,
   walletConnecting,
@@ -239,14 +242,17 @@ export function TradingTerminal({
 }: TradingTerminalProps) {
   const [slippageBps, setSlippageBps] = useState(50);
   const [chartMode, setChartMode] = useState<MarketChartMode>('price');
+  const [displayAmount, setDisplayAmount] = useState(() =>
+    formatEditableAmount(amountIn),
+  );
   const lane: Lane = walletQuote ? (walletQuote.tight ? 'human' : 'bot') : 'human';
   const selected = walletQuote ?? quotes[lane];
   const outputDelta = BigInt(quotes.human.amountOut) - BigInt(quotes.bot.amountOut);
   const identityEdgeBps =
     quotes.improvementBps ??
     Number((outputDelta * 10_000n) / BigInt(quotes.bot.amountOut));
-  const tokenInSymbol = quotes.tokenInSymbol ?? (direction === 'tETH-to-tUSD' ? 'tETH' : 'tUSD');
-  const tokenOutSymbol = quotes.tokenOutSymbol ?? (direction === 'tETH-to-tUSD' ? 'tUSD' : 'tETH');
+  const tokenInSymbol = direction === 'tETH-to-tUSD' ? 'tETH' : 'tUSD';
+  const tokenOutSymbol = direction === 'tETH-to-tUSD' ? 'tUSD' : 'tETH';
   const deltaLabel = formatUnits(outputDelta, 18, tokenOutSymbol === 'tETH' ? 6 : 2);
   const executionEnabled = state.execution?.enabled === true;
   const submitting = tradeLane !== undefined;
@@ -257,15 +263,19 @@ export function TradingTerminal({
     connectedChainId === state.runtime.chainId;
   const minimumReceived =
     (BigInt(selected.amountOut) * BigInt(10_000 - slippageBps)) / 10_000n;
-  const displayAmount = formatUnits(selected.amountIn, 18, 6);
+  const editableAmount = parseEditableAmount(displayAmount);
+  const amountInputReady = editableAmount === amountIn;
 
   function updateDisplayAmount(value: string) {
-    if (!/^\d*(?:\.\d{0,18})?$/.test(value) || value === '') return;
-    const [whole = '0', fraction = ''] = value.split('.');
-    const units = BigInt(whole || '0') * 10n ** 18n +
-      BigInt((fraction + '0'.repeat(18)).slice(0, 18));
-    if (units > 0n) onAmountChange(units.toString());
+    if (value !== '' && !/^\d*(?:\.\d{0,18})?$/.test(value)) return;
+    setDisplayAmount(value);
+    const nextAmount = parseEditableAmount(value);
+    if (nextAmount) onAmountChange(nextAmount);
   }
+
+  useEffect(() => {
+    setDisplayAmount(formatEditableAmount(amountIn));
+  }, [amountIn, direction]);
 
   useEffect(() => {
     const accountLabel = connectedAccount
@@ -273,7 +283,7 @@ export function TradingTerminal({
         ? 'WORLD ID VERIFIED'
         : 'SEARCHER'
       : 'MARKET';
-    document.title = `${accountLabel} · Turing Swap`;
+    document.title = `${accountLabel} · Turing`;
   }, [connectedAccount, walletQuote?.humanBacked]);
 
   return (
@@ -324,31 +334,12 @@ export function TradingTerminal({
 
         <aside className="terminal-panel quote-ticket" aria-label="Quote ticket">
         <div className="panel-head">
-          <div><strong>Trade</strong><span>Exact input · live market order</span></div>
+          <div><strong>Swap</strong><span>tETH ↔ tUSD</span></div>
           <span className="live-tag">LIVE</span>
         </div>
         <div className="ticket-body">
           {!connectedAccount ? (
-            <div className="wallet-panel disconnected">
-              <div className="wallet-panel-head">
-                <div>
-                  <span>Trading account</span>
-                  <strong>Connect a wallet to trade</strong>
-                </div>
-              </div>
-              <button
-                className="wallet-connect-button"
-                disabled={!walletInstalled || walletConnecting}
-                onClick={() => void onConnectWallet(false)}
-                type="button"
-              >
-                {walletConnecting
-                  ? 'Opening wallet…'
-                  : walletInstalled
-                    ? 'Connect wallet'
-                    : 'Install a browser wallet'}
-              </button>
-            </div>
+            <p className="wallet-preview-note">Connect your wallet to see your balance and trading rate.</p>
           ) : walletQuoteError ? (
             <div className="ticket-inline-error">{walletQuoteError}</div>
           ) : !walletQuoteLoading && !walletQuote?.humanBacked ? (
@@ -357,8 +348,8 @@ export function TradingTerminal({
               onClick={onOpenVerify}
               type="button"
             >
-              <span>Autonomous searcher rate active</span>
-              Prove human backing with World ID →
+              <span>Standard rate applies</span>
+              Verify with World ID for a lower rate →
             </button>
           ) : null}
           <div className="direction-tabs" aria-label="Trade direction">
@@ -402,7 +393,7 @@ export function TradingTerminal({
             </label>
           </div>
           <div className="size-selector">
-            <span>Trade size · {tokenInSymbol} input · volume drives repricing</span>
+            <span>Quick amounts</span>
             <div>
               {TRADE_SIZES[direction].map((size) => (
                 <button
@@ -410,7 +401,10 @@ export function TradingTerminal({
                   className={amountIn === size.amountIn ? 'active' : undefined}
                   disabled={submitting}
                   key={size.amountIn}
-                  onClick={() => onAmountChange(size.amountIn)}
+                  onClick={() => {
+                    setDisplayAmount(formatEditableAmount(size.amountIn));
+                    onAmountChange(size.amountIn);
+                  }}
                   type="button"
                 >
                   {size.label} {tokenInSymbol}
@@ -429,6 +423,7 @@ export function TradingTerminal({
             <div>
               <input
                 aria-label={`Amount of ${tokenInSymbol} to pay`}
+                aria-invalid={!amountInputReady}
                 inputMode="decimal"
                 onChange={(event) => updateDisplayAmount(event.target.value)}
                 value={displayAmount}
@@ -438,70 +433,41 @@ export function TradingTerminal({
           </div>
           <div className="swap-arrow">↓</div>
           <div className="token-field">
-            <label>Receive <span>On-chain quote</span></label>
+            <label>Receive <span>{walletQuote ? 'On-chain quote' : 'Verified-rate preview'}</span></label>
             <div>
               <strong>{formatUnits(selected.amountOut, 18, tokenOutSymbol === 'tETH' ? 6 : 2)}</strong>
               <b>{tokenOutSymbol}</b>
             </div>
           </div>
           <dl className="ticket-summary">
-            <div>
-              <dt>Risk lane</dt>
-              <dd>
-                {selected.tier.toUpperCase()} ·{' '}
-                {walletQuote?.humanBacked
-                  ? walletQuote.tight
-                    ? 'human bounded'
-                    : 'human quota exceeded'
-                  : 'autonomous searcher'}
-              </dd>
-            </div>
-            <div><dt>Live LP rate</dt><dd>{selected.feeBps} bps</dd></div>
-            <div>
-              <dt>Verified retail quote</dt>
-              <dd>
-                {formatUnits(quotes.human.amountOut, 18, tokenOutSymbol === 'tETH' ? 6 : 2)}{' '}
-                {tokenOutSymbol}
-              </dd>
-            </div>
-            <div>
-              <dt>Searcher quote</dt>
-              <dd>
-                {formatUnits(quotes.bot.amountOut, 18, tokenOutSymbol === 'tETH' ? 6 : 2)}{' '}
-                {tokenOutSymbol}
-              </dd>
-            </div>
-            <div>
-              <dt>Minimum received</dt>
-              <dd>
-                {formatUnits(minimumReceived, 18, tokenOutSymbol === 'tETH' ? 6 : 2)}{' '}
-                {tokenOutSymbol}
-              </dd>
-            </div>
-            <div>
-              <dt>Verified retail execution edge</dt>
-              <dd className="positive">
-                +{deltaLabel} {tokenOutSymbol} · +{identityEdgeBps} bps
-              </dd>
-            </div>
+            <div><dt>{walletQuote ? 'Trading fee' : 'Verified fee preview'}</dt><dd>{(selected.feeBps / 100).toFixed(2)}%</dd></div>
+            <div><dt>Minimum received</dt><dd>{formatUnits(minimumReceived, 18, tokenOutSymbol === 'tETH' ? 6 : 2)} {tokenOutSymbol}</dd></div>
           </dl>
           <details className="ticket-route">
-            <summary>Execution details <span>{(selected.feeBps / 100).toFixed(2)}% price impact</span></summary>
-            <p>{tokenInSymbol} → SwapVM opcode 34 → Aqua inventory → {tokenOutSymbol}</p>
-            <small>Gas is estimated and confirmed in your wallet before broadcast.</small>
+            <summary>Rate comparison & routing <span>View details</span></summary>
+            <dl>
+              <div><dt>Verified rate</dt><dd>{formatUnits(quotes.human.amountOut, 18, tokenOutSymbol === 'tETH' ? 6 : 2)} {tokenOutSymbol}</dd></div>
+              <div><dt>Standard rate</dt><dd>{formatUnits(quotes.bot.amountOut, 18, tokenOutSymbol === 'tETH' ? 6 : 2)} {tokenOutSymbol}</dd></div>
+              <div><dt>Verified advantage</dt><dd className="positive">+{deltaLabel} {tokenOutSymbol} · {identityEdgeBps} bps</dd></div>
+            </dl>
+            <p>{tokenInSymbol} → SwapVM → Aqua → {tokenOutSymbol}</p>
+            <small>Gas is estimated by your wallet before you confirm.</small>
           </details>
           <button
             className={`trade-action ${lane}`}
             disabled={
               submitting ||
               walletConnecting ||
+              !executionEnabled ||
               (connectedAccount !== undefined &&
-                (walletQuoteLoading || !quoteReady || walletQuote?.sufficientBalance === false))
+                (!amountInputReady ||
+                  walletQuoteLoading ||
+                  !quoteReady ||
+                  walletQuote?.sufficientBalance === false))
             }
             onClick={() => {
               if (!connectedAccount) void onConnectWallet(false);
-              else if (executionEnabled) void onTrade(selected.amountIn, direction);
-              else onReplay();
+              else if (executionEnabled && amountInputReady) void onTrade(amountIn, direction, slippageBps);
             }}
             type="button"
           >
@@ -511,6 +477,8 @@ export function TradingTerminal({
                 : 'Browser wallet required'
               : walletQuote?.sufficientBalance === false
                 ? `Insufficient ${walletQuote.tokenInSymbol} balance`
+              : !amountInputReady
+                ? 'Enter a valid amount'
               : walletQuoteLoading || !quoteReady
               ? 'Refreshing on-chain quote…'
               : selectedTradePending
@@ -538,8 +506,8 @@ export function TradingTerminal({
           )}
           {lastTrade && (
             <a className={`trade-receipt ${lastTrade.tight ? 'human' : 'bot'}`} href={lastTrade.explorerUrl} rel="noreferrer" target="_blank">
-              <span>Latest mined proof · block {lastTrade.blockNumber} ↗</span>
-              <strong>{lastTrade.event} · opcode {lastTrade.opcode}</strong>
+              <span>Confirmed · block {lastTrade.blockNumber} ↗</span>
+              <strong>Swap complete</strong>
               <small>
                 {formatUnits(lastTrade.amountIn)} {lastTrade.tokenInSymbol} →{' '}
                 {formatUnits(

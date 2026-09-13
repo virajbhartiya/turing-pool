@@ -8,6 +8,14 @@ fi
 
 args=(dev --dir nuthatch --window "${NUTHATCH_LOG_WINDOW:-50}")
 
+if [[ "${NUTHATCH_SEAL_DIRECT:-}" == "1" ]]; then
+  args+=(--seal-direct)
+fi
+
+if [[ -n "${NUTHATCH_CONCURRENCY:-}" ]]; then
+  args+=(--concurrency "$NUTHATCH_CONCURRENCY")
+fi
+
 if [[ -n "${NUTHATCH_BACKFILL_BLOCKS:-}" ]]; then
   args+=(--backfill "$NUTHATCH_BACKFILL_BLOCKS")
 fi

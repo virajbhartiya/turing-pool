@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   applyFeeSchedule,
+  explorerTransactionUrl,
   buildTakerTraits,
   parseDemoTradeDirection,
   parseHumanGateProgram,
@@ -120,4 +121,11 @@ test('the live on-chain fee schedule overrides immutable order fallback fees', (
     tight: false,
     feeBps: 47n,
   });
+});
+
+
+test('local trade responses link to local receipts and World Chain keeps Worldscan', () => {
+  const hash = `0x${'ab'.repeat(32)}` as const;
+  assert.equal(explorerTransactionUrl(31337, hash), `/demo/transactions/${hash}`);
+  assert.equal(explorerTransactionUrl(480, hash), `https://worldscan.org/tx/${hash}`);
 });

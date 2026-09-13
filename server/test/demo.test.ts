@@ -11,15 +11,29 @@ import {
 import { hostedDemoQuotes, hostedState } from '../src/hosted-snapshot.js';
 import vercelApp from '../src/vercel-app.js';
 
+test('wallet-signed execution remains enabled when server-operated trading is disabled', async () => {
+  const appSource = await readFile(new URL('../src/app.ts', import.meta.url), 'utf8');
+  const routerSource = await readFile(new URL('../src/router-demo.ts', import.meta.url), 'utf8');
+  assert.match(appSource, /execution:\s*\{\s*enabled:\s*true,\s*serverOperated:\s*marketTradesEnabled\(\)/);
+  const preparation = routerSource.slice(routerSource.indexOf('export async function prepareConnectedWalletTrade'), routerSource.indexOf('export async function confirmConnectedWalletTrade'));
+  assert.ok(preparation.length > 0);
+  assert.doesNotMatch(preparation, /marketTradesEnabled\(\)/, 'preparing wallet calldata must not require server trading keys');
+});
+
 test('sybil demo quote is explicitly one wei over the shared remaining quota', () => {
   assert.equal(amountForOverQuotaQuote(9n * 10n ** 18n), 9n * 10n ** 18n + 1n);
   assert.equal(amountForOverQuotaQuote(0n), 1n);
 });
 
+test('sybil demo quote remains executable after the shared quota reaches zero', () => {
+  assert.equal(amountForOverQuotaQuote(0n, 10n ** 18n), 10n ** 18n);
+  assert.equal(amountForOverQuotaQuote(5n, 3n), 6n);
+});
+
 test('runtime labels distinguish local mocks, truthful execution forks, and live chains', () => {
   assert.deepEqual(classifyRuntime(31337, true), {
     mode: 'local',
-    label: 'Local Anvil · mock AgentBook',
+    label: 'World Chain',
     agentBook: 'mock',
   });
   assert.deepEqual(classifyRuntime(480, true, 'https://worldchain-mainnet.g.alchemy.com/public'), {

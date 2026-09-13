@@ -2,7 +2,6 @@
 
 This nest indexes the live World Chain market:
 
-- canonical World AgentBook identity reads
 - identity decisions emitted by `_humanGate` on the active vault router
 - real SwapVM fills settled from Aqua virtual balances
 - active-vault deposits, withdrawals, and LP-share accounting
@@ -19,23 +18,29 @@ Install Nuthatch 0.6.1 or newer, then start the nest from the repository root:
 pnpm nuthatch:dev
 ```
 
-The checked-in public World Chain RPC is a fallback. For a reliable live
-market, supply a dedicated World Chain RPC:
+The checked-in public World Chain RPC is a fallback. The following tested
+public endpoint supports large historical windows, allowing Nuthatch to seal
+the full deployment history quickly:
 
 ```bash
-NUTHATCH_RPC_URL=https://your-world-chain-rpc.example pnpm nuthatch:dev
+NUTHATCH_RPC_URL=https://worldchain-mainnet.gateway.tenderly.co \
+NUTHATCH_LOG_WINDOW=100000 \
+NUTHATCH_SEAL_DIRECT=1 \
+NUTHATCH_CONCURRENCY=4 \
+pnpm nuthatch:dev
 ```
 
 If a provider limits `eth_getLogs`, run the checked-in proxy. It splits
 Nuthatch's adaptive ranges, spaces requests, and merges the responses:
 
 ```bash
-RPC_UPSTREAM_URL=https://your-world-chain-rpc.example \
+RPC_UPSTREAM_URL=https://worldchain-mainnet.g.alchemy.com/public \
 RPC_PROXY_PORT=8547 \
+RPC_MAX_LOG_BLOCK_RANGE=100 \
 pnpm rpc-proxy
 
 NUTHATCH_RPC_URL=http://127.0.0.1:8547 \
-NUTHATCH_LOG_WINDOW=50 \
+NUTHATCH_LOG_WINDOW=4000 \
 pnpm nuthatch:dev
 ```
 
@@ -58,6 +63,9 @@ nuthatch sql --dir nuthatch \
 
 nuthatch sql --dir nuthatch \
   'SELECT * FROM turing_activity_mix'
+
+nuthatch sql --dir nuthatch \
+  'SELECT * FROM turing_risk_window'
 
 nuthatch sql --dir nuthatch \
   'SELECT * FROM turing_fee_history ORDER BY block_number DESC, log_index DESC'

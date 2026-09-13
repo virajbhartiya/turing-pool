@@ -3,12 +3,18 @@
 # keeps the quote API and dashboard alive until Ctrl-C.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+PROJECT_ROOT="$PWD"
 
 MODE="${1:-local}"
 RPC_URL="${RPC_URL:-http://127.0.0.1:8545}"
 BASE_RPC_URL="${BASE_RPC_URL:-https://mainnet.base.org}"
 WEB_PORT="${WEB_PORT:-4030}"
 RUN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/turing-pool-demo.XXXXXX")"
+
+# Foundry's deterministic test accounts #1 and #2. These keys are public,
+# local-only fixtures; demo.sh always starts a disposable Anvil chain.
+DEMO_BOT_PRIVATE_KEY="${BOT_PRIVATE_KEY:-0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d}"
+DEMO_HUMAN_PRIVATE_KEY="${HUMAN_AGENT_PRIVATE_KEY:-0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a}"
 
 ANVIL_PID=""
 API_PID=""
@@ -65,16 +71,27 @@ if [ "$MODE" = "fork" ]; then
   (
     cd contracts
     AQUA="$REAL_AQUA" AGENT_BOOK="$REAL_AGENT_BOOK" HUMAN_ID="$HUMAN_ID_DEC" \
-      forge script script/DeployDemo.s.sol --rpc-url "$RPC_URL" --broadcast
+      forge script script/DeployDemo.s.sol --rpc-url "$RPC_URL" --broadcast --slow
   ) >"$RUN_DIR/deploy.log"
 else
   (
     cd contracts
-    forge script script/DeployDemo.s.sol --rpc-url "$RPC_URL" --broadcast
+    forge script script/DeployDemo.s.sol --rpc-url "$RPC_URL" --broadcast --slow
   ) >"$RUN_DIR/deploy.log"
 fi
 
-(cd server && exec pnpm start) >"$RUN_DIR/server.log" 2>&1 &
+(cd server && exec env \
+  DEPLOYMENTS_PATH="$PROJECT_ROOT/contracts/deployments/demo.json" \
+  RPC_URL="$RPC_URL" \
+  WORLD_RPC_URL="$RPC_URL" \
+  CHAIN_ID=31337 \
+  AGENTKIT_SIGNER_CHAIN_ID=31337 \
+  MARKET_TRADES_ENABLED="${MARKET_TRADES_ENABLED:-1}" \
+  MARKET_TRADE_MAX_TETH_IN="${MARKET_TRADE_MAX_TETH_IN:-1000000000000000000}" \
+  MARKET_TRADE_MAX_TUSD_IN="${MARKET_TRADE_MAX_TUSD_IN:-1000000000000000000000}" \
+  BOT_PRIVATE_KEY="$DEMO_BOT_PRIVATE_KEY" \
+  HUMAN_AGENT_PRIVATE_KEY="$DEMO_HUMAN_PRIVATE_KEY" \
+  pnpm start) >"$RUN_DIR/server.log" 2>&1 &
 API_PID=$!
 for _ in $(seq 1 30); do
   curl -sf http://localhost:4021/ >/dev/null 2>&1 && break
@@ -82,7 +99,7 @@ for _ in $(seq 1 30); do
 done
 curl -sf http://localhost:4021/ >/dev/null
 
-(cd web && exec env WEB_PORT="$WEB_PORT" pnpm start) >"$RUN_DIR/web.log" 2>&1 &
+(cd web && exec pnpm dev --port "$WEB_PORT" --strictPort) >"$RUN_DIR/web.log" 2>&1 &
 WEB_PID=$!
 for _ in $(seq 1 30); do
   curl -sf "http://localhost:$WEB_PORT/" >/dev/null 2>&1 && break
@@ -93,11 +110,12 @@ curl -sf "http://localhost:$WEB_PORT/" >/dev/null
 echo
 echo "Turing Pool is ready:"
 echo "  Dashboard: http://localhost:$WEB_PORT"
+echo "  Autopilot: http://localhost:$WEB_PORT/#autopilot"
 echo "  Quote API: http://localhost:4021"
 echo "  Chain:     $MODE (chain id $(cast chain-id --rpc-url "$RPC_URL"))"
 echo
-echo "In a second terminal, run the narrated sequence:"
-echo "  pnpm demo:beats"
+echo "Open Autopilot and click 'Run live judge demo' for the complete flow."
+echo "For the narrated terminal sequence, run: pnpm demo:beats"
 echo
 echo "Logs are in $RUN_DIR. Press Ctrl-C to stop the environment."
 

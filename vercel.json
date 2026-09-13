@@ -17,6 +17,18 @@
   ],
   "rewrites": [
     {
+      "source": "/api",
+      "destination": "/"
+    },
+    {
+      "source": "/autopilot/:path*",
+      "destination": "/"
+    },
+    {
+      "source": "/faucet/:path*",
+      "destination": "/"
+    },
+    {
       "source": "/health",
       "destination": "/"
     },

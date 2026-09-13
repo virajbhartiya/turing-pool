@@ -86,7 +86,6 @@ export function TokenFaucet({
     setTransactionHash(undefined);
     try {
       setPhase('preparing');
-      await ensureExecutionChain(provider);
       const response = await fetch(`${apiBase()}/faucet/prepare`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -97,6 +96,7 @@ export function TokenFaucet({
         throw new Error('error' in body && body.error ? body.error : 'Faucet claim could not be prepared');
       }
 
+      await ensureExecutionChain(provider, body.state.chainId);
       setState(body.state);
       setPhase('signing');
       const hash = await sendWalletTransaction(provider, body.transaction);
@@ -143,11 +143,11 @@ export function TokenFaucet({
     <article className="token-faucet">
       <header>
         <div>
-          <span>Test-token faucet</span>
-          <h2>Fund this wallet for trading and liquidity.</h2>
+          <span>Get started</span>
+          <h2>Get test tokens</h2>
         </div>
         <b className={state?.claimable ? 'ready' : ''}>
-          {state?.enabled ? `${state.remainingClaims ?? '—'} CLAIMS LEFT` : 'OFFLINE'}
+          {state?.enabled ? 'Available' : 'Unavailable'}
         </b>
       </header>
 
@@ -167,7 +167,7 @@ export function TokenFaucet({
             <em>{state?.token1?.symbol ?? 'tUSD'}</em>
           </strong>
         </div>
-        <small>ONE CLAIM / WALLET / 24H</small>
+        <small>Once every 24 hours</small>
       </div>
 
       {account && state?.token0 && state.token1 && (

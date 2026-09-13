@@ -313,6 +313,68 @@ export interface PreparedWalletTrade {
   };
 }
 
+export type AutopilotStatus = 'draft' | 'active' | 'paused' | 'completed';
+
+export interface AutopilotEvidence {
+  source: 'nuthatch' | 'snapshot' | 'chain-events';
+  indexedBlock: string | null;
+  observedAt: string;
+  fills: number;
+  tightShareBps: number;
+  botShareBps: number;
+  currentTightFeeBps: number;
+  currentWideFeeBps: number;
+  averageExecutionPrice: number;
+  priceGapBps: number;
+  lagBlocks: number;
+  available: boolean;
+  provenance: string;
+}
+
+export interface AutopilotCheck {
+  key: 'identity' | 'indexer' | 'bot-share' | 'fee' | 'price-gap' | 'expiry';
+  label: string;
+  value: string;
+  limit: string;
+  passed: boolean;
+}
+
+export interface AutopilotPlan {
+  id: string;
+  version: 1;
+  strategy: 'conditional-dca';
+  title: string;
+  prompt: string;
+  owner: string | null;
+  status: AutopilotStatus;
+  direction: DemoTradeDirection;
+  inputToken: DemoTokenSymbol;
+  outputToken: DemoTokenSymbol;
+  totalAmount: string;
+  sliceAmount: string;
+  slices: number;
+  executedSlices: number;
+  remainingAmount: string;
+  executions: Array<{
+    slice: number;
+    amountIn: string;
+    transactionHash: string;
+    confirmedAt: string;
+  }>;
+  conditions: {
+    maxBotShareBps: number;
+    maxFeeBps: number;
+    maxPriceGapBps: number;
+  };
+  createdAt: string;
+  expiresAt: string;
+  decision: 'execute' | 'wait' | 'paused' | 'complete';
+  decisionSummary: string;
+  checks: AutopilotCheck[];
+  evidence: AutopilotEvidence;
+  decisionHash: string;
+}
+
 export interface FaucetToken {
   address: string;
   name: string;

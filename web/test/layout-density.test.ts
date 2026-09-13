@@ -3,11 +3,11 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 test('execution detail stays bounded and dense proof data uses progressive disclosure', async () => {
-  const [terminal, controller, evidence, styles] = await Promise.all([
+  const [terminal, autopilot, app, styles] = await Promise.all([
     readFile(new URL('../src/components/TradingTerminal.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../src/components/FeeControllerPanel.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../src/components/EvidenceLedger.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../src/styles.css', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/AutopilotWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/App.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/product.css', import.meta.url), 'utf8'),
   ]);
 
   assert.match(
@@ -20,11 +20,12 @@ test('execution detail stays bounded and dense proof data uses progressive discl
     /aria-expanded=/,
     'the full execution trace should be an explicit disclosure rather than permanent page clutter',
   );
-  assert.match(evidence, /<details[^>]*className="ledger-panel"/);
-  assert.match(evidence, /<summary/);
-  assert.doesNotMatch(
-    controller,
-    /proof-rail/,
-    'the live trace already explains execution, so the controller must not repeat the same proof sequence',
+  assert.match(autopilot, /<details[^>]*className="autopilot-brain panel-frame"/);
+  assert.doesNotMatch(app, /<DemoJourney/);
+  assert.match(
+    autopilot,
+    /reasoning-timeline/,
+    'Autopilot should expose the observe, reason, execute, and prove sequence in the primary workspace',
   );
+  assert.doesNotMatch(autopilot, /runGuidedDemo|Run live judge demo|executeGuidedTrade/);
 });

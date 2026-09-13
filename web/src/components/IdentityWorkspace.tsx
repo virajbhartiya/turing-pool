@@ -27,13 +27,12 @@ export function IdentityWorkspace({
 
   return (
     <section className="identity-workspace view-workspace">
-      <div className="view-heading compact">
+      <div className="page-heading">
         <div>
-          <span>World · verified trading wallets</span>
-          <h1>Bind an agent wallet to one unique human.</h1>
+          <span className="eyebrow">Your wallet</span>
+          <h1>Account & verification</h1>
           <p>
-            Establish accountable agency once, then let SwapVM enforce a shared risk
-            budget without exposing proof or biometric data to the DEX.
+            Connect your wallet, verify with World ID, and get test tokens.
           </p>
         </div>
       </div>
@@ -41,13 +40,14 @@ export function IdentityWorkspace({
       <div className="identity-layout simplified">
         <article className="identity-action-panel">
           <header>
-            <span>01</span>
+            <span className="account-icon" aria-hidden="true">◈</span>
             <div>
-              <strong>Connect the trading wallet</strong>
-              <small>The proof is bound to the exact wallet that will submit trades.</small>
+              <strong>{account ? 'Your trading identity' : 'Connect your wallet'}</strong>
+              <small>World ID unlocks verified rates and conditional strategies.</small>
             </div>
           </header>
           {!account ? (
+            <>
             <button
               className="identity-connect-button"
               disabled={!walletInstalled || walletConnecting}
@@ -60,6 +60,8 @@ export function IdentityWorkspace({
                   ? 'Connect wallet'
                   : 'Install a browser wallet'}
             </button>
+            {!walletInstalled && <p className="wallet-setup-help">Open this workspace in a browser with an Ethereum wallet extension enabled, then refresh to connect. Your wallet approves every transaction.</p>}
+            </>
           ) : (
             <WorldIdentityControl
               account={account}
@@ -71,8 +73,8 @@ export function IdentityWorkspace({
 
         <details className="identity-flow-disclosure">
           <summary>
-            <span>How verification reaches SwapVM</span>
-            <b>View flow +</b>
+            <span>How verification works</span>
+            <b>Learn more</b>
           </summary>
           <aside className="identity-explainer">
             <div>

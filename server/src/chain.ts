@@ -1,7 +1,9 @@
-import { createPublicClient, decodeAbiParameters, http } from 'viem';
+import { decodeAbiParameters } from 'viem';
 import { appAbi, aquaAbi, agentBookAbi, quotaAbi, routerAbi, strategyAbiParams } from './abi.js';
-import { loadDeployments, RPC_URL, type Deployments } from './config.js';
+import { canReuseBlockSnapshot } from './async-ttl-cache.js';
+import { CHAIN_ID, loadDeployments, RPC_URL, type Deployments } from './config.js';
 import { getLogsInBlockChunks } from './log-ranges.js';
+import { createReadClient } from './rpc-client.js';
 
 export interface Strategy {
   maker: `0x${string}`;
@@ -16,7 +18,7 @@ export const deployments: Deployments = loadDeployments();
 
 // Let viem preserve its concrete transport/chain generics. Widening this to
 // PublicClient breaks strict type-checking across viem releases.
-export const client = createPublicClient({ transport: http(RPC_URL) });
+export const client = createReadClient(RPC_URL, CHAIN_ID);
 
 // Scan logs only from the demo deployment onward - a Base mainnet fork's upstream
 // RPC rejects wide eth_getLogs ranges, and everything we index is post-deploy.
@@ -63,7 +65,7 @@ async function loadStrategySnapshot(): Promise<StrategySnapshot> {
     // the next scripted demo transaction. The event payloads are still cached
     // per block below; only this inexpensive head check must be fresh.
     const latestBlock = await client.getBlockNumber({ cacheTime: 0 });
-    if (strategyCache && Date.now() - strategyCache.loadedAt < STRATEGY_CACHE_TTL_MS) {
+    if (canReuseBlockSnapshot(strategyCache, latestBlock, STRATEGY_CACHE_TTL_MS)) {
       return strategyCache;
     }
 
@@ -300,7 +302,7 @@ export async function recentSwaps(limit = 50) {
   if (!swapLoad) {
     swapLoad = (async () => {
       const latestBlock = await client.getBlockNumber({ cacheTime: 0 });
-      if (swapCache && Date.now() - swapCache.loadedAt < SWAP_CACHE_TTL_MS) return swapCache;
+      if (canReuseBlockSnapshot(swapCache, latestBlock, SWAP_CACHE_TTL_MS)) return swapCache;
       const [appLogs, routerGates, routerFills] = await Promise.all([
         getLogsInBlockChunks(
           client,

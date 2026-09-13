@@ -18,6 +18,7 @@ import {
 import { createAsyncTtlCache } from './async-ttl-cache.js';
 import { client, deployments } from './chain.js';
 import { loadNuthatchVaultAccounting } from './nuthatch.js';
+import { DEFAULT_SLIPPAGE_BPS, minimumOutput, parseSlippageBps } from './slippage.js';
 import {
   applyFeeSchedule,
   buildTakerTraits,
@@ -664,7 +665,9 @@ export async function prepareVaultTrade(
   walletInput: unknown,
   amountInput: unknown,
   directionInput: unknown,
+  selectedSlippageBps = DEFAULT_SLIPPAGE_BPS,
 ): Promise<PreparedVaultTrade> {
+  parseSlippageBps(selectedSlippageBps);
   const quote = await quoteVaultWallet(vaultInput, walletInput, amountInput, directionInput);
   if (!quote.sufficientBalance) {
     throw new Error(
@@ -688,8 +691,7 @@ export async function prepareVaultTrade(
     };
   }
   const view = await executionView(quote.vault);
-  const minimumAmountOut =
-    (BigInt(quote.amountOut) * (10_000n - slippageBps())) / 10_000n;
+  const minimumAmountOut = minimumOutput(BigInt(quote.amountOut), selectedSlippageBps);
   const args = [
     view.order,
     quote.tokenIn.address,

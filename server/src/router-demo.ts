@@ -18,6 +18,7 @@ import { agentBookAbi, aquaAbi, erc20Abi, quotaAbi, routerAbi } from './abi.js';
 import { client, deployments } from './chain.js';
 import { RPC_URL } from './config.js';
 import { parseDemoTradeDirection, type DemoTradeDirection } from './demo.js';
+import { DEFAULT_SLIPPAGE_BPS, minimumOutput, parseSlippageBps } from './slippage.js';
 
 export type DemoTradeLane = 'human' | 'bot';
 export { parseDemoTradeDirection };
@@ -661,13 +662,14 @@ function connectedQuoteJson(
   };
 }
 
-export async function quoteConnectedWallet(
+async function connectedWalletQuote(
   walletInput: unknown,
   amountIn: bigint,
-  direction: DemoTradeDirection = 'tETH-to-tUSD',
+  direction: DemoTradeDirection,
+  executable: boolean,
 ): Promise<ConnectedWalletQuote> {
   const wallet = parseWalletAddress(walletInput);
-  assertExecutableAmount(amountIn, direction);
+  if (executable) assertExecutableAmount(amountIn, direction);
   const view = routerExecutionView();
   const quote = await quoteRouterFor(wallet, amountIn, view, direction);
   const [chainId, balance, allowance] = await Promise.all([
@@ -688,12 +690,35 @@ export async function quoteConnectedWallet(
   return connectedQuoteJson(wallet, chainId, quote, balance, allowance);
 }
 
+export async function quoteConnectedWallet(
+  walletInput: unknown,
+  amountIn: bigint,
+  direction: DemoTradeDirection = 'tETH-to-tUSD',
+): Promise<ConnectedWalletQuote> {
+  return connectedWalletQuote(walletInput, amountIn, direction, true);
+}
+
+/**
+ * Quote a reference wallet for the read-only market comparison. The comparison
+ * deliberately probes one wei above the shared quota, which can exceed the
+ * configured transaction cap; execution paths continue to use
+ * quoteConnectedWallet and enforce that cap.
+ */
+export async function quoteComparisonWallet(
+  walletInput: unknown,
+  amountIn: bigint,
+  direction: DemoTradeDirection = 'tETH-to-tUSD',
+): Promise<ConnectedWalletQuote> {
+  return connectedWalletQuote(walletInput, amountIn, direction, false);
+}
+
 export async function prepareConnectedWalletTrade(
   walletInput: unknown,
   amountIn: bigint,
   direction: DemoTradeDirection = 'tETH-to-tUSD',
+  slippageBps = DEFAULT_SLIPPAGE_BPS,
 ): Promise<ConnectedWalletPreparation> {
-  if (!marketTradesEnabled()) throw new Error('server-operated market trades are disabled');
+  parseSlippageBps(slippageBps);
   const wallet = parseWalletAddress(walletInput);
   const quote = await quoteConnectedWallet(wallet, amountIn, direction);
   if (!quote.sufficientBalance) {
@@ -719,12 +744,7 @@ export async function prepareConnectedWalletTrade(
   }
 
   const view = routerExecutionView();
-  const slippageBps = BigInt(process.env.SLIPPAGE_BPS ?? '50');
-  if (slippageBps < 0n || slippageBps >= 10_000n) {
-    throw new Error('SLIPPAGE_BPS must be between 0 and 9999');
-  }
-  const minimumAmountOut =
-    (BigInt(quote.amountOut) * (10_000n - slippageBps)) / 10_000n;
+  const minimumAmountOut = minimumOutput(BigInt(quote.amountOut), slippageBps);
   const route = selectDemoTradeRoute(view, direction);
   const args = [
     view.order,
@@ -1041,6 +1061,7 @@ export async function executeMarketTrade(
 }
 
 export function explorerTransactionUrl(chainId: number, transactionHash: Hex): string {
+  if (chainId === 31337) return `/demo/transactions/${transactionHash}`;
   if (chainId === 480) return `https://worldscan.org/tx/${transactionHash}`;
   return `https://blockscan.com/tx/${transactionHash}`;
 }

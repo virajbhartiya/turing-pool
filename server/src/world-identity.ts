@@ -23,6 +23,34 @@ function canonicalAgentBook(): Address {
   return getAddress(deployments.agentBook);
 }
 
+function isContractRevert(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /revert|execution reverted|contract function execution|missing revert data/i.test(
+    message,
+  );
+}
+
+/**
+ * Reads the nonce used by the identity status response.
+ *
+ * Some mock AgentBook deployments intentionally omit getNextNonce for wallets
+ * that have not been registered. That is an expected "not registered yet"
+ * state, but transport and RPC failures must still be visible to callers.
+ */
+export async function nextNonceForIdentityStatus(
+  humanId: bigint,
+  readNonce: () => Promise<bigint>,
+): Promise<bigint> {
+  try {
+    return await readNonce();
+  } catch (error) {
+    if (humanId === 0n && isContractRevert(error)) {
+      return 0n;
+    }
+    throw error;
+  }
+}
+
 export function parseIdentityAddress(value: unknown): Address {
   if (typeof value !== 'string' || !/^0x[0-9a-fA-F]{40}$/.test(value)) {
     throw new Error('wallet address must be a 20-byte EVM address');
@@ -33,7 +61,7 @@ export function parseIdentityAddress(value: unknown): Address {
 export async function worldIdentityStatus(value: unknown) {
   const address = parseIdentityAddress(value);
   const agentBook = canonicalAgentBook();
-  const [sourceBlock, humanId, nonce] = await Promise.all([
+  const [sourceBlock, humanId] = await Promise.all([
     worldClient.getBlock({ blockTag: 'latest' }),
     worldClient.readContract({
       address: agentBook,
@@ -41,13 +69,15 @@ export async function worldIdentityStatus(value: unknown) {
       functionName: 'lookupHuman',
       args: [address],
     }),
+  ]);
+  const nonce = await nextNonceForIdentityStatus(humanId, () =>
     worldClient.readContract({
       address: agentBook,
       abi: WORLD_AGENT_BOOK_ABI,
       functionName: 'getNextNonce',
       args: [address],
     }),
-  ]);
+  );
   if (sourceBlock.number === null || sourceBlock.hash === null) {
     throw new Error('World Chain returned an incomplete block');
   }

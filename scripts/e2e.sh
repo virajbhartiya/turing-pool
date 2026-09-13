@@ -8,13 +8,17 @@
 #
 # Asserts, end to end: bot pays wide fee; human-backed agent (full AgentKit
 # 402->SIWE->verify loop) pays tight fee; sybil wallet of the same human shares
-# the quota; the strategist agent autonomously re-prices via Aqua dock+ship.
+# the quota; Autopilot compiles a bounded strategy from market evidence and
+# reconciles a real Aqua receipt into its multi-slice position.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+PROJECT_ROOT="$PWD"
 
 MODE="${1:-local}"
-RPC=http://127.0.0.1:8545
-API=http://localhost:4021
+RPC_PORT="${E2E_RPC_PORT:-8545}"
+API_PORT="${E2E_API_PORT:-4021}"
+RPC="http://127.0.0.1:$RPC_PORT"
+API="http://localhost:$API_PORT"
 BASE_RPC="${BASE_RPC_URL:-https://mainnet.base.org}"
 REAL_AQUA=0x499943E74FB0cE105688beeE8Ef2ABec5D936d31
 REAL_AGENT_BOOK=0xE1D1D3526A6FAa37eb36bD10B933C1b77f4561a4
@@ -22,6 +26,12 @@ HUMAN_AGENT=0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
 SYBIL_AGENT=0x90F79bf6EB2c4f870365E785982E1f101E93b906
 HUMAN_ID_HEX=0x00000000000000000000000000000000000000000000000000000000beefbeef
 HUMAN_ID_DEC=$((16#beefbeef))
+
+export DEPLOYMENTS_PATH="$PROJECT_ROOT/contracts/deployments/demo.json"
+export RPC_URL="$RPC"
+export API_URL="$API"
+export CHAIN_ID=31337
+export AGENTKIT_SIGNER_CHAIN_ID=31337
 
 pass=0; fail=0
 ANVIL_PID=""
@@ -45,7 +55,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for port in 8545 4021; do
+for port in "$RPC_PORT" "$API_PORT"; do
   if lsof -tiTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
     echo "Port $port is already in use. Stop that process before running E2E." >&2
     exit 1
@@ -54,9 +64,9 @@ done
 
 echo "==> [1/8] starting anvil ($MODE mode)"
 if [ "$MODE" = "fork" ]; then
-  anvil --port 8545 --fork-url "$BASE_RPC" --silent &
+  anvil --port "$RPC_PORT" --fork-url "$BASE_RPC" --silent &
 else
-  anvil --port 8545 --silent &
+  anvil --port "$RPC_PORT" --silent &
 fi
 ANVIL_PID=$!
 for i in $(seq 1 30); do cast chain-id --rpc-url $RPC >/dev/null 2>&1 && break; sleep 1; done
@@ -74,21 +84,33 @@ if [ "$MODE" = "fork" ]; then
   registered=$(cast call $REAL_AGENT_BOOK "lookupHuman(address)(uint256)" $HUMAN_AGENT --rpc-url $RPC)
   echo "    real AgentBook now maps humanAgent -> ${registered%% *}"
   AQUA=$REAL_AQUA AGENT_BOOK=$REAL_AGENT_BOOK HUMAN_ID=$HUMAN_ID_DEC \
-    forge script script/DeployDemo.s.sol --rpc-url $RPC --broadcast >/dev/null
+    forge script script/DeployDemo.s.sol --rpc-url $RPC --broadcast --slow >/dev/null
 else
-  forge script script/DeployDemo.s.sol --rpc-url $RPC --broadcast >/dev/null
+  forge script script/DeployDemo.s.sol --rpc-url $RPC --broadcast --slow >/dev/null
 fi
 cd ..
 echo "    deployed: $(python3 -c "import json;d=json.load(open('contracts/deployments/demo.json'));print('app',d['app'],'| aqua',d['aqua'],'| agentBook',d['agentBook'],'(mock)' if d['mockAgentBook'] else '(REAL)')")"
 
 echo "==> [3/8] starting quote API"
-(cd server && exec pnpm start) > /tmp/turing-e2e-server.log 2>&1 &
+(cd server && exec env \
+  DEPLOYMENTS_PATH="$PROJECT_ROOT/contracts/deployments/demo.json" \
+  RPC_URL="$RPC" \
+  WORLD_RPC_URL="$RPC" \
+  CHAIN_ID=31337 \
+  PORT="$API_PORT" \
+  AGENTKIT_SIGNER_CHAIN_ID=31337 \
+  AUTOPILOT_STORE_PATH="$PROJECT_ROOT/.data/autopilot-e2e-$$.json" \
+  MARKET_TRADE_MAX_AMOUNT_IN=10000000000000000000 \
+  pnpm start) > /tmp/turing-e2e-server.log 2>&1 &
 API_PID=$!
 for i in $(seq 1 30); do curl -sf $API/ >/dev/null 2>&1 && break; sleep 1; done
 curl -sf $API/ >/dev/null
 
 challenge=$(curl -s -o /dev/null -w '%{http_code}' "$API/quote?amountIn=1000000000000000000")
 check "unauthenticated /quote returns 402 AgentKit challenge" "$challenge" "402"
+fresh_market_status=$(curl -s -o /tmp/turing-e2e-fresh-market.json -w '%{http_code}' \
+  "$API/market/quotes?amountIn=100000000000000000")
+check "fresh dashboard market comparison loads before any trades" "$fresh_market_status" "200"
 
 echo "==> [4/8] BOT swaps (anonymous lane)"
 bot_json=$(cd agent && pnpm --silent bot 2>&1 | tail -1)
@@ -113,24 +135,33 @@ check "sybil over-cap tier" "$(echo "$human_json" | python3 -c 'import json,sys;
 human_out=$(echo "$human_json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["amountOut"])')
 same_state_wide_out=$(echo "$human_json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["wideAmountOut"])')
 check_gt "human quote beats wide tier at the same pool state" "$human_out" "$same_state_wide_out"
-dashboard_sybil=$(curl -s "$API/market/quotes" | python3 -c 'import json,sys;print(json.load(sys.stdin)["sybil"]["tier"])')
+dashboard_quotes=$(curl -s "$API/market/quotes?amountIn=100000000000000000")
+dashboard_sybil=$(echo "$dashboard_quotes" | python3 -c 'import json,sys;print(json.load(sys.stdin).get("sybil", {}).get("tier", "missing"))')
 check "dashboard reproduces over-cap sybil tier" "$dashboard_sybil" "wide"
-
-echo "==> [7/8] STRATEGIST re-prices from live flow data (dock + ship on Aqua)"
-fees_before=$(curl -s $API/state | python3 -c 'import json,sys;p=json.load(sys.stdin)["pool"];print(p["tightFeeBps"],p["wideFeeBps"])')
-(cd agent && ANTHROPIC_API_KEY= pnpm --silent strategist > /tmp/turing-e2e-strategist.log 2>&1)
-fees_after=$(curl -s $API/state | python3 -c 'import json,sys;p=json.load(sys.stdin)["pool"];print(p["tightFeeBps"],p["wideFeeBps"])')
-if [ "$fees_before" != "$fees_after" ]; then
-  echo "  ✓ strategist re-priced: [$fees_before] -> [$fees_after] bps"; pass=$((pass+1))
-else
-  echo "  ✗ strategist did not re-price (still $fees_after)"; fail=$((fail+1))
+if [ "$dashboard_sybil" = "missing" ]; then
+  echo "    market quote response: $(echo "$dashboard_quotes" | python3 -c 'import json,sys;d=json.load(sys.stdin);print({k:d.get(k) for k in ("code", "error", "status")})')"
 fi
 
-echo "==> [8/8] post-repricing quotes"
-improv=$(curl -s "$API/market/quotes" | python3 -c 'import json,sys;print(json.load(sys.stdin)["improvementBps"])')
-check_gt "human price improvement after re-pricing (bps)" "$improv" "0"
-tier_now=$(curl -s "$API/market/quotes" | python3 -c 'import json,sys;print(json.load(sys.stdin)["human"]["tier"])')
-check "human still tight-tier on re-shipped strategy" "$tier_now" "tight"
+echo "==> [7/8] AUTOPILOT compiles and activates a bounded strategy"
+plan=$(curl -sf -X POST "$API/autopilot/plan" \
+  -H 'content-type: application/json' \
+  --data "{\"prompt\":\"Convert 0.01 tETH to tUSD in 5 slices when bot activity is below 95% and fee is under 100 bps.\",\"owner\":\"$HUMAN_AGENT\",\"maxPriceGapBps\":2000}")
+plan_id=$(echo "$plan" | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])')
+check "Autopilot identity check" "$(echo "$plan" | python3 -c 'import json,sys;p=json.load(sys.stdin);print(next(c["passed"] for c in p["checks"] if c["key"]=="identity"))')" "True"
+check "Autopilot evidence check" "$(echo "$plan" | python3 -c 'import json,sys;p=json.load(sys.stdin);print(next(c["passed"] for c in p["checks"] if c["key"]=="indexer"))')" "True"
+active=$(curl -sf -X POST "$API/autopilot/$plan_id/activate" -H 'content-type: application/json' --data '{}')
+check "Autopilot status" "$(echo "$active" | python3 -c 'import json,sys;print(json.load(sys.stdin)["status"])')" "active"
+active_decision=$(echo "$active" | python3 -c 'import json,sys;print(json.load(sys.stdin)["decision"])')
+check "Autopilot decision" "$active_decision" "execute"
+if [ "$active_decision" != "execute" ]; then
+  echo "    $(echo "$active" | python3 -c 'import json,sys;p=json.load(sys.stdin);print(p["decisionSummary"], [(c["key"], c["value"], c["limit"]) for c in p["checks"] if not c["passed"]])')"
+fi
+
+echo "==> [8/8] AUTOPILOT executes all five prepared Aqua slices and rejects fake/replayed progress"
+confirmed=$(cd server && pnpm exec tsx ../scripts/autopilot-e2e.ts "$plan_id" | tail -1)
+check "Autopilot completed slices" "$(echo "$confirmed" | python3 -c 'import json,sys;print(json.load(sys.stdin)["executedSlices"])')" "5"
+check "Autopilot receipt binding" "$(echo "$confirmed" | python3 -c 'import json,sys;print(len(json.load(sys.stdin)["executions"]))')" "5"
+check_gt "human price improvement remains positive (bps)" "$(echo "$dashboard_quotes" | python3 -c 'import json,sys;print(json.load(sys.stdin).get("improvementBps", 0))')" "0"
 
 echo
 echo "================================================"

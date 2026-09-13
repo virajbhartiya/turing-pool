@@ -13,3 +13,6 @@ web/public/*
 !web/public/brand/
 !web/public/brand/**
 .vercel
+.data/
+
+contracts/deployments/demo-market.json

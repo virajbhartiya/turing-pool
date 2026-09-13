@@ -1,10 +1,12 @@
 import { getAddress, isAddress, type Address } from 'viem';
 
 import { client, deployments } from './chain.js';
+import { DEFAULT_SLIPPAGE_BPS } from './slippage.js';
 import type { DemoTradeDirection } from './demo.js';
 import {
   confirmConnectedWalletTrade,
   prepareConnectedWalletTrade,
+  quoteComparisonWallet,
   quoteConnectedWallet,
   routerPoolState,
   type ConnectedWalletPreparation,
@@ -147,20 +149,40 @@ export async function quoteWebsiteWallet(
   return connectedQuoteFromVault(quote, direction);
 }
 
+export async function quoteWebsiteComparisonWallet(
+  walletInput: unknown,
+  amountIn: bigint,
+  direction: DemoTradeDirection,
+): Promise<ConnectedWalletQuote> {
+  const venue = websiteTradeVenue();
+  if (venue.kind === 'primary') {
+    return quoteComparisonWallet(walletInput, amountIn, direction);
+  }
+  const quote = await quoteVaultWallet(
+    venue.vault,
+    walletInput,
+    amountIn.toString(),
+    await vaultDirection(venue.vault, direction),
+  );
+  return connectedQuoteFromVault(quote, direction);
+}
+
 export async function prepareWebsiteWalletTrade(
   walletInput: unknown,
   amountIn: bigint,
   direction: DemoTradeDirection,
+  slippageBps = DEFAULT_SLIPPAGE_BPS,
 ): Promise<ConnectedWalletPreparation> {
   const venue = websiteTradeVenue();
   if (venue.kind === 'primary') {
-    return prepareConnectedWalletTrade(walletInput, amountIn, direction);
+    return prepareConnectedWalletTrade(walletInput, amountIn, direction, slippageBps);
   }
   const prepared = await prepareVaultTrade(
     venue.vault,
     walletInput,
     amountIn.toString(),
     await vaultDirection(venue.vault, direction),
+    slippageBps,
   );
   return {
     quote: await connectedQuoteFromVault(prepared.preview, direction),

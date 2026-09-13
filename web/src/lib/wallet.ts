@@ -42,30 +42,47 @@ export function parseChainId(value: unknown): number | undefined {
   return Number.parseInt(value.slice(2), 16);
 }
 
-export async function ensureExecutionChain(provider: Eip1193Provider): Promise<void> {
+export async function ensureExecutionChain(
+  provider: Eip1193Provider,
+  targetChainId = EXECUTION_CHAIN_ID,
+): Promise<number> {
+  if (targetChainId !== EXECUTION_CHAIN_ID && targetChainId !== 31337) {
+    throw new Error(`Unsupported execution network: ${targetChainId}`);
+  }
+  const local = targetChainId === 31337;
+  if (local && (typeof window === 'undefined' ||
+    !['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname))) {
+    throw new Error('The Anvil demo network is available only from localhost.');
+  }
+  const chainId = `0x${targetChainId.toString(16)}`;
   const current = parseChainId(await provider.request({ method: 'eth_chainId' }));
-  if (current === EXECUTION_CHAIN_ID) return;
+  if (current === targetChainId) return current;
 
+  const switchChain = () => provider.request({
+    method: 'wallet_switchEthereumChain',
+    params: [{ chainId }],
+  });
   try {
-    await provider.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: EXECUTION_CHAIN_HEX }],
-    });
+    await switchChain();
   } catch (error) {
     if (providerErrorCode(error) !== 4902) throw error;
     await provider.request({
       method: 'wallet_addEthereumChain',
-      params: [
-        {
-          chainId: EXECUTION_CHAIN_HEX,
-          chainName: 'World Chain',
-          nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-          rpcUrls: ['https://worldchain-mainnet.g.alchemy.com/public'],
-          blockExplorerUrls: ['https://worldscan.org'],
-        },
-      ],
+      params: [{
+        chainId,
+        chainName: local ? 'Turing Local Demo' : 'World Chain',
+        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+        rpcUrls: [local ? 'http://127.0.0.1:8546' : 'https://worldchain-mainnet.g.alchemy.com/public'],
+        ...(local ? {} : { blockExplorerUrls: ['https://worldscan.org'] }),
+      }],
     });
+    await switchChain();
   }
+  const actual = parseChainId(await provider.request({ method: 'eth_chainId' }));
+  if (actual !== targetChainId) {
+    throw new Error(`Wallet did not select the requested execution network (${targetChainId}).`);
+  }
+  return actual;
 }
 
 export async function sendWalletTransaction(

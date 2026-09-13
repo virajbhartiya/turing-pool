@@ -15,7 +15,7 @@ function preferredAccount(accounts: string[]): string | undefined {
   return accounts.find((account) => account.toLowerCase() === stored?.toLowerCase()) ?? accounts[0];
 }
 
-export function useInjectedWallet() {
+export function useInjectedWallet(executionChainId = EXECUTION_CHAIN_ID) {
   const provider = window.ethereum;
   const [accounts, setAccounts] = useState<string[]>([]);
   const [account, setAccount] = useState<string>();
@@ -48,6 +48,8 @@ export function useInjectedWallet() {
     ]).then(([availableAccounts, activeChain]) => {
       applyAccounts(availableAccounts);
       setChainId(parseChainId(activeChain));
+    }).catch((caught: unknown) => {
+      setError(caught instanceof Error ? caught.message : 'Wallet status is unavailable.');
     });
     return () => {
       provider.removeListener?.('accountsChanged', accountsChanged);
@@ -71,16 +73,16 @@ export function useInjectedWallet() {
           });
         }
         const connectedAccounts = await provider.request({ method: 'eth_requestAccounts' });
-        await ensureExecutionChain(provider);
+        const actualChainId = await ensureExecutionChain(provider, executionChainId);
         applyAccounts(connectedAccounts);
-        setChainId(EXECUTION_CHAIN_ID);
+        setChainId(actualChainId);
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : 'Wallet connection was cancelled.');
       } finally {
         setConnecting(false);
       }
     },
-    [applyAccounts, provider],
+    [applyAccounts, provider, executionChainId],
   );
 
   const selectAccount = useCallback(
@@ -103,12 +105,12 @@ export function useInjectedWallet() {
       account,
       chainId,
       connected: account !== undefined,
-      correctChain: chainId === EXECUTION_CHAIN_ID,
+      correctChain: chainId === executionChainId,
       connecting,
       error,
       connect,
       selectAccount,
     }),
-    [account, accounts, chainId, connect, connecting, error, provider, selectAccount],
+    [account, accounts, chainId, connect, connecting, error, provider, selectAccount, executionChainId],
   );
 }

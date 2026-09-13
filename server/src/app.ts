@@ -3,6 +3,8 @@ import type { Context } from 'hono';
 import { cors } from 'hono/cors';
 import { streamText } from 'hono/streaming';
 import { randomBytes } from 'node:crypto';
+import { resolve } from 'node:path';
+import type { Hash } from 'viem';
 import {
   parseAgentkitHeader,
   validateAgentkitMessage,
@@ -16,6 +18,7 @@ import {
   AGENTKIT_SIGNER_NETWORK,
   AGENTKIT_SIGNER_RPC_URL,
   BASE_URL,
+  CHAIN_ID,
   RPC_URL,
   SERVER_DOMAIN,
   WORLD_RPC_URL,
@@ -27,6 +30,7 @@ import {
   deployments,
   lookupHuman,
   quotaRemaining,
+  recentSwaps,
 } from './chain.js';
 import {
   amountForOverQuotaQuote,
@@ -50,6 +54,7 @@ import {
 import {
   confirmWebsiteWalletTrade,
   prepareWebsiteWalletTrade,
+  quoteWebsiteComparisonWallet,
   quoteWebsiteWallet,
   websitePoolState,
 } from './trade-venue.js';
@@ -67,6 +72,13 @@ import {
   worldIdentityStatus,
   type AgentBookRegistration,
 } from './world-identity.js';
+import {
+  buildAutopilotPlan,
+  type AutopilotEvidence,
+  type AutopilotIntent,
+} from './autopilot.js';
+import { AutopilotService, AutopilotStore, AutopilotValidationError } from './autopilot-service.js';
+import { parseSlippageBps } from './slippage.js';
 
 const app = new Hono();
 app.use('*', cors());
@@ -116,6 +128,10 @@ function describeLiveReadError(error: unknown) {
 }
 
 function liveReadErrorResponse(c: Context, error: unknown) {
+  console.error(
+    '[turing-pool] live read failed',
+    error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+  );
   const safeError = describeLiveReadError(error);
   c.header('Retry-After', safeError.retryAfterSeconds.toString());
   return c.json(safeError, safeError.status);
@@ -251,13 +267,20 @@ type ActivityIndex =
       error: string;
     }
   | {
-      configured: boolean;
-      name: string;
-      endpoint: string | null;
-      status: 'connected' | 'error' | 'not-configured';
-      mode: 'graphql' | 'chain-events';
+      configured: false;
+      name: 'Direct chain events';
+      endpoint: null;
+      status: 'connected';
+      mode: 'chain-events';
       indexedBlock: string | null;
-      error?: string;
+      sealedThrough: null;
+      lagBlocks: number;
+      registryHash: null;
+      provenance: string;
+      swaps: Awaited<ReturnType<typeof recentSwaps>>;
+      feeHistory: [];
+      summary: NuthatchActivity['summary'];
+      riskWindow: NuthatchActivity['riskWindow'];
     };
 
 let activityIndexCache:
@@ -293,24 +316,268 @@ async function activityIndex(): Promise<ActivityIndex> {
     }
   } else {
     const graph = await graphStatus();
-    value = graph.configured
-      ? {
-          ...graph,
-          name: 'The Graph',
-          mode: 'graphql',
-        }
-      : {
-          configured: false,
-          name: 'Direct chain events',
-          endpoint: null,
-          status: 'not-configured',
-          mode: 'chain-events',
-          indexedBlock: null,
-        };
+    if (graph.configured) {
+      throw new Error(
+        'A Subgraph endpoint is configured, but Autopilot requires Nuthatch SQL risk evidence.',
+      );
+    }
+    const swaps = await recentSwaps();
+    const tight = swaps.filter((swap) => swap.tight);
+    const wide = swaps.filter((swap) => !swap.tight);
+    const volume = (rows: typeof swaps) => rows.reduce((sum, row) => sum + BigInt(row.amountIn), 0n);
+    const tightVolume = volume(tight);
+    const wideVolume = volume(wide);
+    const totalVolume = tightVolume + wideVolume;
+    const tightShareBps = totalVolume > 0n ? Number(tightVolume * 10_000n / totalVolume) : 0;
+    const average = (rows: typeof swaps, key: 'feeBps' | 'amountOut') => rows.length
+      ? rows.reduce((sum, row) => sum + Number(row[key]), 0) / rows.length
+      : 0;
+    const averagePrice = (rows: typeof swaps) => rows.length
+      ? rows.reduce((sum, row) => {
+          const amountIn = Number(BigInt(row.amountIn) / 10n ** 12n) / 1_000_000;
+          const amountOut = Number(BigInt(row.amountOut) / 10n ** 12n) / 1_000_000;
+          return sum + (amountIn > 0 ? amountOut / amountIn : 0);
+        }, 0) / rows.length
+      : 0;
+    const indexedBlock = swaps[swaps.length - 1]?.blockNumber ?? null;
+    value = {
+      configured: false,
+      name: 'Direct chain events',
+      endpoint: null,
+      status: 'connected',
+      mode: 'chain-events',
+      indexedBlock,
+      sealedThrough: null,
+      lagBlocks: 0,
+      registryHash: null,
+      provenance: 'Local execution fallback · direct event scan',
+      swaps,
+      feeHistory: [],
+      summary: {
+        fills: swaps.length,
+        tightFills: tight.length,
+        wideFills: wide.length,
+        tightVolume: tightVolume.toString(),
+        wideVolume: wideVolume.toString(),
+        humanShareBps: tightShareBps,
+        indexedTradeBlock: indexedBlock,
+      },
+      riskWindow: indexedBlock
+        ? {
+            fills: swaps.length,
+            tightFills: tight.length,
+            wideFills: wide.length,
+            tightVolumeToken0: tightVolume.toString(),
+            wideVolumeToken0: wideVolume.toString(),
+            tightShareBps,
+            avgTightFeeBps: average(tight, 'feeBps'),
+            avgWideFeeBps: average(wide, 'feeBps'),
+            avgTightPrice: String(averagePrice(tight)),
+            avgWidePrice: String(averagePrice(wide)),
+            indexedTradeBlock: indexedBlock,
+            windowStartBlock: swaps[0]?.blockNumber ?? indexedBlock,
+          }
+        : null,
+    };
   }
   activityIndexCache = { checkedAt: Date.now(), value };
   return value;
 }
+
+const autopilotPlans = new AutopilotStore(process.env.AUTOPILOT_STORE_PATH ??
+  resolve(process.cwd(), '.data', `autopilot-${SNAPSHOT_MODE ? 'snapshot' : CHAIN_ID}.json`));
+const autopilotService = new AutopilotService(autopilotPlans, {
+  evidence: liveAutopilotEvidence,
+  verifyOwner: async (owner) => !SNAPSHOT_MODE && await lookupHuman(parseIdentityAddress(owner)) !== 0n,
+  blockNumber: () => client.getBlockNumber(),
+  prepare: prepareWebsiteWalletTrade,
+  confirm: confirmWebsiteWalletTrade,
+  transaction: async (hash) => {
+    const transaction = await client.getTransaction({ hash: hash as Hash });
+    if (transaction.blockNumber === null) throw new Error('Strategy transaction has not been mined.');
+    const block = await client.getBlock({ blockNumber: transaction.blockNumber });
+    return { from: transaction.from, to: transaction.to, input: transaction.input, timestamp: block.timestamp };
+  },
+});
+
+function snapshotAutopilotEvidence(): AutopilotEvidence {
+  const state = hostedState();
+  const tightShareBps = state.feeController.humanShareBps;
+  return {
+    source: 'snapshot',
+    indexedBlock: null,
+    observedAt: new Date().toISOString(),
+    fills: state.stats.totalSwaps,
+    tightShareBps,
+    botShareBps: 10_000 - tightShareBps,
+    currentTightFeeBps: state.feeController.tightFeeBps,
+    currentWideFeeBps: state.feeController.wideFeeBps,
+    averageExecutionPrice: 0,
+    priceGapBps: 0,
+    lagBlocks: 0,
+    available: true,
+    provenance: 'Hosted deterministic continuity preview',
+  };
+}
+
+async function liveAutopilotEvidence(): Promise<AutopilotEvidence> {
+  if (SNAPSHOT_MODE) return snapshotAutopilotEvidence();
+  const [index, pool] = await Promise.all([activityIndex(), websitePoolState()]);
+  if (index.status !== 'connected' || !index.riskWindow || (CHAIN_ID === 480 && index.mode !== 'sql+mcp')) {
+    return {
+      source: 'nuthatch',
+      indexedBlock: null,
+      observedAt: new Date().toISOString(),
+      fills: 0,
+      tightShareBps: 0,
+      botShareBps: 10_000,
+      currentTightFeeBps: pool.program.tightFeeBps,
+      currentWideFeeBps: pool.program.wideFeeBps,
+      averageExecutionPrice: 0,
+      priceGapBps: 0,
+      lagBlocks: Number.MAX_SAFE_INTEGER,
+      available: false,
+      provenance: index.status === 'error'
+        ? index.error ?? 'Nuthatch request failed'
+        : 'Nuthatch risk window unavailable',
+    };
+  }
+  const risk = index.riskWindow;
+  const tightPrice = Number(risk.avgTightPrice);
+  const widePrice = Number(risk.avgWidePrice);
+  const averageExecutionPrice = (tightPrice + widePrice) / 2;
+  const priceGapBps = averageExecutionPrice > 0
+    ? Math.abs(tightPrice - widePrice) / averageExecutionPrice * 10_000
+    : 0;
+  return {
+    source: index.mode === 'sql+mcp' ? 'nuthatch' : 'chain-events',
+    indexedBlock: risk.indexedTradeBlock,
+    observedAt: new Date().toISOString(),
+    fills: risk.fills,
+    tightShareBps: risk.tightShareBps,
+    botShareBps: 10_000 - risk.tightShareBps,
+    currentTightFeeBps: pool.program.tightFeeBps,
+    currentWideFeeBps: pool.program.wideFeeBps,
+    averageExecutionPrice,
+    priceGapBps,
+    lagBlocks: index.lagBlocks,
+    available: true,
+    provenance: `${index.provenance} · registry ${index.registryHash ?? 'unavailable'}`,
+  };
+}
+
+function autopilotNotFound(c: Context) {
+  return c.json(
+    { code: 'autopilot_not_found', error: 'Autopilot strategy was not found.', status: 404 },
+    404,
+  );
+}
+
+app.get('/autopilot/templates', (c) => c.json({
+  templates: [
+    {
+      id: 'conditional-dca',
+      name: 'Verified DCA',
+      prompt: 'Convert 500 tUSD to tETH in 5 slices when bot activity is below 65% and fee is under 35 bps.',
+    },
+    {
+      id: 'buy-the-dip',
+      name: 'Price discipline',
+      prompt: 'Convert 750 tUSD to tETH in 5 slices when execution dispersion is below 150 bps and fee is under 35 bps.',
+    },
+    {
+      id: 'liquidity-shield',
+      name: 'Liquidity shield',
+      prompt: 'Convert 1 tETH to tUSD in 4 slices only when bot activity is below 45% and execution dispersion is below 100 bps.',
+    },
+  ],
+}));
+
+app.post('/autopilot/plan', async (c) => {
+  let intent: AutopilotIntent;
+  try {
+    intent = await c.req.json<AutopilotIntent>();
+  } catch {
+    return c.json({ code: 'invalid_autopilot_intent', error: 'Request body must be JSON.', status: 400 }, 400);
+  }
+  if (typeof intent.prompt !== 'string' || intent.prompt.trim().length < 8) {
+    return c.json({ code: 'invalid_autopilot_intent', error: 'Describe a trading goal in at least eight characters.', status: 400 }, 400);
+  }
+  try {
+    // Connection establishes strategy ownership. World ID is an optional lane
+    // upgrade evaluated at execution time; it must not be required to create
+    // or activate a wallet-owned strategy.
+    const connectedOwner = intent.owner === undefined ? undefined : parseIdentityAddress(intent.owner);
+    const plan = buildAutopilotPlan(
+      { ...intent, owner: connectedOwner },
+      await liveAutopilotEvidence(),
+    );
+    autopilotPlans.set({ plan });
+    return c.json(plan, 201);
+  } catch (error) {
+    return liveReadErrorResponse(c, error);
+  }
+});
+
+app.get('/autopilot/:id', (c) => {
+  const plan = autopilotPlans.get(c.req.param('id'))?.plan;
+  return plan ? c.json(plan) : autopilotNotFound(c);
+});
+
+app.post('/autopilot/:id/evaluate', async (c) => {
+  if (!autopilotPlans.get(c.req.param('id'))) return autopilotNotFound(c);
+  try {
+    return c.json(await autopilotService.evaluate(c.req.param('id')));
+  } catch (error) {
+    return liveReadErrorResponse(c, error);
+  }
+});
+
+app.post('/autopilot/:id/activate', async (c) => {
+  if (!autopilotPlans.get(c.req.param('id'))) return autopilotNotFound(c);
+  try {
+    return c.json(await autopilotService.evaluate(c.req.param('id'), 'active'));
+  } catch (error) { return liveReadErrorResponse(c, error); }
+});
+
+app.post('/autopilot/:id/pause', async (c) => {
+  if (!autopilotPlans.get(c.req.param('id'))) return autopilotNotFound(c);
+  try {
+    return c.json(await autopilotService.evaluate(c.req.param('id'), 'paused'));
+  } catch (error) { return liveReadErrorResponse(c, error); }
+});
+
+app.post('/autopilot/:id/prepare', async (c) => {
+  if (!autopilotPlans.get(c.req.param('id'))) return autopilotNotFound(c);
+  try {
+    const body = await c.req.json<{ address?: unknown }>();
+    const address = parseIdentityAddress(body.address);
+    return c.json(await autopilotService.prepare(c.req.param('id'), address));
+  } catch (error) {
+    if (!(error instanceof AutopilotValidationError)) return liveReadErrorResponse(c, error);
+    return c.json({ code: 'autopilot_preparation_rejected', error: error.message, status: 400 }, 400);
+  }
+});
+
+app.post('/autopilot/:id/confirm', async (c) => {
+  const plan = autopilotPlans.get(c.req.param('id'));
+  if (!plan) return autopilotNotFound(c);
+  let body: { transactionHash?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ code: 'invalid_autopilot_confirmation', error: 'Request body must be JSON.', status: 400 }, 400);
+  }
+  if (typeof body.transactionHash !== 'string' || !/^0x[0-9a-fA-F]{64}$/.test(body.transactionHash)) {
+    return c.json({ code: 'invalid_autopilot_confirmation', error: 'A confirmed transaction hash is required.', status: 400 }, 400);
+  }
+  try {
+    return c.json(await autopilotService.confirm(c.req.param('id'), body.transactionHash));
+  } catch (error) {
+    if (!(error instanceof AutopilotValidationError)) return liveReadErrorResponse(c, error);
+    return c.json({ code: 'autopilot_confirmation_rejected', error: error.message, status: 400 }, 400);
+  }
+});
 
 /// x402-style 402 response carrying the AgentKit extension. The
 /// @worldcoin/agentkit client detects this shape and auto-signs a SIWE proof.
@@ -518,8 +785,8 @@ const marketQuotes = async (c: Context) => {
   }
   try {
     const [human, bot] = await Promise.all([
-      quoteWebsiteWallet(deployments.humanAgent, amountIn, direction),
-      quoteWebsiteWallet(deployments.bot, amountIn, direction),
+      quoteWebsiteComparisonWallet(deployments.humanAgent, amountIn, direction),
+      quoteWebsiteComparisonWallet(deployments.bot, amountIn, direction),
     ]);
     const sharedHumanId = BigInt(human.humanId);
     if (sharedHumanId === 0n) {
@@ -532,15 +799,15 @@ const marketQuotes = async (c: Context) => {
       human.tokenIn,
       human.quota,
     );
-    const sybilAmountIn = amountForOverQuotaQuote(remaining);
-    const sybil = await quoteWebsiteWallet(
+    const sybilAmountIn = amountForOverQuotaQuote(remaining, amountIn);
+    const sybil = await quoteWebsiteComparisonWallet(
       deployments.sybilAgent,
       sybilAmountIn,
       direction,
     );
     const row = (
       label: string,
-      q: Awaited<ReturnType<typeof quoteWebsiteWallet>>,
+      q: Awaited<ReturnType<typeof quoteWebsiteComparisonWallet>>,
       address: string,
       quotedAmountIn: bigint,
     ) => ({
@@ -598,7 +865,9 @@ const marketQuotes = async (c: Context) => {
         ),
         sharedQuotaRemaining: remaining.toString(),
         proof:
-          'quoted amount is exactly one wei above the quota wallet #1 left for this humanId',
+          sybilAmountIn === remaining + 1n
+            ? 'quoted amount is exactly one wei above the quota wallet #1 left for this humanId'
+            : 'the shared human quota is exhausted; this executable quote remains in the wide lane',
       },
       improvementBps,
       rationale:
@@ -698,7 +967,7 @@ app.post('/wallet/prepare', async (c) => {
       403,
     );
   }
-  let body: { address?: unknown; amountIn?: unknown; direction?: unknown };
+  let body: { address?: unknown; amountIn?: unknown; direction?: unknown; slippageBps?: unknown };
   try {
     body = await c.req.json();
     const amountIn = parseQuoteAmount(
@@ -706,11 +975,11 @@ app.post('/wallet/prepare', async (c) => {
     );
     const direction = parseDemoTradeDirection(body.direction);
     return c.json(
-      await prepareWebsiteWalletTrade(body.address, amountIn, direction),
+      await prepareWebsiteWalletTrade(body.address, amountIn, direction, parseSlippageBps(body.slippageBps)),
     );
   } catch (error) {
     const description = errorDescription(error);
-    if (/wallet must|amountIn|direction must|insufficient .* balance/i.test(description)) {
+    if (/wallet must|amountIn|direction must|slippageBps|insufficient .* balance/i.test(description)) {
       return c.json(
         {
           code: /insufficient .* balance/i.test(description)
@@ -888,12 +1157,14 @@ app.get('/state', async (c) => {
       activityIndex(),
       lookupHuman(deployments.humanAgent),
     ]);
-    if (index.mode !== 'sql+mcp' || index.status !== 'connected') {
+    if (index.status !== 'connected' || (rpcChainId === 480 && index.mode !== 'sql+mcp')) {
       return c.json(
         {
           code: 'indexer_unavailable',
           error:
-            'Nuthatch has not confirmed the live market state yet. Wait for the on-chain indexer to catch up.',
+            rpcChainId === 480
+              ? 'Nuthatch has not confirmed the live market state yet. Wait for the on-chain indexer to catch up.'
+              : 'The local execution index has not confirmed market state yet.',
           retryable: true,
           retryAfterSeconds: 5,
           status: 503,
@@ -949,7 +1220,8 @@ app.get('/state', async (c) => {
         faucet: process.env.FAUCET_ADDRESS ?? deployments.faucet,
       },
       execution: {
-        enabled: marketTradesEnabled(),
+        enabled: true,
+        serverOperated: marketTradesEnabled(),
         venue: 'SwapVM',
         opcode: state.program.opcode,
         instruction: '_humanGate',
@@ -981,7 +1253,7 @@ app.get('/state', async (c) => {
         },
         activity: {
           ...indexMetadata,
-          name: 'Nuthatch · SQL + MCP',
+        name: index.mode === 'sql+mcp' ? 'Nuthatch · SQL + MCP' : 'Local chain event scan',
         },
         strategist: {
           ...indexMetadata,

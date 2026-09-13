@@ -50,6 +50,7 @@ export function shortAddress(value?: string): string {
 
 export function transactionExplorer(chainId: number, transactionHash?: string): string | undefined {
   if (!transactionHash) return undefined;
+  if (chainId === 31337) return `/demo/transactions/${transactionHash}`;
   if (chainId === 480) return `https://worldscan.org/tx/${transactionHash}`;
   return `https://blockscan.com/tx/${transactionHash}`;
 }

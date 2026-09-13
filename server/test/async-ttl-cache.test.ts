@@ -1,7 +1,22 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createAsyncTtlCache } from '../src/async-ttl-cache.js';
+import {
+  canReuseBlockSnapshot,
+  createAsyncTtlCache,
+} from '../src/async-ttl-cache.js';
+
+test('a TTL snapshot is invalidated immediately when a new block is mined', () => {
+  const snapshot = { latestBlock: 42n, loadedAt: 10_000 };
+
+  assert.equal(canReuseBlockSnapshot(snapshot, 42n, 5_000, 12_000), true);
+  assert.equal(
+    canReuseBlockSnapshot(snapshot, 43n, 5_000, 12_000),
+    false,
+    'a mined demo transaction must be visible without waiting for the wall-clock TTL',
+  );
+  assert.equal(canReuseBlockSnapshot(snapshot, 42n, 5_000, 15_000), false);
+});
 
 test('coalesces concurrent loads for the same liquidity-accounting key', async () => {
   let loadCount = 0;

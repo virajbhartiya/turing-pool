@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "type": "module",
   "packageManager": "pnpm@11.2.2",
-  "description": "An Aqua AMM with World ID-based adaptive execution fees. ETHGlobal Lisbon 2026.",
+  "description": "Human-backed trading agents that compile intents into evidence-gated Aqua execution on World Chain.",
   "scripts": {
     "build": "pnpm --filter @turing-pool/web build && pnpm --filter @turing-pool/server build",
-    "test": "pnpm --filter @turing-pool/economics test && pnpm --filter @turing-pool/web test && pnpm --filter @turing-pool/server test && pnpm --filter @turing-pool/agent test && pnpm --filter @turing-pool/subgraph build && (cd contracts && forge test)",
+    "test": "pnpm --filter @turing-pool/economics test && pnpm --filter @turing-pool/web test && pnpm --filter @turing-pool/server test && pnpm --filter @turing-pool/agent test && pnpm --filter @turing-pool/subgraph build && (cd contracts && forge test) && node --test test/demo-market-maker.test.mjs",
     "typecheck": "pnpm --filter @turing-pool/web typecheck && pnpm --filter @turing-pool/server typecheck && pnpm --filter @turing-pool/agent typecheck",
     "format:check": "cd contracts && forge fmt --check",
     "check": "pnpm typecheck && pnpm test && pnpm format:check",
@@ -21,7 +21,12 @@
     "nuthatch:schema": "nuthatch schema --dir nuthatch",
     "rpc-proxy": "node scripts/rpc-log-proxy.mjs",
     "dev:web": "pnpm --filter @turing-pool/web dev",
-    "test:vercel-runtime": "vercel build --yes && node --test test/vercel-runtime.test.mjs"
+    "live": "bash scripts/live.sh",
+    "test:vercel-runtime": "vercel build --yes && node --test test/vercel-runtime.test.mjs",
+    "demo:market": "bash scripts/demo-market.sh",
+    "demo:market:status": "bash scripts/demo-market.sh status",
+    "demo:market:stop": "bash scripts/demo-market.sh stop",
+    "test:demo-market": "node --test test/demo-market-maker.test.mjs"
   },
   "dependencies": {
     "@worldcoin/agentkit": "0.2.0",

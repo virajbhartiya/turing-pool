@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { DexHeader, type DexView } from './components/DexHeader';
+import { AutopilotWorkspace } from './components/AutopilotWorkspace';
 import { IdentityWorkspace } from './components/IdentityWorkspace';
 import { LandingPage } from './components/LandingPage';
 import { LPEconomicsPanel } from './components/LPEconomicsPanel';
-import { MarketHeader } from './components/MarketHeader';
 import { ProtocolWorkspace } from './components/ProtocolWorkspace';
 import { TradingTerminal } from './components/TradingTerminal';
 import { VaultWorkspace } from './components/VaultWorkspace';
@@ -27,12 +27,26 @@ import type {
   PreparedWalletTrade,
 } from './types';
 
+const dexViews: DexView[] = [
+  'overview',
+  'autopilot',
+  'trade',
+  'pool',
+  'verify',
+  'protocol',
+];
+
+function dexViewFromHash(hash: string): DexView | undefined {
+  const view = hash.replace(/^#/, '') as DexView;
+  return dexViews.includes(view) ? view : undefined;
+}
+
 function LoadingTerminal() {
   return (
     <div className="loading-terminal" role="status">
       <span />
-      <strong>Connecting to the Turing Swap market…</strong>
-      <small>Reading live strategy, quote, and activity state</small>
+      <strong>Loading your workspace</strong>
+      <small>Connecting to the market…</small>
     </div>
   );
 }
@@ -122,35 +136,32 @@ export function App() {
   const [direction, setDirection] = useState<DemoTradeDirection>(initialDirection);
   const [amountIn, setAmountIn] = useState(demoTradeAmounts[initialDirection][0]);
   const { snapshot, error, refreshing, refresh } = useProtocol(amountIn, direction);
-  const wallet = useInjectedWallet();
+  const wallet = useInjectedWallet(snapshot?.state.runtime.chainId);
   const [walletQuote, setWalletQuote] = useState<ConnectedWalletQuote>();
   const [walletQuoteLoading, setWalletQuoteLoading] = useState(false);
   const [walletQuoteError, setWalletQuoteError] = useState<string>();
-  const [copied, setCopied] = useState(false);
   const [tradeLane, setTradeLane] = useState<DemoTradeLane>();
   const [tradeError, setTradeError] = useState<DemoTradeError>();
   const [tradeProgress, setTradeProgress] = useState<DemoTradeProgress[]>([]);
   const [lastTrade, setLastTrade] = useState<DemoTradeResult>();
-  const initialView = window.location.hash.replace('#', '') as DexView;
   const [activeView, setActiveView] = useState<DexView>(
-    ['overview', 'trade', 'pool', 'verify', 'protocol'].includes(initialView)
-      ? initialView
-      : 'overview',
+    dexViewFromHash(window.location.hash) ?? 'autopilot',
   );
   useEffect(() => {
     const selectHashView = () => {
-      const view = window.location.hash.replace('#', '') as DexView;
-      if (['overview', 'trade', 'pool', 'verify', 'protocol'].includes(view)) setActiveView(view);
+      const view = dexViewFromHash(window.location.hash);
+      if (view) {
+        setActiveView(view);
+        return;
+      }
+      window.history.replaceState({}, '', `${window.location.pathname}${window.location.search}#autopilot`);
+      setActiveView('autopilot');
     };
+    selectHashView();
     window.addEventListener('hashchange', selectHashView);
     return () => window.removeEventListener('hashchange', selectHashView);
   }, []);
 
-  useEffect(() => {
-    if (!copied) return;
-    const timer = window.setTimeout(() => setCopied(false), 1_800);
-    return () => window.clearTimeout(timer);
-  }, [copied]);
 
   const refreshWalletQuote = useCallback(
     async (signal?: AbortSignal) => {
@@ -194,14 +205,6 @@ export function App() {
     return () => controller.abort();
   }, [refreshWalletQuote]);
 
-  async function copyReplayCommand() {
-    try {
-      await navigator.clipboard.writeText('pnpm market:world');
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
-  }
 
   function selectDirection(nextDirection: DemoTradeDirection) {
     setDirection(nextDirection);
@@ -213,13 +216,17 @@ export function App() {
 
   function selectView(view: DexView) {
     setActiveView(view);
-    window.history.replaceState({}, '', `${window.location.pathname}${window.location.search}#${view}`);
+    if (window.location.hash !== `#${view}`) {
+      window.history.pushState({}, '', `${window.location.pathname}${window.location.search}#${view}`);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function executeTrade(
     tradeAmountIn: string,
     tradeDirection: DemoTradeDirection,
+    strategyId?: string,
+    slippageBps = 50,
   ) {
     const walletAccount = wallet.account;
     const walletProvider = wallet.provider;
@@ -255,7 +262,7 @@ export function App() {
     ]);
     let approvalTransactionHash: string | undefined;
     try {
-      await ensureExecutionChain(walletProvider);
+      await ensureExecutionChain(walletProvider, snapshot?.state.runtime.chainId);
       setTradeProgress((current) =>
         upsertProgress(current, {
           stage: 'wallet',
@@ -308,13 +315,15 @@ export function App() {
       );
 
       const prepare = async (): Promise<PreparedWalletTrade> => {
-        const response = await fetch(`${apiBase()}/wallet/prepare`, {
+        const path = strategyId ? `/autopilot/${encodeURIComponent(strategyId)}/prepare` : '/wallet/prepare';
+        const response = await fetch(`${apiBase()}${path}`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             address: walletAccount,
             amountIn: tradeAmountIn,
             direction: tradeDirection,
+            slippageBps,
           }),
         });
         const body: unknown = await response.json();
@@ -467,6 +476,13 @@ export function App() {
         walletProvider,
         prepared.transaction,
       );
+      if (strategyId) {
+        // Persist as soon as the wallet returns a hash, before any receipt read.
+        // Navigation or a network failure must not invite a duplicate swap.
+        const key = `turing:v1:strategy:${state.runtime.chainId}:${walletAccount.toLowerCase()}`;
+        localStorage.setItem(key, strategyId);
+        localStorage.setItem(`${key}:pending`, transactionHash);
+      }
       setTradeProgress((current) =>
         upsertProgress(current, {
           stage: 'submission',
@@ -645,8 +661,7 @@ export function App() {
   if (!snapshot) {
     return (
       <main className="app-shell">
-        {error && <div className="error-banner">Connection error · {error}</div>}
-        <LoadingTerminal />
+        {error ? <div className="connection-empty" role="alert"><span className="product-mark">t</span><h1>We couldn’t reach the market</h1><p>{error}</p><button disabled={refreshing} onClick={() => void refresh()} type="button">{refreshing ? 'Reconnecting…' : 'Try again'}</button></div> : <LoadingTerminal />}
       </main>
     );
   }
@@ -662,7 +677,6 @@ export function App() {
 
   return (
     <main className="app-shell">
-      {error && <div className="error-banner">Last refresh failed · {error}</div>}
       <DexHeader
         account={wallet.account}
         accounts={wallet.accounts}
@@ -672,22 +686,40 @@ export function App() {
         onSelectAccount={wallet.selectAccount}
         onViewChange={selectView}
         quote={walletQuote}
+        networkLabel={state.runtime.label}
+        connected={state.runtime.rpcStatus === 'connected'}
       />
+      <div className="app-content" id="workspace-content" tabIndex={-1}>
+      {isSnapshot && <div className="preview-notice" role="status"><strong>Design preview</strong><span>Recorded market data · strategies are for review only and may reset. Use the live workspace for trading.</span></div>}
+      {error && <div className="error-banner" role="alert">Unable to refresh market data. {error}</div>}
+      {wallet.error && <div className="error-banner" role="alert">{wallet.error}</div>}
 
       {activeView === 'overview' && (
         <LandingPage state={state} onNavigate={selectView} />
       )}
 
+      {activeView === 'autopilot' && (
+        <AutopilotWorkspace
+          state={state}
+          account={wallet.account}
+          walletConnecting={wallet.connecting}
+          onConnectWallet={wallet.connect}
+          onOpenVerify={() => selectView('verify')}
+          onExecute={executeTrade}
+          onNavigate={selectView}
+          lastTrade={lastTrade}
+          tradeProgress={tradeProgress}
+          tradeError={tradeError}
+        />
+      )}
+
       {activeView === 'trade' && (
         <>
-          <MarketHeader
-            quotes={quotes}
-          />
+          <header className="page-heading"><div><span className="eyebrow">Trade</span><h1>Swap tokens</h1><p>Exchange tETH and tUSD at your wallet’s live rate.</p></div><span className="page-badge">tETH / tUSD</span></header>
           <TradingTerminal
             state={state}
             quotes={quotes}
-            onReplay={copyReplayCommand}
-            onTrade={executeTrade}
+            onTrade={(amount, tradeDirection, slippageBps) => executeTrade(amount, tradeDirection, undefined, slippageBps)}
             walletInstalled={wallet.installed}
             walletConnecting={wallet.connecting}
             connectedAccount={wallet.account}
@@ -745,9 +777,11 @@ export function App() {
       )}
 
       <footer>
-        <span>Turing Swap · ETHGlobal Lisbon</span>
+        <span>Turing · Your wallet, your control</span>
+        <span>{state.runtime.label}</span>
         {isSnapshot && <p>Hosted deterministic preview</p>}
       </footer>
+      </div>
     </main>
   );
 }

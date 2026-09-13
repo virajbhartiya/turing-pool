@@ -27,6 +27,20 @@ test('the Vercel route manifest sends dashboard API paths to the Hono function',
     '/wallet/prepare',
     '/wallet/confirm',
     '/quote',
+    '/api',
+    '/autopilot/templates',
+    '/autopilot/plan',
+    '/autopilot/example',
+    '/autopilot/example/evaluate',
+    '/autopilot/example/activate',
+    '/autopilot/example/pause',
+    '/autopilot/example/prepare',
+    '/autopilot/example/confirm',
+    '/faucet',
+    '/faucet/prepare',
+    '/vaults',
+    '/vaults/example',
+    '/identity/status',
   ]) {
     assert.ok(
       functionRoutes.some((route) => new RegExp(route.src).test(path)),
@@ -91,7 +105,9 @@ test('the built Vercel output initializes and serves every hosted route', async 
     service: 'turing-pool',
     mode: 'hosted-preview-snapshot',
   });
-  assert.match(await readFile(dashboardEntry, 'utf8'), /Turing Pool/);
+  const dashboardHtml = await readFile(dashboardEntry, 'utf8');
+  assert.match(dashboardHtml, /<title>Turing[^<]*<\/title>/);
+  assert.match(dashboardHtml, /<script[^>]+type="module"[^>]+src="\/assets\//);
 });
 
 test('the built function packages the live-chain backend and its AgentKit dependencies', async () => {
