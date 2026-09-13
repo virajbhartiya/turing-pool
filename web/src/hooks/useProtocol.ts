@@ -35,6 +35,11 @@ export function apiBase(): string {
     }
   }
 
+  const configured = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_API_URL;
+  if (typeof configured === 'string' && /^https?:\/\//i.test(configured)) {
+    return configured.replace(/\/$/, '');
+  }
+
   return window.location.origin.replace(/\/$/, '');
 }
 
